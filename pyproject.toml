@@ -36,6 +36,9 @@ dependencies = [
 
     # Logging
     "structlog>=24.1",
+
+    # Matching
+    "packaging>=24.0",
 ]
 
 [project.optional-dependencies]
