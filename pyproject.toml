@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ati-evn"
+version = "0.1.0"
+description = "ATI-EVN — Agentic Threat Intelligence for EVN and subsidiaries"
+requires-python = ">=3.11"
+readme = "README.md"
+authors = [{ name = "Hoang" }]
+
+dependencies = [
+    # Core
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0",
+
+    # DB
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+
+    # HTTP
+    "httpx>=0.27",
+
+    # Scheduler
+    "apscheduler>=3.10",
+
+    # Telegram
+    "aiogram>=3.4",
+
+    # Parsing
+    "feedparser>=6.0",       # RSS
+    "beautifulsoup4>=4.12",  # HTML scraping fallback
+
+    # Logging
+    "structlog>=24.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+ati-evn = "ati_evn.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

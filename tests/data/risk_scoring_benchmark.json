@@ -1,0 +1,129 @@
+{
+  "_meta": {
+    "purpose": "Evaluation set for CyberGuard's risk-scoring engine (src/lib/risk_engine.ts / .agents/risk_engine_py.py). This is a rule-based weighted-scoring formula, not a trained classifier, so 'evaluation' here means face validity against real, well-documented incidents plus internal consistency (monotonicity) — not train/test accuracy in the ML sense.",
+    "expected_severity_derivation": "Ground-truth labels reflect real-world/industry consensus severity for each incident (CISA KEV inclusion, actual blast radius, published advisories), not just the formula's own output — the point is to check the formula agrees with reality on cases where reality is well documented.",
+    "shared_by": [".agents/tests/test_evaluation_benchmark.py", "src/lib/risk_engine.benchmark.test.ts"]
+  },
+  "cases": [
+    {
+      "id": "log4shell",
+      "cve": "CVE-2021-44228",
+      "label": "Log4Shell",
+      "input": {
+        "cvss_score": 10.0,
+        "exploit_availability": "PUBLIC",
+        "asset_criticality": "CRITICAL",
+        "active_exploitation": true,
+        "targeted_campaign": true,
+        "network_exposure": "internet-facing"
+      },
+      "expected_severity": "CRITICAL",
+      "rationale": "CVSS 10.0, mass active exploitation within days of disclosure (CISA KEV), trivial RCE on internet-facing Log4j-using services. Universally treated as an emergency 'patch now' event."
+    },
+    {
+      "id": "eternalblue",
+      "cve": "CVE-2017-0144",
+      "label": "EternalBlue / WannaCry (MS17-010)",
+      "input": {
+        "cvss_score": 8.1,
+        "exploit_availability": "PUBLIC",
+        "asset_criticality": "HIGH",
+        "active_exploitation": true,
+        "targeted_campaign": true,
+        "network_exposure": "internal"
+      },
+      "expected_severity": "CRITICAL",
+      "rationale": "Weaponized in WannaCry and NotPetya, wormable SMB RCE. Even though CVSS (8.1) alone wouldn't clear the CRITICAL bar, confirmed active exploitation + public Metasploit module pushes it there — the formula is expected to weight threat-intel context heavily, not just CVSS."
+    },
+    {
+      "id": "heartbleed",
+      "cve": "CVE-2014-0160",
+      "label": "Heartbleed",
+      "input": {
+        "cvss_score": 7.5,
+        "exploit_availability": "PUBLIC",
+        "asset_criticality": "CRITICAL",
+        "active_exploitation": true,
+        "targeted_campaign": true,
+        "network_exposure": "internet-facing"
+      },
+      "expected_severity": "CRITICAL",
+      "rationale": "OpenSSL memory-disclosure bug affecting ~17% of internet-facing TLS servers at disclosure; actively exploited to steal private keys and session data from critical infrastructure."
+    },
+    {
+      "id": "struts-equifax",
+      "cve": "CVE-2017-5638",
+      "label": "Apache Struts RCE (Equifax breach)",
+      "input": {
+        "cvss_score": 10.0,
+        "exploit_availability": "PUBLIC",
+        "asset_criticality": "CRITICAL",
+        "active_exploitation": true,
+        "targeted_campaign": true,
+        "network_exposure": "internet-facing"
+      },
+      "expected_severity": "CRITICAL",
+      "rationale": "Unpatched instance directly led to the 2017 Equifax breach (147M records). Maximum CVSS, trivial mass-scanned exploit, internet-facing critical asset."
+    },
+    {
+      "id": "internal-poc-only-moderate",
+      "cve": "SYNTHETIC-MODERATE-01",
+      "label": "Internal service, POC exploit published, no confirmed exploitation",
+      "input": {
+        "cvss_score": 6.5,
+        "exploit_availability": "POC_ONLY",
+        "asset_criticality": "MEDIUM",
+        "active_exploitation": false,
+        "targeted_campaign": false,
+        "network_exposure": "internal"
+      },
+      "expected_severity": "HIGH",
+      "rationale": "A synthetic boundary case (not a real CVE): moderate CVSS with a published proof-of-concept but no evidence of in-the-wild use on a medium-criticality internal system. Should land in HIGH (24h remediation SLA), not CRITICAL — there is real risk but no confirmed active threat."
+    },
+    {
+      "id": "air-gapped-critical-cvss-no-exploit",
+      "cve": "SYNTHETIC-AIRGAPPED-01",
+      "label": "Air-gapped system, high CVSS, no exploit available",
+      "input": {
+        "cvss_score": 9.0,
+        "exploit_availability": "NONE",
+        "asset_criticality": "CRITICAL",
+        "active_exploitation": false,
+        "targeted_campaign": false,
+        "network_exposure": "air-gapped"
+      },
+      "expected_severity": "MEDIUM",
+      "rationale": "Demonstrates the network-exposure modifier: identical CVSS/asset-criticality to an internet-facing CRITICAL case, but no exploit exists and the asset is air-gapped — real-world risk is much lower despite the scary CVSS number, so the engine should downgrade it substantially."
+    },
+    {
+      "id": "low-severity-baseline",
+      "cve": "SYNTHETIC-LOW-01",
+      "label": "Low-CVSS misconfiguration, low-criticality internal test system",
+      "input": {
+        "cvss_score": 3.1,
+        "exploit_availability": "NONE",
+        "asset_criticality": "LOW",
+        "active_exploitation": false,
+        "targeted_campaign": false,
+        "network_exposure": "internal"
+      },
+      "expected_severity": "LOW",
+      "rationale": "Baseline sanity check — nothing about this case should trigger urgency. Confirms the formula doesn't over-alarm on low-stakes findings, which matters for analyst trust (alert fatigue)."
+    },
+    {
+      "id": "printnightmare",
+      "cve": "CVE-2021-34527",
+      "label": "PrintNightmare",
+      "input": {
+        "cvss_score": 8.8,
+        "exploit_availability": "PUBLIC",
+        "asset_criticality": "HIGH",
+        "active_exploitation": true,
+        "targeted_campaign": false,
+        "network_exposure": "internal"
+      },
+      "expected_severity": "CRITICAL",
+      "rationale": "Windows Print Spooler RCE/LPE with public exploit code and confirmed in-the-wild use across enterprise networks shortly after disclosure; treated as an emergency patch by CISA."
+    }
+  ]
+}

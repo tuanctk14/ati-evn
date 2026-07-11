@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ati-evn-postgres
+    environment:
+      POSTGRES_USER: ati_evn
+      POSTGRES_PASSWORD: ati_evn
+      POSTGRES_DB: ati_evn
+    ports:
+      - "5432:5432"
+    volumes:
+      - ati_evn_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ati_evn -d ati_evn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  ati_evn_pgdata:
