@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ati_evn.db.models import FpMemory
@@ -22,8 +22,14 @@ def compute_fp_hash(ioc_type: str, ioc_value: str) -> str:
 
 async def is_false_positive(
     session: AsyncSession, customer_id: int, ioc_type: str, ioc_value: str,
+    asset_id: int | None = None,
 ) -> tuple[bool, int | None]:
-    """Return (is_fp, fp_memory_row_id).
+    """Check FP with per-asset OR customer-wide scope.
+
+    An FpMemory row with asset_id=NULL applies to ALL of this customer's
+    assets; a row with a specific asset_id only suppresses that one asset.
+    Both scopes are checked so a narrow per-asset FP doesn't accidentally
+    miss (and a customer-wide FP still covers assets added later).
 
     Caller is responsible for bumping hit_count/last_hit_at on the returned
     row and skipping Finding/ProbableExposure creation when is_fp is True.
@@ -34,6 +40,7 @@ async def is_false_positive(
             FpMemory.customer_id == customer_id,
             FpMemory.ioc_type == ioc_type,
             FpMemory.ioc_value_hash == value_hash,
+            or_(FpMemory.asset_id == asset_id, FpMemory.asset_id.is_(None)),
         )
     )
     row_id = result.scalar_one_or_none()

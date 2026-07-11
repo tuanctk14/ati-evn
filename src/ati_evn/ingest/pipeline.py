@@ -21,7 +21,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ati_evn.db.models import CveProductMap, Detection, DetectionStatus, Severity
+from ati_evn.db.models import CveCweMap, CveProductMap, Detection, DetectionStatus, Severity
 from ati_evn.fetchers.base import RawIOC
 
 logger = logging.getLogger("ati_evn.ingest.pipeline")
@@ -115,15 +115,24 @@ async def _find_recent_detection(
     return result.scalar_one_or_none()
 
 
-async def _upsert_cve_product_map(session: AsyncSession, rows: list[dict]) -> None:
+async def upsert_cve_product_map(session: AsyncSession, rows: list[dict]) -> int:
     if not rows:
-        return
+        return 0
 
     stmt = pg_insert(CveProductMap).values(rows)
-    stmt = stmt.on_conflict_do_nothing(
-        constraint="uq_cpm_row",
-    )
-    await session.execute(stmt)
+    stmt = stmt.on_conflict_do_nothing(constraint="uq_cpm_row")
+    result = await session.execute(stmt)
+    return result.rowcount or 0
+
+
+async def upsert_cve_cwe_map(session: AsyncSession, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+
+    stmt = pg_insert(CveCweMap).values(rows)
+    stmt = stmt.on_conflict_do_nothing(constraint="uq_cwe_row")
+    result = await session.execute(stmt)
+    return result.rowcount or 0
 
 
 async def ingest_raw_iocs(
@@ -162,11 +171,28 @@ async def ingest_raw_iocs(
         session.add(detection)
         stats.record_inserted(raw.source, ioc_type)
 
-    await _upsert_cve_product_map(session, cve_product_map_rows or [])
+    await upsert_cve_product_map(session, cve_product_map_rows or [])
 
     await session.flush()
     logger.info(
         "Ingest: inserted=%d deduped=%d rejected=%d",
         stats.inserted, stats.deduped, stats.rejected,
+    )
+    return stats
+
+
+async def ingest_cve_batch(session: AsyncSession, payload: dict) -> IngestStats:
+    """Ingest the NVD fetcher's {"raw_iocs", "cpe_rows", "cwe_rows"} shape.
+    cpe_rows/cwe_rows mix source='nvd' and source='llm_inferred' rows —
+    both are upserted the same way; the ON CONFLICT DO NOTHING unique
+    constraints (uq_cpm_row / uq_cwe_row) already key on source, so an LLM
+    inference never collides with or overwrites NVD's own authoritative row.
+    """
+    stats = await ingest_raw_iocs(session, payload["raw_iocs"])
+    cpe_inserted = await upsert_cve_product_map(session, payload["cpe_rows"])
+    cwe_inserted = await upsert_cve_cwe_map(session, payload["cwe_rows"])
+    logger.info(
+        "CVE batch: %d detections, %d CPE rows, %d CWE rows",
+        stats.inserted, cpe_inserted, cwe_inserted,
     )
     return stats

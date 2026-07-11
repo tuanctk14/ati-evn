@@ -313,11 +313,21 @@ class Alert(Base):
 
 
 class FpMemory(Base):
-    """Analyst FP decisions. Next matching detection auto-closes, no dispatch."""
+    """Analyst FP decisions. Next matching detection auto-closes, no dispatch.
+
+    asset_id scoping: NULL means "false positive for ALL of this customer's
+    assets" (customer-wide); a specific asset_id narrows the FP rule to just
+    that asset. Without this, marking one asset's CVE as FP silently
+    suppressed the SAME CVE against every other asset that customer owns —
+    a real detection on a different, still-vulnerable device would vanish
+    with no alert. is_false_positive() checks both scopes and auto-closes
+    if either matches.
+    """
     __tablename__ = "fp_memory"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("customer_assets.id", ondelete="CASCADE"), nullable=True)
     ioc_type = Column(String(50), nullable=False)
     ioc_value_hash = Column(String(64), nullable=False)  # sha256 of normalized value
     ioc_value_sample = Column(Text, nullable=True)       # for analyst readability
@@ -329,7 +339,7 @@ class FpMemory(Base):
     last_hit_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("customer_id", "ioc_type", "ioc_value_hash", name="uq_fp_memory"),
+        UniqueConstraint("customer_id", "asset_id", "ioc_type", "ioc_value_hash", name="uq_fp_memory"),
     )
 
 
@@ -357,6 +367,25 @@ class CveProductMap(Base):
     __table_args__ = (
         Index("ix_cpm_product", "vendor", "product"),
         UniqueConstraint("cve_id", "vendor", "product", "source", name="uq_cpm_row"),
+    )
+
+
+class CveCweMap(Base):
+    """CVE → CWE (weakness category). Populated by NVD (from weaknesses[])
+    and lazily by LLM inference (source='llm_inferred') when NVD hasn't
+    attached a CWE yet."""
+    __tablename__ = "cve_cwe_map"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cve_id = Column(String(30), nullable=False, index=True)
+    cwe_id = Column(String(20), nullable=False)          # e.g. "CWE-79"
+    source = Column(String(30), default="nvd")           # nvd, llm_inferred
+    confidence = Column(Float, default=1.0)              # < 1.0 for llm_inferred
+    reasoning = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("cve_id", "cwe_id", "source", name="uq_cwe_row"),
     )
 
 

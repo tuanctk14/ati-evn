@@ -21,7 +21,7 @@ from ati_evn.fetchers.ioc.feodo import FeodoFetcher
 from ati_evn.fetchers.ioc.malwarebazaar import MalwareBazaarFetcher
 from ati_evn.fetchers.ioc.threatfox import ThreatFoxFetcher
 from ati_evn.fetchers.ioc.urlhaus import URLhausFetcher
-from ati_evn.ingest.pipeline import IngestStats, ingest_raw_iocs
+from ati_evn.ingest.pipeline import IngestStats, ingest_cve_batch, ingest_raw_iocs
 
 logger = logging.getLogger("ati_evn.run_fetchers")
 
@@ -41,16 +41,23 @@ SINCE_HOURS_OVERRIDES: dict[str, int] = {
 }
 
 
-async def _run_one(fetcher: IOCFetcher, since_hours: int) -> tuple[list[RawIOC], list[dict], float, str | None]:
+async def _run_one(
+    fetcher: IOCFetcher, since_hours: int,
+) -> tuple[list[RawIOC], list[dict], list[dict], float, str | None]:
     started = time.perf_counter()
     error: str | None = None
     raw_iocs: list[RawIOC] = []
-    product_rows: list[dict] = []
+    cpe_rows: list[dict] = []
+    cwe_rows: list[dict] = []
 
     try:
         result = await fetcher.fetch(since_hours=since_hours)
-        if isinstance(result, tuple):
-            raw_iocs, product_rows = result
+        if isinstance(result, dict):
+            raw_iocs = result.get("raw_iocs", [])
+            cpe_rows = result.get("cpe_rows", [])
+            cwe_rows = result.get("cwe_rows", [])
+        elif isinstance(result, tuple):
+            raw_iocs, cpe_rows = result
         else:
             raw_iocs = result
     except Exception as e:  # noqa: BLE001 — runner must never crash on a fetcher bug
@@ -58,7 +65,7 @@ async def _run_one(fetcher: IOCFetcher, since_hours: int) -> tuple[list[RawIOC],
         logger.exception("Fetcher %s raised an uncaught exception", fetcher.name)
 
     duration_ms = (time.perf_counter() - started) * 1000
-    return raw_iocs, product_rows, duration_ms, error
+    return raw_iocs, cpe_rows, cwe_rows, duration_ms, error
 
 
 async def main() -> int:
@@ -81,7 +88,7 @@ async def main() -> int:
                 continue
 
             since_hours = SINCE_HOURS_OVERRIDES.get(fetcher.name, 24)
-            raw_iocs, product_rows, duration_ms, error = await _run_one(fetcher, since_hours=since_hours)
+            raw_iocs, cpe_rows, cwe_rows, duration_ms, error = await _run_one(fetcher, since_hours=since_hours)
 
             if error:
                 rows.append({
@@ -90,13 +97,19 @@ async def main() -> int:
                 })
                 continue
 
-            stats = await ingest_raw_iocs(
-                session,
-                raw_iocs,
-                dedup_window_hours=24,
-                cve_product_map_rows=product_rows,
-            )
+            if fetcher.name == "nvd":
+                stats = await ingest_cve_batch(
+                    session, {"raw_iocs": raw_iocs, "cpe_rows": cpe_rows, "cwe_rows": cwe_rows},
+                )
+            else:
+                stats = await ingest_raw_iocs(session, raw_iocs, dedup_window_hours=24)
             grand_total.merge(stats)
+
+            note_bits = []
+            if cpe_rows:
+                note_bits.append(f"+{len(cpe_rows)} cve_product_map rows")
+            if cwe_rows:
+                note_bits.append(f"+{len(cwe_rows)} cve_cwe_map rows")
 
             rows.append({
                 "fetcher": fetcher.name,
@@ -105,7 +118,7 @@ async def main() -> int:
                 "deduped": stats.deduped,
                 "rejected": stats.rejected,
                 "duration_ms": round(duration_ms, 1),
-                "note": f"+{len(product_rows)} cve_product_map rows" if product_rows else "",
+                "note": ", ".join(note_bits),
             })
 
     # ── Print table ──────────────────────────────────────────────────────────
@@ -134,12 +147,18 @@ async def main() -> int:
         cpm_by_source = (await session.execute(
             text("SELECT source, count(*) FROM cve_product_map GROUP BY source ORDER BY count(*) DESC")
         )).all()
+        cwe_total = (await session.execute(text("SELECT count(*) FROM cve_cwe_map"))).scalar_one()
+        cwe_by_source = (await session.execute(
+            text("SELECT source, count(*) FROM cve_cwe_map GROUP BY source ORDER BY count(*) DESC")
+        )).all()
 
     print()
     print(f"DB detections total      : {detections_total}")
     print(f"DB detections by source  : {dict(detections_by_source)}")
     print(f"DB cve_product_map total : {cpm_total}")
     print(f"DB cve_product_map by src: {dict(cpm_by_source)}")
+    print(f"DB cve_cwe_map total     : {cwe_total}")
+    print(f"DB cve_cwe_map by src    : {dict(cwe_by_source)}")
 
     return 0
 

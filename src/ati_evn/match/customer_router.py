@@ -13,8 +13,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ati_evn.db.models import CveProductMap, Detection, DetectionStatus, FpMemory
-from ati_evn.llm.candidate_filter import load_hint_keywords, text_matches_any_keyword
+from ati_evn.db.models import Detection, DetectionStatus, FpMemory
 from ati_evn.match.asset_index import AssetIndex
 from ati_evn.match.finding_merger import upsert_finding, upsert_probable_exposure
 from ati_evn.match.fp_check import is_false_positive
@@ -65,10 +64,13 @@ def _best_per_customer(matches: list[MatchResult]) -> dict[int, MatchResult]:
 
 async def _select_detections(
     session: AsyncSession, since_hours: int | None, only_new: bool,
+    only_status: DetectionStatus | None,
 ) -> list[Detection]:
     stmt = select(Detection)
 
-    if only_new:
+    if only_status is not None:
+        stmt = stmt.where(Detection.status == only_status)
+    elif only_new:
         stmt = stmt.where(Detection.status == DetectionStatus.NEW, Detection.finding_id.is_(None))
     else:
         stmt = stmt.where(
@@ -83,42 +85,28 @@ async def _select_detections(
     return list(result.scalars().all())
 
 
-async def _count_llm_inference_candidates(session: AsyncSession) -> int:
-    """Cheap nudge, not an auto-run: count unmatched CVE detections with no
-    cve_product_map row whose description mentions a known EVN vendor/product
-    keyword — the same pre-filter scripts/run_cpe_inference.py applies."""
-    hint_keywords = await load_hint_keywords(session)
-    if not hint_keywords:
-        return 0
-
-    has_cpm = select(CveProductMap.id).where(CveProductMap.cve_id == Detection.ioc_value).exists()
-    result = await session.execute(
-        select(Detection.raw_text).where(
-            Detection.ioc_type == "cve_id",
-            Detection.status == DetectionStatus.UNMATCHED,
-            Detection.raw_text.is_not(None),
-            ~has_cpm,
-        )
-    )
-    count = 0
-    for (raw_text,) in result.all():
-        if raw_text and len(raw_text) > 20 and text_matches_any_keyword(raw_text, hint_keywords):
-            count += 1
-    return count
-
-
 async def route_detections(
     session: AsyncSession,
     since_hours: int | None = None,
     only_new: bool = True,
     dry_run: bool = False,
+    only_status: DetectionStatus | None = None,
 ) -> RouteStats:
+    """Batch-match Detections against the current AssetIndex.
+
+    only_status, when set, overrides only_new and selects Detections with
+    exactly that status (e.g. DetectionStatus.UNMATCHED for a rescan pass
+    after a new asset was added — those rows were correctly unmatched
+    against the OLD asset set and deserve a fresh look against the new one).
+    """
     stats = RouteStats()
     idx = await AssetIndex.build(session)
-    detections = await _select_detections(session, since_hours, only_new)
+    detections = await _select_detections(session, since_hours, only_new, only_status)
 
-    logger.info("route_detections: %d candidate detections (only_new=%s, since_hours=%s, dry_run=%s)",
-                len(detections), only_new, since_hours, dry_run)
+    logger.info(
+        "route_detections: %d candidate detections (only_new=%s, only_status=%s, since_hours=%s, dry_run=%s)",
+        len(detections), only_new, only_status, since_hours, dry_run,
+    )
 
     for i, det in enumerate(detections, start=1):
         stats.detections_processed += 1
@@ -147,6 +135,7 @@ async def route_detections(
             try:
                 is_fp, fp_row_id = await is_false_positive(
                     session, customer_id, det.ioc_type, det.ioc_value,
+                    asset_id=match.asset.id if match.asset is not None else None,
                 )
                 if is_fp:
                     stats.findings_auto_fp += 1
@@ -197,10 +186,4 @@ async def route_detections(
         stats.findings_created, stats.findings_merged, stats.findings_auto_fp,
         stats.probable_exposures_created,
     )
-
-    llm_candidate_count = await _count_llm_inference_candidates(session)
-    if llm_candidate_count > 0:
-        print(f"\nUnmatched CVE detections eligible for LLM inference: {llm_candidate_count}")
-        print("Run: python scripts/run_cpe_inference.py")
-
     return stats

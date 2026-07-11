@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.codexhub.click/v1"
     llm_model: str = "deepseek-v4-flash"
     llm_provider: str = "9router"
+    llm_cpe_min_confidence: float = 0.6
+    llm_max_concurrent: int = 5
 
     # ── CVE feeds ────────────────────────────────────────────────────────────
     nvd_api_key: str = ""
