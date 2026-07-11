@@ -174,6 +174,7 @@ class CustomerAsset(Base):
     vendor = Column(String(120), nullable=True)      # e.g. "siemens", "microsoft", "fortinet"
     product = Column(String(200), nullable=True)     # e.g. "simatic s7-1200", "windows server", "fortios"
     version = Column(String(80), nullable=True)      # e.g. "4.5.2"
+    ip_address = Column(String(45), nullable=True)   # device's own IP, e.g. "10.12.4.1" (v4 or v6)
     is_ics = Column(Boolean, default=False)
     is_internet_facing = Column(Boolean, default=False)
     network_segment = Column(SAEnum(NetworkSegment, values_callable=lambda e: [x.value for x in e]),
@@ -194,6 +195,7 @@ class CustomerAsset(Base):
         Index("ix_asset_customer_type", "customer_id", "asset_type"),
         Index("ix_asset_value", "asset_value"),
         Index("ix_asset_vendor_product", "vendor", "product"),
+        Index("ix_asset_ip_address", "ip_address"),
     )
 
 

@@ -70,6 +70,9 @@ class AssetIndex:
                 if asset.vendor:
                     vendor_key = asset.vendor.strip().lower()
                     idx.devices_by_vendor.setdefault(vendor_key, []).append((customer_id, asset))
+                if asset.ip_address:
+                    ip_key = asset.ip_address.strip().lower()
+                    idx.ip_lookup.setdefault(ip_key, []).append((customer_id, asset))
 
             elif asset_type in _KEYWORD_ASSET_TYPES:
                 if value:
