@@ -39,10 +39,11 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-    # ── LLM (NVIDIA NIM) ─────────────────────────────────────────────────────
-    nim_api_key: str = ""
-    nim_base_url: str = "https://integrate.api.nvidia.com/v1"
-    nim_model: str = "deepseek-ai/deepseek-v4-pro"
+    # ── LLM Provider: 9Router (DeepSeek) — sole LLM provider for this project ─
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.codexhub.click/v1"
+    llm_model: str = "deepseek-v4-flash"
+    llm_provider: str = "9router"
 
     # ── CVE feeds ────────────────────────────────────────────────────────────
     nvd_api_key: str = ""
