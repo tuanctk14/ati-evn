@@ -17,6 +17,7 @@ from ati_evn.alerts.dedupe import compute_dedupe_key, find_existing_dispatch
 from ati_evn.alerts.dispatch_rule import should_dispatch
 from ati_evn.config import get_settings
 from ati_evn.db.models import AlertQueue, Detection, DetectionStatus, Finding, FpMemory
+from ati_evn.db.query_utils import only_live_detection
 from ati_evn.match.asset_index import AssetIndex
 from ati_evn.match.finding_merger import upsert_finding, upsert_probable_exposure
 from ati_evn.match.fp_check import is_false_positive
@@ -67,11 +68,13 @@ def _best_per_customer(matches: list[MatchResult]) -> dict[int, MatchResult]:
 
 async def _select_detections(
     session: AsyncSession, since_hours: int | None, only_new: bool,
-    only_status: DetectionStatus | None,
+    only_status: DetectionStatus | None, detection_ids: list[int] | None = None,
 ) -> list[Detection]:
-    stmt = select(Detection)
+    stmt = select(Detection).where(only_live_detection())
 
-    if only_status is not None:
+    if detection_ids is not None:
+        stmt = stmt.where(Detection.id.in_(detection_ids))
+    elif only_status is not None:
         stmt = stmt.where(Detection.status == only_status)
     elif only_new:
         stmt = stmt.where(Detection.status == DetectionStatus.NEW, Detection.finding_id.is_(None))
@@ -94,6 +97,7 @@ async def route_detections(
     only_new: bool = True,
     dry_run: bool = False,
     only_status: DetectionStatus | None = None,
+    detection_ids: list[int] | None = None,
 ) -> RouteStats:
     """Batch-match Detections against the current AssetIndex.
 
@@ -101,16 +105,20 @@ async def route_detections(
     exactly that status (e.g. DetectionStatus.UNMATCHED for a rescan pass
     after a new asset was added — those rows were correctly unmatched
     against the OLD asset set and deserve a fresh look against the new one).
+
+    detection_ids, when set, overrides both only_status and only_new and
+    scopes the pass to exactly those rows (e.g. /restore_ioc re-running the
+    matcher on the single detection it just brought back).
     """
     stats = RouteStats()
     new_findings: list[Finding] = []
     new_finding_asset_ids: dict[int, int | None] = {}  # finding.id -> asset.id
     idx = await AssetIndex.build(session)
-    detections = await _select_detections(session, since_hours, only_new, only_status)
+    detections = await _select_detections(session, since_hours, only_new, only_status, detection_ids)
 
     logger.info(
-        "route_detections: %d candidate detections (only_new=%s, only_status=%s, since_hours=%s, dry_run=%s)",
-        len(detections), only_new, only_status, since_hours, dry_run,
+        "route_detections: %d candidate detections (only_new=%s, only_status=%s, since_hours=%s, dry_run=%s, detection_ids=%s)",
+        len(detections), only_new, only_status, since_hours, dry_run, detection_ids,
     )
 
     for i, det in enumerate(detections, start=1):

@@ -155,6 +155,9 @@ class Customer(Base):
     created_at = Column(DateTime(timezone=True), default=_utcnow)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(String(120), nullable=True)
+
     parent = relationship("Customer", remote_side=[id], backref="subsidiaries")
     assets = relationship("CustomerAsset", back_populates="customer", cascade="all, delete-orphan")
 
@@ -190,6 +193,9 @@ class CustomerAsset(Base):
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(String(120), nullable=True)
 
     customer = relationship("Customer", back_populates="assets")
 
@@ -234,6 +240,9 @@ class Detection(Base):
     metadata_ = Column("metadata", JSON, default=dict)
 
     created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(String(120), nullable=True)
 
     finding = relationship("Finding", back_populates="detections", foreign_keys=[finding_id])
 

@@ -16,7 +16,8 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ati_evn.db.models import AssetType, CustomerAsset, CveProductMap
+from ati_evn.db.models import AssetType, Customer, CustomerAsset, CveProductMap
+from ati_evn.db.query_utils import only_live_asset, only_live_customer
 
 logger = logging.getLogger("ati_evn.match.asset_index")
 
@@ -42,7 +43,11 @@ class AssetIndex:
     async def build(cls, session: AsyncSession) -> "AssetIndex":
         idx = cls()
 
-        assets_result = await session.execute(select(CustomerAsset))
+        assets_result = await session.execute(
+            select(CustomerAsset)
+            .join(Customer, Customer.id == CustomerAsset.customer_id)
+            .where(only_live_asset(), only_live_customer())
+        )
         assets = assets_result.scalars().all()
 
         for asset in assets:

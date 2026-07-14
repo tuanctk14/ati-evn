@@ -38,6 +38,21 @@ async def _dispatch_single(bot: Bot, chat_id: str, alert: AlertQueue, session) -
     if not finding:
         logger.warning("Finding %d missing for alert %d", alert.finding_id, alert.id)
         return False
+
+    # /silence (slice 5B.2) sets metadata_.silenced_until — skip dispatch
+    # without marking failed (this isn't an error, it's an analyst decision).
+    silenced_until = (finding.metadata_ or {}).get("silenced_until")
+    if silenced_until:
+        try:
+            si_dt = datetime.fromisoformat(silenced_until)
+            if si_dt > datetime.now(timezone.utc):
+                alert.state = "silenced"
+                await session.commit()
+                logger.info("Alert %d silenced until %s — skipping dispatch", alert.id, silenced_until)
+                return False
+        except ValueError:
+            pass
+
     customer = await session.get(Customer, alert.customer_id)
     customer_name = customer.name if customer else f"Customer#{alert.customer_id}"
     asset_display = finding.matched_asset or "-"

@@ -37,6 +37,7 @@ CANDIDATE_QUERY = text("""
     FROM detections d
     WHERE d.ioc_type = 'cve_id'
       AND d.status = 'UNMATCHED'
+      AND d.deleted_at IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM cve_product_map cpm
         WHERE cpm.cve_id = d.ioc_value
@@ -143,7 +144,56 @@ async def run_rescan_sync(reason: str, focus_vendor: str | None = None) -> Resca
     return stats
 
 
-def trigger_rescan_background(reason: str, focus_vendor: str | None = None) -> asyncio.Task:
+# asyncio.create_task() only holds a WEAK reference to the Task internally —
+# per the stdlib docs, if nothing else keeps a strong reference, the task
+# can be garbage-collected mid-execution with no warning or error. This bit
+# a real /rescan invocation: the handler returned "queued" immediately after
+# create_task(), nothing else referenced the Task, and it vanished before
+# the first `await` inside run_rescan_sync ever logged anything. Keeping a
+# strong reference in this module-level set (and discarding it via the
+# done-callback) is the fix the docs themselves recommend.
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def _run_and_notify(reason: str, focus_vendor: str | None, bot, chat_id: int) -> RescanStats:
+    stats = await run_rescan_sync(reason, focus_vendor)
+    created = stats.matcher.findings_created
+    if created:
+        text = (
+            f"🔍 Rescan hoàn tất ({reason}): {created} finding mới "
+            f"(candidates={stats.candidate_cves_for_llm}, "
+            f"llm_calls={stats.llm_calls}) — Bot 1 sẽ dispatch alert."
+        )
+    else:
+        text = (
+            f"🔍 Rescan hoàn tất ({reason}): không có match mới.\n"
+            f"candidates={stats.candidate_cves_for_llm}, llm_calls={stats.llm_calls}, "
+            f"detections_checked={stats.matcher.detections_processed}."
+        )
+    try:
+        await bot.send_message(chat_id, text)
+    except Exception:  # noqa: BLE001 — notification best-effort, never crash the rescan
+        logger.exception("Failed to send rescan-complete notification to chat %s", chat_id)
+    return stats
+
+
+def trigger_rescan_background(
+    reason: str,
+    focus_vendor: str | None = None,
+    bot=None,
+    chat_id: int | None = None,
+) -> asyncio.Task:
     """Fire-and-forget async task. Returns the Task so the caller can
-    inspect/await it if desired (e.g. in tests), but does not block."""
-    return asyncio.create_task(run_rescan_sync(reason, focus_vendor))
+    inspect/await it if desired (e.g. in tests), but does not block.
+
+    If bot/chat_id are given, sends a completion message to that chat when
+    the rescan finishes — even if it found zero matches, so the analyst
+    isn't left guessing whether it ran at all."""
+    if bot is not None and chat_id is not None:
+        coro = _run_and_notify(reason, focus_vendor, bot, chat_id)
+    else:
+        coro = run_rescan_sync(reason, focus_vendor)
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task

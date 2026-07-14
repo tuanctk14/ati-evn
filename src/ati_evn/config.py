@@ -101,6 +101,17 @@ class Settings(BaseSettings):
             return set()
         return {int(x.strip()) for x in self.telegram_allowed_user_ids.split(",") if x.strip()}
 
+    # ── Telegram Bot 2 (Analyst Command) — slice 5B.1 ─────────────────────────
+    telegram_analyst_bot_token: str = ""
+    telegram_analyst_chat: str = ""   # cross-bot reference; .env uses TELEGRAM_ANALYST_CHAT
+
+    @property
+    def allowed_user_ids_set(self) -> set[int]:
+        if not self.telegram_allowed_user_ids:
+            return set()
+        return {int(x.strip()) for x in self.telegram_allowed_user_ids.split(",")
+                if x.strip().isdigit()}
+
     # ── Runtime ──────────────────────────────────────────────────────────────
     log_level: str = "INFO"
     user_agent: str = "ATI-EVN/0.1 (+security-research)"

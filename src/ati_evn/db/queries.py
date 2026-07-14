@@ -5,6 +5,7 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ati_evn.db.models import CustomerAsset
+from ati_evn.db.query_utils import only_live_asset
 from ati_evn.db.session import async_session
 
 
@@ -14,7 +15,7 @@ async def load_evn_vendors_lowercase(session: AsyncSession | None = None) -> set
     async def _q(s: AsyncSession) -> set[str]:
         rows = await s.execute(
             select(distinct(func.lower(CustomerAsset.vendor)))
-            .where(CustomerAsset.vendor.is_not(None))
+            .where(CustomerAsset.vendor.is_not(None), only_live_asset())
         )
         return {r[0] for r in rows if r[0]}
 
