@@ -43,6 +43,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -79,6 +80,7 @@ class FindingStatus(str, enum.Enum):
     ACKED = "acknowledged"
     CLOSED = "closed"
     FALSE_POSITIVE = "false_positive"
+    EXPIRED = "expired"    # internal IOCs past TTL (see alerts/ttl_worker.py)
 
 
 class AlertState(str, enum.Enum):
@@ -226,6 +228,9 @@ class Detection(Base):
 
     first_seen = Column(DateTime(timezone=True), default=_utcnow)
     last_seen = Column(DateTime(timezone=True), default=_utcnow)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+        # NULL = no expiry (default). Set when analyst uses /add_ioc --expire.
+        # ttl_worker.py transitions the linked Finding to EXPIRED once past.
     metadata_ = Column("metadata", JSON, default=dict)
 
     created_at = Column(DateTime(timezone=True), default=_utcnow)
@@ -404,3 +409,149 @@ class ProbableExposure(Base):
     created_at = Column(DateTime(timezone=True), default=_utcnow)
 
     __table_args__ = (Index("ix_probexp_customer", "customer_id"),)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Sigma rules (slice 4.7)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class SigmaRule(Base):
+    """Community Sigma rules synced from github.com/SigmaHQ/sigma.
+
+    cve_refs and attack_techniques use JSONB (not the plain JSON used
+    elsewhere in this schema) because they need GIN-indexed containment
+    queries (`.contains([...])`) for rule_matcher's CVE/ATT&CK lookups —
+    a plain `json` column can't back a GIN index on Postgres.
+    """
+    __tablename__ = "sigma_rules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rule_uuid = Column(String(40), nullable=False, unique=True)  # UUID from Sigma YAML `id` field
+    title = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    level = Column(String(20), nullable=True)     # low/medium/high/critical
+    status = Column(String(20), nullable=True)    # stable/test/experimental/deprecated
+    author = Column(String(500), nullable=True)
+
+    # For matching:
+    cve_refs = Column(JSONB, default=list)              # ["CVE-2022-42475", ...]
+    attack_techniques = Column(JSONB, default=list)     # ["T1190", "T1210", ...]
+    product = Column(String(120), nullable=True)        # logsource.product
+    service = Column(String(120), nullable=True)        # logsource.service
+    category = Column(String(120), nullable=True)       # logsource.category
+
+    raw_yaml = Column(Text, nullable=False)             # full YAML content
+    source_path = Column(String(500), nullable=True)    # rules/windows/xxx.yml
+    sha256 = Column(String(64), nullable=False)         # for change detection
+
+    indexed_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        Index("ix_sigma_cve", "cve_refs", postgresql_using="gin"),
+        Index("ix_sigma_attack", "attack_techniques", postgresql_using="gin"),
+        Index("ix_sigma_level_status", "level", "status"),
+        Index("ix_sigma_product", "product"),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Alert dispatch (slice 5A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class AlertQueue(Base):
+    """Pending alert dispatches. Bot 1 (telegram/bot_alert.py) worker pulls
+    from here — customer_router only ever pushes rows, never sends
+    Telegram messages itself."""
+    __tablename__ = "alert_queue"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    finding_id = Column(BigInteger, ForeignKey("findings.id", ondelete="CASCADE"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+
+    state = Column(String(20), default="pending", nullable=False)
+            # pending → dispatching → dispatched | deduped | batched | failed
+    dispatch_reason = Column(Text, nullable=True)
+            # e.g. "severity=HIGH" or "MEDIUM+2sources"
+
+    # Dedup tracking
+    dedupe_key = Column(String(200), nullable=False)
+            # hash of (customer_id, ioc_value, asset_id) for lookup
+    deduped_of_id = Column(BigInteger, ForeignKey("alert_queue.id"), nullable=True)
+            # if state=deduped, points to the alert_queue row this merged into
+
+    # Batch tracking
+    batch_id = Column(BigInteger, ForeignKey("alert_batch.id"), nullable=True)
+
+    # Retry
+    attempt_count = Column(Integer, default=0)
+    last_error = Column(Text, nullable=True)
+    next_retry_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+    dispatched_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Result of dispatch (set after send)
+    telegram_message_id = Column(BigInteger, nullable=True)
+
+    __table_args__ = (
+        Index("ix_alertq_state_next", "state", "next_retry_at"),
+        Index("ix_alertq_dedupe", "dedupe_key", "created_at"),
+        Index("ix_alertq_customer_created", "customer_id", "created_at"),
+    )
+
+
+class AlertBatch(Base):
+    """Groups multiple alerts into one Telegram message when spike."""
+    __tablename__ = "alert_batch"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    finding_count = Column(Integer, default=0)
+    severities = Column(JSON, default=dict)  # {"CRITICAL": 1, "HIGH": 3}
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+    dispatched_at = Column(DateTime(timezone=True), nullable=True)
+    telegram_message_id = Column(BigInteger, nullable=True)
+
+    __table_args__ = (
+        Index("ix_alertbatch_customer_created", "customer_id", "created_at"),
+    )
+
+
+class CommandLog(Base):
+    """Audit log for Bot 2 (analyst command bot) commands. Empty in slice
+    5A; populated starting slice 5B."""
+    __tablename__ = "command_log"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    telegram_user_id = Column(BigInteger, nullable=False)
+    telegram_username = Column(String(100), nullable=True)
+    command = Column(String(50), nullable=False)
+    args = Column(JSON, default=dict)
+    result_status = Column(String(20), nullable=True)  # ok/rejected/error
+    result_summary = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        Index("ix_cmdlog_user_created", "telegram_user_id", "created_at"),
+        Index("ix_cmdlog_command", "command"),
+    )
+
+
+class PlaybookCache(Base):
+    """LLM-generated playbook cache keyed by (cve_id, network_segment).
+    Empty in slice 5A; populated starting slice 5C."""
+    __tablename__ = "playbook_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cve_id = Column(String(30), nullable=False)
+    network_segment = Column(String(30), nullable=True)  # dmz/ot_control/... or NULL
+    playbook_md = Column(Text, nullable=False)           # markdown content
+    model_used = Column(String(80), nullable=True)
+    generated_at = Column(DateTime(timezone=True), default=_utcnow)
+    reused_count = Column(Integer, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("cve_id", "network_segment", name="uq_playbook_cve_seg"),
+    )

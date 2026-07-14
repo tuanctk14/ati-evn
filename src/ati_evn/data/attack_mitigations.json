@@ -1,0 +1,5075 @@
+{
+ "_meta": {
+  "generated_from": "MITRE ATT&CK Enterprise STIX bundle",
+  "mitigation_count": 44,
+  "technique_count_with_mitigations": 586
+ },
+ "mitigations": {
+  "M1031": {
+   "name": "Network Intrusion Prevention",
+   "description": "Use intrusion detection signatures to block traffic at network boundaries."
+  },
+  "M1016": {
+   "name": "Vulnerability Scanning",
+   "description": "Vulnerability scanning involves the automated or manual assessment of systems, applications, and networks to identify misconfigurations, unpatched software, or other security weaknesses. The process helps prioritize remediation efforts by classifying vulnerabilities based on risk and impact, reducing the likelihood of exploitation by adversaries. This mitigation can be implemented through the following measures: \n\nProactive Identification of Vulnerabilities\n\n- Implementation: Use tools like Nessus or OpenVAS to scan endpoints, servers, and applications for missing patches and configuration iss"
+  },
+  "M1035": {
+   "name": "Limit Access to Resource Over Network",
+   "description": "Restrict access to network resources, such as file shares, remote systems, and services, to only those users, accounts, or systems with a legitimate business requirement. This can include employing technologies like network concentrators, RDP gateways, and zero-trust network access (ZTNA) models, alongside hardening services and protocols. This mitigation can be implemented through the following measures:\n\nAudit and Restrict Access:\n\n- Regularly audit permissions for file shares, network services, and remote access tools.\n- Remove unnecessary access and enforce least privilege principles for u"
+  },
+  "M1029": {
+   "name": "Remote Data Storage",
+   "description": "Remote Data Storage focuses on moving critical data, such as security logs and sensitive files, to secure, off-host locations to minimize unauthorized access, tampering, or destruction by adversaries. By leveraging remote storage solutions, organizations enhance the protection of forensic evidence, sensitive information, and monitoring data. This mitigation can be implemented through the following measures:\n\nCentralized Log Management:\n\n- Configure endpoints to forward security logs to a centralized log collector or SIEM.\n- Use tools like Splunk Graylog, or Security Onion to aggregate and stor"
+  },
+  "M1037": {
+   "name": "Filter Network Traffic",
+   "description": "Employ network appliances and endpoint software to filter ingress, egress, and lateral network traffic. This includes protocol-based filtering, enforcing firewall rules, and blocking or restricting traffic based on predefined conditions to limit adversary movement and data exfiltration. This mitigation can be implemented through the following measures:\n\nIngress Traffic Filtering:\n\n- Use Case: Configure network firewalls to allow traffic only from authorized IP addresses to public-facing servers.\n- Implementation: Limit SSH (port 22) and RDP (port 3389) traffic to specific IP ranges.\n\nEgress Tr"
+  },
+  "M1021": {
+   "name": "Restrict Web-Based Content",
+   "description": "Restricting web-based content involves enforcing policies and technologies that limit access to potentially malicious websites, unsafe downloads, and unauthorized browser behaviors. This can include URL filtering, download restrictions, script blocking, and extension control to protect against exploitation, phishing, and malware delivery. This mitigation can be implemented through the following measures:\n\nDeploy Web Proxy Filtering:\n\n- Use solutions to filter web traffic based on categories, reputation, and content types.\n- Enforce policies that block unsafe websites or file types at the gatew"
+  },
+  "M1033": {
+   "name": "Limit Software Installation",
+   "description": "Prevent users or groups from installing unauthorized or unapproved software to reduce the risk of introducing malicious or vulnerable applications. This can be achieved through allowlists, software restriction policies, endpoint management tools, and least privilege access principles. This mitigation can be implemented through the following measures:\n\nApplication Whitelisting\n\n- Implement Microsoft AppLocker or Windows Defender Application Control (WDAC) to create and enforce allowlists for approved software.\n- Whitelist applications based on file hash, path, or digital signatures.\n\nRestrict U"
+  },
+  "M1013": {
+   "name": "Application Developer Guidance",
+   "description": "Application Developer Guidance focuses on providing developers with the knowledge, tools, and best practices needed to write secure code, reduce vulnerabilities, and implement secure design principles. By integrating security throughout the software development lifecycle (SDLC), this mitigation aims to prevent the introduction of exploitable weaknesses in applications, systems, and APIs. This mitigation can be implemented through the following measures:\n \nPreventing SQL Injection (Secure Coding Practice):\n\n- Implementation: Train developers to use parameterized queries or prepared statements i"
+  },
+  "M1034": {
+   "name": "Limit Hardware Installation",
+   "description": "Prevent unauthorized users or groups from installing or using hardware, such as external drives, peripheral devices, or unapproved internal hardware components, by enforcing hardware usage policies and technical controls. This includes disabling USB ports, restricting driver installation, and implementing endpoint security tools to monitor and block unapproved devices. This mitigation can be implemented through the following measures:\n\nDisable USB Ports and Hardware Installation Policies:\n\n- Use Group Policy Objects (GPO) to disable USB mass storage devices:\n     - Navigate to Computer Configu"
+  },
+  "M1017": {
+   "name": "User Training",
+   "description": "User Training involves educating employees and contractors on recognizing, reporting, and preventing cyber threats that rely on human interaction, such as phishing, social engineering, and other manipulative techniques. Comprehensive training programs create a human firewall by empowering users to be an active component of the organization's cybersecurity defenses. This mitigation can be implemented through the following measures:\n\nCreate Comprehensive Training Programs:\n\n- Design training modules tailored to the organization's risk profile, covering topics such as phishing, password managemen"
+  },
+  "M1052": {
+   "name": "User Account Control",
+   "description": "User Account Control (UAC) is a security feature in Microsoft Windows that prevents unauthorized changes to the operating system. UAC prompts users to confirm or provide administrator credentials when an action requires elevated privileges. Proper configuration of UAC reduces the risk of privilege escalation attacks. This mitigation can be implemented through the following measures:\n\nEnable UAC Globally:\n\n- Ensure UAC is enabled through Group Policy by setting `User Account Control: Run all administrators in Admin Approval Mode` to `Enabled`.\n\nRequire Credential Prompt:\n\n- Use Group Policy to "
+  },
+  "M1028": {
+   "name": "Operating System Configuration",
+   "description": "Operating System Configuration involves adjusting system settings and hardening the default configurations of an operating system (OS) to mitigate adversary exploitation and prevent abuse of system functionality. Proper OS configurations address security vulnerabilities, limit attack surfaces, and ensure robust defense against a wide range of techniques. This mitigation can be implemented through the following measures: \n\nDisable Unused Features:\n\n- Turn off SMBv1, LLMNR, and NetBIOS where not needed.\n- Disable remote registry and unnecessary services.\n\nEnforce OS-level Protections:\n\n- Enable "
+  },
+  "M1053": {
+   "name": "Data Backup",
+   "description": "Data Backup involves taking and securely storing backups of data from end-user systems and critical servers. It ensures that data remains available in the event of system compromise, ransomware attacks, or other disruptions. Backup processes should include hardening backup systems, implementing secure storage solutions, and keeping backups isolated from the corporate network to prevent compromise during active incidents. This mitigation can be implemented through the following measures:\n\nRegular Backup Scheduling:\n- Use Case: Ensure timely and consistent backups of critical data.\n- Implementat"
+  },
+  "M1038": {
+   "name": "Execution Prevention",
+   "description": "Prevent the execution of unauthorized or malicious code on systems by implementing application control, script blocking, and other execution prevention mechanisms. This ensures that only trusted and authorized code is executed, reducing the risk of malware and unauthorized actions. This mitigation can be implemented through the following measures:\n\nApplication Control:\n\n- Use Case: Use tools like AppLocker or Windows Defender Application Control (WDAC) to create whitelists of authorized applications and block unauthorized ones. On Linux, use tools like SELinux or AppArmor to define mandatory a"
+  },
+  "M1043": {
+   "name": "Credential Access Protection",
+   "description": "Credential Access Protection focuses on implementing measures to prevent adversaries from obtaining credentials, such as passwords, hashes, tokens, or keys, that could be used for unauthorized access. This involves restricting access to credential storage mechanisms, hardening configurations to block credential dumping methods, and using monitoring tools to detect suspicious credential-related activity. This mitigation can be implemented through the following measures:\n\nRestrict Access to Credential Storage:\n\n- Use Case: Prevent adversaries from accessing the SAM (Security Account Manager) dat"
+  },
+  "M1045": {
+   "name": "Code Signing",
+   "description": "Code Signing is a security process that ensures the authenticity and integrity of software by digitally signing executables, scripts, and other code artifacts. It prevents untrusted or malicious code from executing by verifying the digital signatures against trusted sources. Code signing protects against tampering, impersonation, and distribution of unauthorized or malicious software, forming a critical defense against supply chain and software exploitation attacks. This mitigation can be implemented through the following measures:\n\nEnforce Signed Code Execution:\n\n- Implementation: Configure o"
+  },
+  "M1039": {
+   "name": "Environment Variable Permissions",
+   "description": "Restrict the modification of environment variables to authorized users and processes by enforcing strict permissions and policies. This ensures the integrity of environment variables, preventing adversaries from abusing or altering them for malicious purposes. This mitigation can be implemented through the following measures:\n\nRestrict Write Access:\n\n- Use Case: Set file system-level permissions to restrict access to environment variable configuration files (e.g., `.bashrc`, `.bash_profile`, `.zshrc`, `systemd` service files).\n- Implementation: Configure `/etc/environment` or `/etc/profile` on"
+  },
+  "M1057": {
+   "name": "Data Loss Prevention",
+   "description": "Data Loss Prevention (DLP) involves implementing strategies and technologies to identify, categorize, monitor, and control the movement of sensitive data within an organization. This includes protecting data formats indicative of Personally Identifiable Information (PII), intellectual property, or financial data from unauthorized access, transmission, or exfiltration. DLP solutions integrate with network, endpoint, and cloud platforms to enforce security policies and prevent accidental or malicious data leaks. (Citation: PurpleSec Data Loss Prevention) This mitigation can be implemented throug"
+  },
+  "M1025": {
+   "name": "Privileged Process Integrity",
+   "description": "Privileged Process Integrity focuses on defending highly privileged processes (e.g., system services, antivirus, or authentication processes) from tampering, injection, or compromise by adversaries. These processes often interact with critical components, making them prime targets for techniques like code injection, privilege escalation, and process manipulation. This mitigation can be implemented through the following measures:\n\nProtected Process Mechanisms:\n\n- Enable RunAsPPL on Windows systems to protect LSASS and other critical processes.\n- Use registry modifications to enforce protected p"
+  },
+  "M1055": {
+   "name": "Do Not Mitigate",
+   "description": "The Do Not Mitigate category highlights scenarios where attempting to mitigate a specific technique may inadvertently increase the organization's security risk or operational instability. This could happen due to the complexity of the system, the integration of critical processes, or the potential for introducing new vulnerabilities. Instead of direct mitigation, these situations may call for alternative strategies such as detection, monitoring, or response. The Do Not Mitigate category underscores the importance of assessing the trade-offs between mitigation efforts and overall system integri"
+  },
+  "M1056": {
+   "name": "Pre-compromise",
+   "description": "Pre-compromise mitigations involve proactive measures and defenses implemented to prevent adversaries from successfully identifying and exploiting weaknesses during the Reconnaissance and Resource Development phases of an attack. These activities focus on reducing an organization's attack surface, identify adversarial preparation efforts, and increase the difficulty for attackers to conduct successful operations. This mitigation can be implemented through the following measures:\n\nLimit Information Exposure:\n\n- Regularly audit and sanitize publicly available data, including job posts, websites,"
+  },
+  "M1020": {
+   "name": "SSL/TLS Inspection",
+   "description": "SSL/TLS inspection involves decrypting encrypted network traffic to examine its content for signs of malicious activity. This capability is crucial for detecting threats that use encryption to evade detection, such as phishing, malware, or data exfiltration. After inspection, the traffic is re-encrypted and forwarded to its destination. This mitigation can be implemented through the following measures:\n\nDeploy SSL/TLS Inspection Appliances:\n\n- Implement SSL/TLS inspection solutions to decrypt and inspect encrypted traffic.\n- Ensure appliances are placed at critical network choke points for max"
+  },
+  "M1046": {
+   "name": "Boot Integrity",
+   "description": "Boot Integrity ensures that a system starts securely by verifying the integrity of its boot process, operating system, and associated components. This mitigation focuses on leveraging secure boot mechanisms, hardware-rooted trust, and runtime integrity checks to prevent tampering during the boot sequence. It is designed to thwart adversaries attempting to modify system firmware, bootloaders, or critical OS components. This mitigation can be implemented through the following measures:\n\nImplementation of Secure Boot:\n\n- Implementation: Enable UEFI Secure Boot on all systems and configure it to a"
+  },
+  "M1060": {
+   "name": "Out-of-Band Communications Channel",
+   "description": "Establish secure out-of-band communication channels to ensure the continuity of critical communications during security incidents, data integrity attacks, or in-network communication failures. Out-of-band communication refers to using an alternative, separate communication path that is not dependent on the potentially compromised primary network infrastructure. This method can include secure messaging apps, encrypted phone lines, satellite communications, or dedicated emergency communication systems. Leveraging these alternative channels reduces the risk of adversaries intercepting, disrupting"
+  },
+  "M1030": {
+   "name": "Network Segmentation",
+   "description": "Network segmentation involves dividing a network into smaller, isolated segments to control and limit the flow of traffic between devices, systems, and applications. By segmenting networks, organizations can reduce the attack surface, restrict lateral movement by adversaries, and protect critical assets from compromise.\n\nEffective network segmentation leverages a combination of physical boundaries, logical separation through VLANs, and access control policies enforced by network appliances like firewalls, routers, and cloud-based configurations. This mitigation can be implemented through the f"
+  },
+  "M1019": {
+   "name": "Threat Intelligence Program",
+   "description": "A Threat Intelligence Program enables organizations to proactively identify, analyze, and act on cyber threats by leveraging internal and external data sources. The program supports decision-making processes, prioritizes defenses, and improves incident response by delivering actionable intelligence tailored to the organization's risk profile and operational environment. This mitigation can be implemented through the following measures:\n\nEstablish a Threat Intelligence Team:\n\n- Form a dedicated team or assign responsibility to existing security personnel to collect, analyze, and act on threat i"
+  },
+  "M1027": {
+   "name": "Password Policies",
+   "description": "Set and enforce secure password policies for accounts to reduce the likelihood of unauthorized access. Strong password policies include enforcing password complexity, requiring regular password changes, and preventing password reuse. This mitigation can be implemented through the following measures:\n\nWindows Systems:\n\n- Use Group Policy Management Console (GPMC) to configure:\n    - Minimum password length (e.g., 12+ characters).\n    - Password complexity requirements.\n    - Password history (e.g., disallow last 24 passwords).\n    - Account lockout duration and thresholds.\n\nLinux Systems:\n\n- Co"
+  },
+  "M1040": {
+   "name": "Behavior Prevention on Endpoint",
+   "description": "Behavior Prevention on Endpoint refers to the use of technologies and strategies to detect and block potentially malicious activities by analyzing the behavior of processes, files, API calls, and other endpoint events. Rather than relying solely on known signatures, this approach leverages heuristics, machine learning, and real-time monitoring to identify anomalous patterns indicative of an attack. This mitigation can be implemented through the following measures:\n\nSuspicious Process Behavior:\n\n- Implementation: Use Endpoint Detection and Response (EDR) tools to monitor and block processes exh"
+  },
+  "M1018": {
+   "name": "User Account Management",
+   "description": "User Account Management involves implementing and enforcing policies for the lifecycle of user accounts, including creation, modification, and deactivation. Proper account management reduces the attack surface by limiting unauthorized access, managing account privileges, and ensuring accounts are used according to organizational policies. This mitigation can be implemented through the following measures:\n\nEnforcing the Principle of Least Privilege\n\n- Implementation: Assign users only the minimum permissions required to perform their job functions. Regularly audit accounts to ensure no excess p"
+  },
+  "M1022": {
+   "name": "Restrict File and Directory Permissions",
+   "description": "Restricting file and directory permissions involves setting access controls at the file system level to limit which users, groups, or processes can read, write, or execute files. By configuring permissions appropriately, organizations can reduce the attack surface for adversaries seeking to access sensitive data, plant malicious code, or tamper with system files.\n\nEnforce Least Privilege Permissions:\n\n- Remove unnecessary write permissions on sensitive files and directories.\n- Use file ownership and groups to control access for specific roles.\n\nExample (Windows): Right-click the shared folder "
+  },
+  "M1026": {
+   "name": "Privileged Account Management",
+   "description": "Privileged Account Management focuses on implementing policies, controls, and tools to securely manage privileged accounts (e.g., SYSTEM, root, or administrative accounts). This includes restricting access, limiting the scope of permissions, monitoring privileged account usage, and ensuring accountability through logging and auditing.This mitigation can be implemented through the following measures:\n\nAccount Permissions and Roles:\n\n- Implement RBAC and least privilege principles to allocate permissions securely.\n- Use tools like Active Directory Group Policies to enforce access restrictions.\n\n"
+  },
+  "M1024": {
+   "name": "Restrict Registry Permissions",
+   "description": "Restricting registry permissions involves configuring access control settings for sensitive registry keys and hives to ensure that only authorized users or processes can make modifications. By limiting access, organizations can prevent unauthorized changes that adversaries might use for persistence, privilege escalation, or defense evasion. This mitigation can be implemented through the following measures:\n\nReview and Adjust Permissions on Critical Keys\n\n- Regularly review permissions on keys such as `Run`, `RunOnce`, and `Services` to ensure only authorized users have write access.\n- Use tool"
+  },
+  "M1049": {
+   "name": "Antivirus/Antimalware",
+   "description": "Antivirus/Antimalware solutions utilize signatures, heuristics, and behavioral analysis to detect, block, and remediate malicious software, including viruses, trojans, ransomware, and spyware. These solutions continuously monitor endpoints and systems for known malicious patterns and suspicious behaviors that indicate compromise. Antivirus/Antimalware software should be deployed across all devices, with automated updates to ensure protection against the latest threats. This mitigation can be implemented through the following measures:\n\nSignature-Based Detection:\n\n- Implementation: Use predefin"
+  },
+  "M1032": {
+   "name": "Multi-factor Authentication",
+   "description": "Multi-Factor Authentication (MFA) enhances security by requiring users to provide at least two forms of verification to prove their identity before granting access. These factors typically include:\n\n- *Something you know*: Passwords, PINs.\n- *Something you have*: Physical tokens, smartphone authenticator apps.\n- *Something you are*: Biometric data such as fingerprints, facial recognition, or retinal scans.\n\nImplementing MFA across all critical systems and services ensures robust protection against account takeover and unauthorized access. This mitigation can be implemented through the followin"
+  },
+  "M1054": {
+   "name": "Software Configuration",
+   "description": "Software configuration refers to making security-focused adjustments to the settings of applications, middleware, databases, or other software to mitigate potential threats. These changes help reduce the attack surface, enforce best practices, and protect sensitive data. This mitigation can be implemented through the following measures:\n\nConduct a Security Review of Application Settings:\n\n- Review the software documentation to identify recommended security configurations.\n- Compare default settings against organizational policies and compliance requirements.\n\nImplement Access Controls and Perm"
+  },
+  "M1048": {
+   "name": "Application Isolation and Sandboxing",
+   "description": "Application Isolation and Sandboxing refers to the technique of restricting the execution of code to a controlled and isolated environment (e.g., a virtual environment, container, or sandbox). This method prevents potentially malicious code from affecting the rest of the system or network by limiting access to sensitive resources and critical operations. The goal is to contain threats and minimize their impact. This mitigation can be implemented through the following measures:\n\nBrowser Sandboxing:\n\n- Use Case: Implement browser sandboxing to isolate untrusted web content and prevent malicious "
+  },
+  "M1047": {
+   "name": "Audit",
+   "description": "Auditing is the process of recording activity and systematically reviewing and analyzing the activity and system configurations. The primary purpose of auditing is to detect anomalies and identify potential threats or weaknesses in the environment. Proper auditing configurations can also help to meet compliance requirements. The process of auditing encompasses regular analysis of user behaviors and system logs in support of proactive security measures.\n\nAuditing is applicable to all systems used within an organization, from the front door of a building to accessing a file on a fileserver. It i"
+  },
+  "M1050": {
+   "name": "Exploit Protection",
+   "description": "Deploy capabilities that detect, block, and mitigate conditions indicative of software exploits. These capabilities aim to prevent exploitation by addressing vulnerabilities, monitoring anomalous behaviors, and applying exploit-mitigation techniques to harden systems and software.\n\nOperating System Exploit Protections:\n\n- Use Case: Enable built-in exploit protection features provided by modern operating systems, such as Microsoft's Exploit Protection, which includes techniques like Data Execution Prevention (DEP), Address Space Layout Randomization (ASLR), and Control Flow Guard (CFG).\n- Imple"
+  },
+  "M1015": {
+   "name": "Active Directory Configuration",
+   "description": "Implement robust Active Directory (AD) configurations using group policies to secure user accounts, control access, and minimize the attack surface. AD configurations enable centralized control over account settings, logon policies, and permissions, reducing the risk of unauthorized access and lateral movement within the network. This mitigation can be implemented through the following measures:\n\nAccount Configuration:\n\n- Implementation: Use domain accounts instead of local accounts to leverage AD\u2019s centralized management, including group policies, auditing, and access control.\n- Use Case: For"
+  },
+  "M1051": {
+   "name": "Update Software",
+   "description": "Software updates ensure systems are protected against known vulnerabilities by applying patches and upgrades provided by vendors. Regular updates reduce the attack surface and prevent adversaries from exploiting known security gaps. This includes patching operating systems, applications, drivers, and firmware. This mitigation can be implemented through the following measures:\n\nRegular Operating System Updates\n\n- Implementation: Apply the latest Windows security updates monthly using WSUS (Windows Server Update Services) or a similar patch management solution. Configure systems to check for upd"
+  },
+  "M1044": {
+   "name": "Restrict Library Loading",
+   "description": "Restricting library loading involves implementing security controls to ensure that only trusted and verified libraries (DLLs, shared objects, etc.) are loaded into processes. Adversaries often abuse Dynamic-Link Library (DLL) Injection, DLL Search Order Hijacking, or LD_PRELOAD mechanisms to execute malicious code by forcing the operating system to load untrusted libraries. This mitigation can be implemented through the following measures: \n\nEnforce Safe Library Loading Practices:\n\n- Enable `SafeDLLSearchMode` on Windows.\n- Restrict `LD_PRELOAD` and `LD_LIBRARY_PATH` usage on Linux systems.\n\nC"
+  },
+  "M1042": {
+   "name": "Disable or Remove Feature or Program",
+   "description": "Disable or remove unnecessary and potentially vulnerable software, features, or services to reduce the attack surface and prevent abuse by adversaries. This involves identifying software or features that are no longer needed or that could be exploited and ensuring they are either removed or properly disabled. This mitigation can be implemented through the following measures: \n\nRemove Legacy Software:\n\n- Use Case: Disable or remove older versions of software that no longer receive updates or security patches (e.g., legacy Java, Adobe Flash).\n- Implementation: A company removes Flash Player from"
+  },
+  "M1036": {
+   "name": "Account Use Policies",
+   "description": "Account Use Policies help mitigate unauthorized access by configuring and enforcing rules that govern how and when accounts can be used. These policies include enforcing account lockout mechanisms, restricting login times, and setting inactivity timeouts. Proper configuration of these policies reduces the risk of brute-force attacks, credential theft, and unauthorized access by limiting the opportunities for malicious actors to exploit accounts. This mitigation can be implemented through the following measures:\n\nAccount Lockout Policies:\n\n- Implementation: Configure account lockout settings so"
+  },
+  "M1041": {
+   "name": "Encrypt Sensitive Information",
+   "description": "Protect sensitive information at rest, in transit, and during processing by using strong encryption algorithms. Encryption ensures the confidentiality and integrity of data, preventing unauthorized access or tampering. This mitigation can be implemented through the following measures:\n\nEncrypt Data at Rest:\n\n- Use Case: Use full-disk encryption or file-level encryption to secure sensitive data stored on devices.\n- Implementation: Implement BitLocker for Windows systems or FileVault for macOS devices to encrypt hard drives.\n\nEncrypt Data in Transit:\n\n- Use Case: Use secure communication protoco"
+  }
+ },
+ "technique_to_mitigations": {
+  "T1659": [
+   "M1021",
+   "M1041"
+  ],
+  "T1595": [
+   "M1056"
+  ],
+  "T1205.001": [
+   "M1037"
+  ],
+  "T1566.002": [
+   "M1054",
+   "M1021",
+   "M1047",
+   "M1018",
+   "M1017"
+  ],
+  "T1053.005": [
+   "M1026",
+   "M1018",
+   "M1047",
+   "M1028"
+  ],
+  "T1580": [
+   "M1018"
+  ],
+  "T1542": [
+   "M1035",
+   "M1047",
+   "M1051",
+   "M1026",
+   "M1046"
+  ],
+  "T1599.001": [
+   "M1027",
+   "M1043",
+   "M1032",
+   "M1026",
+   "M1037"
+  ],
+  "T1505": [
+   "M1045",
+   "M1047",
+   "M1024",
+   "M1042",
+   "M1046",
+   "M1018",
+   "M1026"
+  ],
+  "T1591": [
+   "M1056"
+  ],
+  "T1547.007": [
+   "M1042",
+   "M1017"
+  ],
+  "T1021.004": [
+   "M1042",
+   "M1032",
+   "M1018"
+  ],
+  "T1036.005": [
+   "M1022",
+   "M1038",
+   "M1045"
+  ],
+  "T1557": [
+   "M1037",
+   "M1041",
+   "M1035",
+   "M1042",
+   "M1017",
+   "M1031",
+   "M1030"
+  ],
+  "T1484": [
+   "M1047",
+   "M1026",
+   "M1018"
+  ],
+  "T1677": [
+   "M1018",
+   "M1054"
+  ],
+  "T1219.001": [
+   "M1038"
+  ],
+  "T1550.003": [
+   "M1026",
+   "M1027",
+   "M1018",
+   "M1015"
+  ],
+  "T1216.002": [
+   "M1038"
+  ],
+  "T1558": [
+   "M1015",
+   "M1043",
+   "M1041",
+   "M1027",
+   "M1047",
+   "M1026"
+  ],
+  "T1671": [
+   "M1042",
+   "M1047"
+  ],
+  "T1059.006": [
+   "M1047",
+   "M1049",
+   "M1033",
+   "M1038"
+  ],
+  "T1021.005": [
+   "M1042",
+   "M1037",
+   "M1047",
+   "M1033"
+  ],
+  "T1036": [
+   "M1047",
+   "M1018",
+   "M1017",
+   "M1045",
+   "M1040",
+   "M1022",
+   "M1049",
+   "M1038"
+  ],
+  "T1555.006": [
+   "M1026"
+  ],
+  "T1482": [
+   "M1047",
+   "M1030"
+  ],
+  "T1219.003": [
+   "M1034"
+  ],
+  "T1098.001": [
+   "M1032",
+   "M1018",
+   "M1030",
+   "M1026",
+   "M1042"
+  ],
+  "T1585.003": [
+   "M1056"
+  ],
+  "T1078.002": [
+   "M1018",
+   "M1032",
+   "M1026",
+   "M1017",
+   "M1027"
+  ],
+  "T1505.004": [
+   "M1026",
+   "M1038",
+   "M1047",
+   "M1045"
+  ],
+  "T1556.005": [
+   "M1026",
+   "M1027"
+  ],
+  "T1053.003": [
+   "M1047",
+   "M1018"
+  ],
+  "T1210": [
+   "M1042",
+   "M1016",
+   "M1050",
+   "M1030",
+   "M1019",
+   "M1048",
+   "M1026",
+   "M1051"
+  ],
+  "T1552": [
+   "M1041",
+   "M1051",
+   "M1017",
+   "M1015",
+   "M1027",
+   "M1028",
+   "M1037",
+   "M1022",
+   "M1035",
+   "M1047",
+   "M1026"
+  ],
+  "T1543": [
+   "M1018",
+   "M1040",
+   "M1033",
+   "M1026",
+   "M1028",
+   "M1047",
+   "M1054",
+   "M1022",
+   "M1045"
+  ],
+  "T1040": [
+   "M1018",
+   "M1032",
+   "M1041",
+   "M1030"
+  ],
+  "T1688": [
+   "M1054",
+   "M1026"
+  ],
+  "T1557.002": [
+   "M1041",
+   "M1031",
+   "M1017",
+   "M1042",
+   "M1035",
+   "M1037"
+  ],
+  "T1574.006": [
+   "M1028",
+   "M1038"
+  ],
+  "T1195": [
+   "M1046",
+   "M1013",
+   "M1051",
+   "M1018",
+   "M1016",
+   "M1033"
+  ],
+  "T1553.003": [
+   "M1038",
+   "M1024",
+   "M1022"
+  ],
+  "T1176.001": [
+   "M1033",
+   "M1047",
+   "M1051",
+   "M1017",
+   "M1038"
+  ],
+  "T1547.003": [
+   "M1024",
+   "M1022"
+  ],
+  "T1059.010": [
+   "M1038"
+  ],
+  "T1572": [
+   "M1037",
+   "M1031"
+  ],
+  "T1036.008": [
+   "M1040",
+   "M1049",
+   "M1038"
+  ],
+  "T1574.005": [
+   "M1047",
+   "M1052",
+   "M1018"
+  ],
+  "T1543.003": [
+   "M1040",
+   "M1028",
+   "M1047",
+   "M1045",
+   "M1018"
+  ],
+  "T1588.006": [
+   "M1056"
+  ],
+  "T1555": [
+   "M1026",
+   "M1051",
+   "M1027"
+  ],
+  "T1588.007": [
+   "M1056"
+  ],
+  "T1027.015": [
+   "M1049"
+  ],
+  "T1505.005": [
+   "M1047",
+   "M1024"
+  ],
+  "T1578": [
+   "M1018",
+   "M1047"
+  ],
+  "T1550.002": [
+   "M1051",
+   "M1052",
+   "M1018",
+   "M1026"
+  ],
+  "T1568": [
+   "M1031",
+   "M1021"
+  ],
+  "T1574.012": [
+   "M1024",
+   "M1038",
+   "M1018"
+  ],
+  "T1190": [
+   "M1048",
+   "M1037",
+   "M1030",
+   "M1016",
+   "M1026",
+   "M1050",
+   "M1035",
+   "M1051"
+  ],
+  "T1686.001": [
+   "M1047",
+   "M1018"
+  ],
+  "T1102.002": [
+   "M1021",
+   "M1031"
+  ],
+  "T1588.004": [
+   "M1056"
+  ],
+  "T1072": [
+   "M1018",
+   "M1015",
+   "M1051",
+   "M1026",
+   "M1027",
+   "M1033",
+   "M1030",
+   "M1017",
+   "M1032",
+   "M1029"
+  ],
+  "T1055.002": [
+   "M1040"
+  ],
+  "T1542.001": [
+   "M1046",
+   "M1051",
+   "M1026"
+  ],
+  "T1059.005": [
+   "M1042",
+   "M1049",
+   "M1038",
+   "M1040",
+   "M1021"
+  ],
+  "T1565.003": [
+   "M1030",
+   "M1022"
+  ],
+  "T1037.001": [
+   "M1024"
+  ],
+  "T1574.008": [
+   "M1038",
+   "M1022",
+   "M1047"
+  ],
+  "T1550.004": [
+   "M1054"
+  ],
+  "T1055.004": [
+   "M1040"
+  ],
+  "T1027.014": [
+   "M1040",
+   "M1049"
+  ],
+  "T1569.002": [
+   "M1026",
+   "M1040",
+   "M1022"
+  ],
+  "T1563.002": [
+   "M1035",
+   "M1030",
+   "M1028",
+   "M1018",
+   "M1047",
+   "M1042",
+   "M1026"
+  ],
+  "T1021.008": [
+   "M1018",
+   "M1042"
+  ],
+  "T1565.001": [
+   "M1022",
+   "M1029",
+   "M1041"
+  ],
+  "T1574.010": [
+   "M1018",
+   "M1047",
+   "M1052"
+  ],
+  "T1566.003": [
+   "M1017",
+   "M1018",
+   "M1049",
+   "M1021",
+   "M1047"
+  ],
+  "T1037.004": [
+   "M1022"
+  ],
+  "T1546.002": [
+   "M1038",
+   "M1042"
+  ],
+  "T1595.003": [
+   "M1042",
+   "M1056"
+  ],
+  "T1542.005": [
+   "M1031",
+   "M1028",
+   "M1026",
+   "M1035",
+   "M1047",
+   "M1046"
+  ],
+  "T1078.004": [
+   "M1027",
+   "M1015",
+   "M1026",
+   "M1032",
+   "M1036",
+   "M1017",
+   "M1018"
+  ],
+  "T1213.004": [
+   "M1018",
+   "M1017",
+   "M1054",
+   "M1047"
+  ],
+  "T1686.002": [
+   "M1051",
+   "M1047",
+   "M1018"
+  ],
+  "T1564.003": [
+   "M1038",
+   "M1033"
+  ],
+  "T1566": [
+   "M1047",
+   "M1031",
+   "M1054",
+   "M1021",
+   "M1049",
+   "M1017"
+  ],
+  "T1583.002": [
+   "M1056"
+  ],
+  "T1087.001": [
+   "M1028"
+  ],
+  "T1505.002": [
+   "M1026",
+   "M1047",
+   "M1045"
+  ],
+  "T1552.005": [
+   "M1035",
+   "M1042",
+   "M1037"
+  ],
+  "T1008": [
+   "M1031"
+  ],
+  "T1583.004": [
+   "M1056"
+  ],
+  "T1683.002": [
+   "M1056"
+  ],
+  "T1553": [
+   "M1038",
+   "M1028",
+   "M1026",
+   "M1024",
+   "M1054"
+  ],
+  "T1587.002": [
+   "M1056"
+  ],
+  "T1027.006": [
+   "M1048"
+  ],
+  "T1212": [
+   "M1050",
+   "M1051",
+   "M1013",
+   "M1019",
+   "M1048"
+  ],
+  "T1021.006": [
+   "M1042",
+   "M1026",
+   "M1030"
+  ],
+  "T1204.003": [
+   "M1045",
+   "M1031",
+   "M1017",
+   "M1047"
+  ],
+  "T1176.002": [
+   "M1038",
+   "M1051",
+   "M1047",
+   "M1033",
+   "M1017"
+  ],
+  "T1578.005": [
+   "M1018",
+   "M1047"
+  ],
+  "T1222.002": [
+   "M1022",
+   "M1026"
+  ],
+  "T1559": [
+   "M1042",
+   "M1054",
+   "M1048",
+   "M1026",
+   "M1040",
+   "M1013"
+  ],
+  "T1612": [
+   "M1035",
+   "M1026",
+   "M1030",
+   "M1047"
+  ],
+  "T1590.006": [
+   "M1056"
+  ],
+  "T1648": [
+   "M1036",
+   "M1018"
+  ],
+  "T1590.003": [
+   "M1056"
+  ],
+  "T1596.001": [
+   "M1056"
+  ],
+  "T1052": [
+   "M1057",
+   "M1034",
+   "M1042"
+  ],
+  "T1587": [
+   "M1056"
+  ],
+  "T1218.015": [
+   "M1050",
+   "M1042",
+   "M1038"
+  ],
+  "T1218.005": [
+   "M1038",
+   "M1042"
+  ],
+  "T1537": [
+   "M1057",
+   "M1018",
+   "M1054",
+   "M1037"
+  ],
+  "T1070": [
+   "M1041",
+   "M1029",
+   "M1022"
+  ],
+  "T1685.001": [
+   "M1018",
+   "M1047",
+   "M1024",
+   "M1022"
+  ],
+  "T1499.003": [
+   "M1037"
+  ],
+  "T1584.004": [
+   "M1056"
+  ],
+  "T1484.001": [
+   "M1047",
+   "M1018"
+  ],
+  "T1071": [
+   "M1031",
+   "M1037"
+  ],
+  "T1048.003": [
+   "M1031",
+   "M1057",
+   "M1037",
+   "M1030"
+  ],
+  "T1098.004": [
+   "M1018",
+   "M1022",
+   "M1042"
+  ],
+  "T1539": [
+   "M1047",
+   "M1054",
+   "M1021",
+   "M1032",
+   "M1051",
+   "M1017"
+  ],
+  "T1619": [
+   "M1018"
+  ],
+  "T1685": [
+   "M1018",
+   "M1047",
+   "M1022",
+   "M1042",
+   "M1054",
+   "M1038",
+   "M1024"
+  ],
+  "T1556.008": [
+   "M1024",
+   "M1047",
+   "M1028"
+  ],
+  "T1548.002": [
+   "M1051",
+   "M1047",
+   "M1052",
+   "M1026"
+  ],
+  "T1496.003": [
+   "M1013"
+  ],
+  "T1566.004": [
+   "M1017"
+  ],
+  "T1505.001": [
+   "M1047",
+   "M1045",
+   "M1026"
+  ],
+  "T1602.001": [
+   "M1054",
+   "M1051",
+   "M1041",
+   "M1031",
+   "M1030",
+   "M1037"
+  ],
+  "T1204": [
+   "M1017",
+   "M1038",
+   "M1040",
+   "M1021",
+   "M1031",
+   "M1033"
+  ],
+  "T1613": [
+   "M1030",
+   "M1035",
+   "M1018"
+  ],
+  "T1053": [
+   "M1018",
+   "M1028",
+   "M1022",
+   "M1026",
+   "M1047"
+  ],
+  "T1137.006": [
+   "M1040"
+  ],
+  "T1589.001": [
+   "M1056"
+  ],
+  "T1592.002": [
+   "M1056"
+  ],
+  "T1105": [
+   "M1031",
+   "M1037"
+  ],
+  "T1047": [
+   "M1026",
+   "M1040",
+   "M1018",
+   "M1038"
+  ],
+  "T1132": [
+   "M1031"
+  ],
+  "T1136.001": [
+   "M1032",
+   "M1026"
+  ],
+  "T1213.003": [
+   "M1017",
+   "M1047",
+   "M1018",
+   "M1032"
+  ],
+  "T1568.002": [
+   "M1031",
+   "M1021"
+  ],
+  "T1189": [
+   "M1050",
+   "M1051",
+   "M1048",
+   "M1021",
+   "M1017"
+  ],
+  "T1552.002": [
+   "M1027",
+   "M1026",
+   "M1047"
+  ],
+  "T1564.006": [
+   "M1042",
+   "M1047",
+   "M1038"
+  ],
+  "T1669": [
+   "M1032",
+   "M1030",
+   "M1041"
+  ],
+  "T1218": [
+   "M1050",
+   "M1037",
+   "M1026",
+   "M1038",
+   "M1042",
+   "M1021"
+  ],
+  "T1055.009": [
+   "M1040",
+   "M1022"
+  ],
+  "T1053.002": [
+   "M1028",
+   "M1047",
+   "M1018",
+   "M1026"
+  ],
+  "T1556": [
+   "M1024",
+   "M1032",
+   "M1027",
+   "M1022",
+   "M1018",
+   "M1026",
+   "M1025",
+   "M1047",
+   "M1028"
+  ],
+  "T1588.002": [
+   "M1056"
+  ],
+  "T1480": [
+   "M1055"
+  ],
+  "T1204.005": [
+   "M1033",
+   "M1031",
+   "M1017"
+  ],
+  "T1574": [
+   "M1052",
+   "M1040",
+   "M1044",
+   "M1047",
+   "M1013",
+   "M1018",
+   "M1051",
+   "M1038",
+   "M1022",
+   "M1024"
+  ],
+  "T1556.006": [
+   "M1018",
+   "M1047",
+   "M1032"
+  ],
+  "T1114.001": [
+   "M1060",
+   "M1041"
+  ],
+  "T1218.004": [
+   "M1038",
+   "M1042"
+  ],
+  "T1098": [
+   "M1030",
+   "M1042",
+   "M1018",
+   "M1022",
+   "M1032",
+   "M1026",
+   "M1028"
+  ],
+  "T1556.003": [
+   "M1032",
+   "M1026"
+  ],
+  "T1574.001": [
+   "M1038",
+   "M1044",
+   "M1051",
+   "M1047",
+   "M1013"
+  ],
+  "T1068": [
+   "M1051",
+   "M1050",
+   "M1048",
+   "M1019",
+   "M1038"
+  ],
+  "T1530": [
+   "M1018",
+   "M1041",
+   "M1022",
+   "M1037",
+   "M1047",
+   "M1032"
+  ],
+  "T1221": [
+   "M1049",
+   "M1031",
+   "M1017",
+   "M1042"
+  ],
+  "T1584.001": [
+   "M1056"
+  ],
+  "T1555.005": [
+   "M1051",
+   "M1018",
+   "M1017",
+   "M1054",
+   "M1027"
+  ],
+  "T1686": [
+   "M1047",
+   "M1024",
+   "M1022",
+   "M1018"
+  ],
+  "T1027.010": [
+   "M1040",
+   "M1049"
+  ],
+  "T1525": [
+   "M1045",
+   "M1026",
+   "M1047"
+  ],
+  "T1213.006": [
+   "M1017",
+   "M1041",
+   "M1054",
+   "M1018",
+   "M1047"
+  ],
+  "T1528": [
+   "M1021",
+   "M1047",
+   "M1017",
+   "M1018"
+  ],
+  "T1059.002": [
+   "M1045",
+   "M1038"
+  ],
+  "T1542.003": [
+   "M1046",
+   "M1026"
+  ],
+  "T1495": [
+   "M1051",
+   "M1026",
+   "M1046"
+  ],
+  "T1055.012": [
+   "M1040"
+  ],
+  "T1098.003": [
+   "M1026",
+   "M1032",
+   "M1018"
+  ],
+  "T1136": [
+   "M1030",
+   "M1028",
+   "M1032",
+   "M1026"
+  ],
+  "T1610": [
+   "M1018",
+   "M1047",
+   "M1030",
+   "M1035"
+  ],
+  "T1557.003": [
+   "M1037",
+   "M1031"
+  ],
+  "T1547.008": [
+   "M1025",
+   "M1043",
+   "M1044"
+  ],
+  "T1566.001": [
+   "M1049",
+   "M1018",
+   "M1047",
+   "M1031",
+   "M1054",
+   "M1017",
+   "M1021"
+  ],
+  "T1204.004": [
+   "M1038",
+   "M1031",
+   "M1021"
+  ],
+  "T1197": [
+   "M1018",
+   "M1037",
+   "M1028"
+  ],
+  "T1037.005": [
+   "M1022"
+  ],
+  "T1110.001": [
+   "M1051",
+   "M1032",
+   "M1027",
+   "M1036"
+  ],
+  "T1195.001": [
+   "M1033",
+   "M1016",
+   "M1051",
+   "M1013"
+  ],
+  "T1059": [
+   "M1033",
+   "M1045",
+   "M1042",
+   "M1038",
+   "M1049",
+   "M1026",
+   "M1047",
+   "M1021",
+   "M1040"
+  ],
+  "T1683": [
+   "M1056"
+  ],
+  "T1553.004": [
+   "M1054",
+   "M1028"
+  ],
+  "T1222.001": [
+   "M1026",
+   "M1022"
+  ],
+  "T1674": [
+   "M1034",
+   "M1038"
+  ],
+  "T1611": [
+   "M1051",
+   "M1038",
+   "M1048",
+   "M1026",
+   "M1042"
+  ],
+  "T1213": [
+   "M1032",
+   "M1060",
+   "M1017",
+   "M1054",
+   "M1018",
+   "M1047",
+   "M1041"
+  ],
+  "T1053.006": [
+   "M1022",
+   "M1018",
+   "M1026"
+  ],
+  "T1129": [
+   "M1038"
+  ],
+  "T1574.009": [
+   "M1047",
+   "M1038",
+   "M1022"
+  ],
+  "T1564": [
+   "M1033",
+   "M1013",
+   "M1047",
+   "M1049"
+  ],
+  "T1552.004": [
+   "M1027",
+   "M1022",
+   "M1047",
+   "M1041"
+  ],
+  "T1090.004": [
+   "M1020"
+  ],
+  "T1218.009": [
+   "M1038",
+   "M1042"
+  ],
+  "T1584.007": [
+   "M1056"
+  ],
+  "T1218.002": [
+   "M1022",
+   "M1038"
+  ],
+  "T1134.005": [
+   "M1015"
+  ],
+  "T1027.009": [
+   "M1049",
+   "M1040"
+  ],
+  "T1498.002": [
+   "M1037"
+  ],
+  "T1556.009": [
+   "M1018"
+  ],
+  "T1557.001": [
+   "M1042",
+   "M1031",
+   "M1030",
+   "M1037"
+  ],
+  "T1070.007": [
+   "M1029",
+   "M1024"
+  ],
+  "T1102": [
+   "M1031",
+   "M1021"
+  ],
+  "T1059.007": [
+   "M1040",
+   "M1038",
+   "M1042",
+   "M1021"
+  ],
+  "T1591.003": [
+   "M1056"
+  ],
+  "T1606.002": [
+   "M1015",
+   "M1047",
+   "M1018",
+   "M1026"
+  ],
+  "T1046": [
+   "M1042",
+   "M1031",
+   "M1030"
+  ],
+  "T1127.002": [
+   "M1042",
+   "M1021",
+   "M1045"
+  ],
+  "T1683.001": [
+   "M1056"
+  ],
+  "T1041": [
+   "M1031",
+   "M1057"
+  ],
+  "T1588.003": [
+   "M1056"
+  ],
+  "T1649": [
+   "M1015",
+   "M1042",
+   "M1041",
+   "M1047"
+  ],
+  "T1599": [
+   "M1032",
+   "M1027",
+   "M1026",
+   "M1037",
+   "M1043"
+  ],
+  "T1548": [
+   "M1038",
+   "M1028",
+   "M1051",
+   "M1052",
+   "M1026",
+   "M1018",
+   "M1047",
+   "M1022"
+  ],
+  "T1211": [
+   "M1050",
+   "M1051",
+   "M1019",
+   "M1048"
+  ],
+  "T1690": [
+   "M1039",
+   "M1028"
+  ],
+  "T1548.004": [
+   "M1038"
+  ],
+  "T1589": [
+   "M1056"
+  ],
+  "T1558.002": [
+   "M1027",
+   "M1026",
+   "M1041"
+  ],
+  "T1596": [
+   "M1056"
+  ],
+  "T1021.001": [
+   "M1047",
+   "M1035",
+   "M1030",
+   "M1028",
+   "M1042",
+   "M1018",
+   "M1032",
+   "M1026"
+  ],
+  "T1574.004": [
+   "M1022"
+  ],
+  "T1114": [
+   "M1032",
+   "M1060",
+   "M1041",
+   "M1047"
+  ],
+  "T1137.002": [
+   "M1054",
+   "M1040"
+  ],
+  "T1548.001": [
+   "M1028"
+  ],
+  "T1559.002": [
+   "M1040",
+   "M1048",
+   "M1054",
+   "M1042"
+  ],
+  "T1602.002": [
+   "M1041",
+   "M1030",
+   "M1031",
+   "M1054",
+   "M1037",
+   "M1051"
+  ],
+  "T1216.001": [
+   "M1038",
+   "M1040"
+  ],
+  "T1037.003": [
+   "M1022"
+  ],
+  "T1546.003": [
+   "M1018",
+   "M1026",
+   "M1040"
+  ],
+  "T1114.003": [
+   "M1042",
+   "M1041",
+   "M1047",
+   "M1060"
+  ],
+  "T1547.009": [
+   "M1018",
+   "M1038",
+   "M1022"
+  ],
+  "T1578.003": [
+   "M1018",
+   "M1047"
+  ],
+  "T1137.004": [
+   "M1051",
+   "M1040"
+  ],
+  "T1021": [
+   "M1035",
+   "M1047",
+   "M1018",
+   "M1042",
+   "M1032",
+   "M1027"
+  ],
+  "T1104": [
+   "M1031"
+  ],
+  "T1621": [
+   "M1032",
+   "M1036",
+   "M1017"
+  ],
+  "T1569": [
+   "M1026",
+   "M1018",
+   "M1040",
+   "M1022"
+  ],
+  "T1585": [
+   "M1056"
+  ],
+  "T1590.005": [
+   "M1056"
+  ],
+  "T1564.008": [
+   "M1047"
+  ],
+  "T1686.003": [
+   "M1022",
+   "M1024",
+   "M1018",
+   "M1047"
+  ],
+  "T1647": [
+   "M1013"
+  ],
+  "T1134": [
+   "M1018",
+   "M1026"
+  ],
+  "T1090.002": [
+   "M1031"
+  ],
+  "T1059.011": [
+   "M1033",
+   "M1047",
+   "M1038"
+  ],
+  "T1203": [
+   "M1050",
+   "M1051",
+   "M1048"
+  ],
+  "T1564.012": [
+   "M1049",
+   "M1013"
+  ],
+  "T1666": [
+   "M1054",
+   "M1018",
+   "M1047"
+  ],
+  "T1558.004": [
+   "M1047",
+   "M1027",
+   "M1041"
+  ],
+  "T1598": [
+   "M1017",
+   "M1054"
+  ],
+  "T1027.011": [
+   "M1047"
+  ],
+  "T1078.001": [
+   "M1032",
+   "M1027"
+  ],
+  "T1003": [
+   "M1041",
+   "M1040",
+   "M1027",
+   "M1017",
+   "M1026",
+   "M1025",
+   "M1043",
+   "M1015",
+   "M1028"
+  ],
+  "T1036.001": [
+   "M1045"
+  ],
+  "T1176": [
+   "M1033",
+   "M1047",
+   "M1017",
+   "M1051",
+   "M1038"
+  ],
+  "T1011": [
+   "M1042",
+   "M1028"
+  ],
+  "T1136.003": [
+   "M1030",
+   "M1032",
+   "M1026"
+  ],
+  "T1489": [
+   "M1030",
+   "M1018",
+   "M1060",
+   "M1024",
+   "M1022"
+  ],
+  "T1546.013": [
+   "M1045",
+   "M1022",
+   "M1054"
+  ],
+  "T1095": [
+   "M1031",
+   "M1047",
+   "M1037",
+   "M1030"
+  ],
+  "T1550.001": [
+   "M1036",
+   "M1047",
+   "M1021",
+   "M1013",
+   "M1041"
+  ],
+  "T1218.012": [
+   "M1038",
+   "M1037",
+   "M1042"
+  ],
+  "T1601.001": [
+   "M1046",
+   "M1045",
+   "M1043",
+   "M1026",
+   "M1032",
+   "M1027"
+  ],
+  "T1003.008": [
+   "M1026",
+   "M1027"
+  ],
+  "T1106": [
+   "M1038",
+   "M1040"
+  ],
+  "T1547.005": [
+   "M1025"
+  ],
+  "T1601": [
+   "M1032",
+   "M1027",
+   "M1043",
+   "M1045",
+   "M1046",
+   "M1026"
+  ],
+  "T1071.004": [
+   "M1037",
+   "M1031"
+  ],
+  "T1602": [
+   "M1051",
+   "M1054",
+   "M1030",
+   "M1037",
+   "M1031",
+   "M1041"
+  ],
+  "T1586.001": [
+   "M1056"
+  ],
+  "T1574.011": [
+   "M1024"
+  ],
+  "T1090.003": [
+   "M1037"
+  ],
+  "T1003.003": [
+   "M1027",
+   "M1026",
+   "M1017",
+   "M1041"
+  ],
+  "T1553.006": [
+   "M1026",
+   "M1046",
+   "M1024"
+  ],
+  "T1048": [
+   "M1030",
+   "M1057",
+   "M1037",
+   "M1031",
+   "M1022",
+   "M1018"
+  ],
+  "T1558.003": [
+   "M1027",
+   "M1041",
+   "M1026"
+  ],
+  "T1589.003": [
+   "M1056"
+  ],
+  "T1543.004": [
+   "M1018",
+   "M1047"
+  ],
+  "T1547.006": [
+   "M1026",
+   "M1018",
+   "M1049",
+   "M1038"
+  ],
+  "T1684": [
+   "M1036",
+   "M1047",
+   "M1017"
+  ],
+  "T1134.003": [
+   "M1026",
+   "M1018"
+  ],
+  "T1550": [
+   "M1047",
+   "M1027",
+   "M1036",
+   "M1026",
+   "M1015",
+   "M1013",
+   "M1018"
+  ],
+  "T1552.006": [
+   "M1047",
+   "M1051",
+   "M1015"
+  ],
+  "T1213.001": [
+   "M1017",
+   "M1047",
+   "M1018"
+  ],
+  "T1127.003": [
+   "M1038",
+   "M1042"
+  ],
+  "T1134.001": [
+   "M1018",
+   "M1026"
+  ],
+  "T1205": [
+   "M1037",
+   "M1042"
+  ],
+  "T1110.004": [
+   "M1036",
+   "M1027",
+   "M1018",
+   "M1032"
+  ],
+  "T1565.002": [
+   "M1041"
+  ],
+  "T1594": [
+   "M1056"
+  ],
+  "T1048.001": [
+   "M1037",
+   "M1031",
+   "M1030"
+  ],
+  "T1609": [
+   "M1018",
+   "M1026",
+   "M1042",
+   "M1035",
+   "M1038"
+  ],
+  "T1119": [
+   "M1029",
+   "M1041"
+  ],
+  "T1071.003": [
+   "M1037",
+   "M1031"
+  ],
+  "T1136.002": [
+   "M1032",
+   "M1028",
+   "M1030",
+   "M1026"
+  ],
+  "T1078": [
+   "M1027",
+   "M1018",
+   "M1026",
+   "M1032",
+   "M1013",
+   "M1017",
+   "M1015",
+   "M1036"
+  ],
+  "T1078.003": [
+   "M1026",
+   "M1032",
+   "M1027",
+   "M1018"
+  ],
+  "T1048.002": [
+   "M1031",
+   "M1030",
+   "M1037",
+   "M1057"
+  ],
+  "T1055.014": [
+   "M1040"
+  ],
+  "T1055.013": [
+   "M1040"
+  ],
+  "T1654": [
+   "M1018"
+  ],
+  "T1565": [
+   "M1041",
+   "M1029",
+   "M1030",
+   "M1022"
+  ],
+  "T1003.001": [
+   "M1028",
+   "M1043",
+   "M1025",
+   "M1026",
+   "M1017",
+   "M1040",
+   "M1027"
+  ],
+  "T1218.001": [
+   "M1021",
+   "M1038"
+  ],
+  "T1606.001": [
+   "M1047",
+   "M1054"
+  ],
+  "T1498": [
+   "M1037"
+  ],
+  "T1546.011": [
+   "M1052",
+   "M1051"
+  ],
+  "T1484.002": [
+   "M1026",
+   "M1018"
+  ],
+  "T1098.002": [
+   "M1026",
+   "M1032",
+   "M1042"
+  ],
+  "T1005": [
+   "M1057"
+  ],
+  "T1682": [
+   "M1056"
+  ],
+  "T1219": [
+   "M1038",
+   "M1037",
+   "M1034",
+   "M1031",
+   "M1042"
+  ],
+  "T1608.006": [
+   "M1056"
+  ],
+  "T1216": [
+   "M1038"
+  ],
+  "T1052.001": [
+   "M1042",
+   "M1034",
+   "M1057"
+  ],
+  "T1055.003": [
+   "M1040"
+  ],
+  "T1553.005": [
+   "M1042",
+   "M1038"
+  ],
+  "T1053.007": [
+   "M1018",
+   "M1026"
+  ],
+  "T1098.005": [
+   "M1032"
+  ],
+  "T1587.003": [
+   "M1056"
+  ],
+  "T1597.001": [
+   "M1056"
+  ],
+  "T1684.002": [
+   "M1054"
+  ],
+  "T1059.013": [
+   "M1026",
+   "M1038"
+  ],
+  "T1110.002": [
+   "M1027",
+   "M1032"
+  ],
+  "T1598.003": [
+   "M1017",
+   "M1054"
+  ],
+  "T1059.001": [
+   "M1042",
+   "M1049",
+   "M1045",
+   "M1026",
+   "M1038"
+  ],
+  "T1574.007": [
+   "M1022",
+   "M1038",
+   "M1047"
+  ],
+  "T1218.008": [
+   "M1042",
+   "M1038"
+  ],
+  "T1091": [
+   "M1042",
+   "M1034",
+   "M1040"
+  ],
+  "T1499.002": [
+   "M1037"
+  ],
+  "T1585.001": [
+   "M1056"
+  ],
+  "T1499": [
+   "M1037"
+  ],
+  "T1213.005": [
+   "M1017",
+   "M1047",
+   "M1060"
+  ],
+  "T1547.013": [
+   "M1022",
+   "M1018",
+   "M1033"
+  ],
+  "T1102.001": [
+   "M1021",
+   "M1031"
+  ],
+  "T1480.002": [
+   "M1055"
+  ],
+  "T1685.005": [
+   "M1029",
+   "M1041",
+   "M1022"
+  ],
+  "T1204.002": [
+   "M1038",
+   "M1040",
+   "M1017"
+  ],
+  "T1546.006": [
+   "M1047",
+   "M1038",
+   "M1045"
+  ],
+  "T1589.002": [
+   "M1056"
+  ],
+  "T1087": [
+   "M1028",
+   "M1018"
+  ],
+  "T1134.002": [
+   "M1026",
+   "M1018"
+  ],
+  "T1137": [
+   "M1042",
+   "M1040",
+   "M1051",
+   "M1054"
+  ],
+  "T1593.002": [
+   "M1056"
+  ],
+  "T1110.003": [
+   "M1032",
+   "M1027",
+   "M1036"
+  ],
+  "T1570": [
+   "M1037",
+   "M1031"
+  ],
+  "T1200": [
+   "M1035",
+   "M1034"
+  ],
+  "T1573.001": [
+   "M1031"
+  ],
+  "T1187": [
+   "M1027",
+   "M1037"
+  ],
+  "T1583.007": [
+   "M1056"
+  ],
+  "T1546.010": [
+   "M1038",
+   "M1051"
+  ],
+  "T1027.012": [
+   "M1049",
+   "M1040"
+  ],
+  "T1606": [
+   "M1026",
+   "M1054",
+   "M1047",
+   "M1018"
+  ],
+  "T1558.005": [
+   "M1047",
+   "M1043"
+  ],
+  "T1559.001": [
+   "M1026",
+   "M1048"
+  ],
+  "T1564.004": [
+   "M1022"
+  ],
+  "T1195.003": [
+   "M1046"
+  ],
+  "T1543.001": [
+   "M1022"
+  ],
+  "T1003.006": [
+   "M1027",
+   "M1015",
+   "M1026"
+  ],
+  "T1554": [
+   "M1045"
+  ],
+  "T1499.004": [
+   "M1037"
+  ],
+  "T1213.002": [
+   "M1047",
+   "M1018",
+   "M1017"
+  ],
+  "T1071.002": [
+   "M1037",
+   "M1031"
+  ],
+  "T1542.004": [
+   "M1046",
+   "M1047",
+   "M1031"
+  ],
+  "T1587.001": [
+   "M1056"
+  ],
+  "T1003.005": [
+   "M1015",
+   "M1017",
+   "M1027",
+   "M1028",
+   "M1026"
+  ],
+  "T1003.002": [
+   "M1027",
+   "M1026",
+   "M1028",
+   "M1017"
+  ],
+  "T1601.002": [
+   "M1032",
+   "M1045",
+   "M1043",
+   "M1026",
+   "M1027",
+   "M1046"
+  ],
+  "T1059.004": [
+   "M1038"
+  ],
+  "T1578.001": [
+   "M1047",
+   "M1018"
+  ],
+  "T1021.003": [
+   "M1042",
+   "M1048",
+   "M1030",
+   "M1026"
+  ],
+  "T1535": [
+   "M1054"
+  ],
+  "T1557.004": [
+   "M1031",
+   "M1017"
+  ],
+  "T1204.001": [
+   "M1031",
+   "M1017",
+   "M1021"
+  ],
+  "T1598.004": [
+   "M1017"
+  ],
+  "T1133": [
+   "M1021",
+   "M1030",
+   "M1042",
+   "M1035",
+   "M1032"
+  ],
+  "T1608.001": [
+   "M1056"
+  ],
+  "T1552.008": [
+   "M1047",
+   "M1017"
+  ],
+  "T1684.001": [
+   "M1017",
+   "M1019"
+  ],
+  "T1070.003": [
+   "M1029",
+   "M1022",
+   "M1039"
+  ],
+  "T1543.002": [
+   "M1018",
+   "M1022",
+   "M1026",
+   "M1033"
+  ],
+  "T1598.001": [
+   "M1017"
+  ],
+  "T1485.001": [
+   "M1018",
+   "M1053"
+  ],
+  "T1003.004": [
+   "M1027",
+   "M1026",
+   "M1017"
+  ],
+  "T1586.002": [
+   "M1056"
+  ],
+  "T1556.007": [
+   "M1032",
+   "M1047",
+   "M1026"
+  ],
+  "T1491.001": [
+   "M1053"
+  ],
+  "T1137.001": [
+   "M1040",
+   "M1042"
+  ],
+  "T1114.002": [
+   "M1060",
+   "M1041",
+   "M1032"
+  ],
+  "T1590": [
+   "M1056"
+  ],
+  "T1055": [
+   "M1026",
+   "M1040"
+  ],
+  "T1222": [
+   "M1022",
+   "M1026"
+  ],
+  "T1547.004": [
+   "M1038",
+   "M1018"
+  ],
+  "T1563.001": [
+   "M1022",
+   "M1042",
+   "M1027",
+   "M1026"
+  ],
+  "T1070.008": [
+   "M1022",
+   "M1047",
+   "M1029"
+  ],
+  "T1685.004": [
+   "M1018",
+   "M1047"
+  ],
+  "T1681": [
+   "M1056"
+  ],
+  "T1608.004": [
+   "M1056"
+  ],
+  "T1003.007": [
+   "M1027",
+   "M1026"
+  ],
+  "T1556.001": [
+   "M1026",
+   "M1025",
+   "M1032",
+   "M1017"
+  ],
+  "T1001.001": [
+   "M1031"
+  ],
+  "T1548.003": [
+   "M1022",
+   "M1028",
+   "M1026"
+  ],
+  "T1552.007": [
+   "M1026",
+   "M1035",
+   "M1030",
+   "M1018"
+  ],
+  "T1070.009": [
+   "M1022",
+   "M1029"
+  ],
+  "T1547.002": [
+   "M1025"
+  ],
+  "T1553.001": [
+   "M1038"
+  ],
+  "T1112": [
+   "M1024"
+  ],
+  "T1563": [
+   "M1030",
+   "M1042",
+   "M1027",
+   "M1018",
+   "M1026"
+  ],
+  "T1001": [
+   "M1031"
+  ],
+  "T1583.005": [
+   "M1056"
+  ],
+  "T1571": [
+   "M1030",
+   "M1031"
+  ],
+  "T1555.004": [
+   "M1042"
+  ],
+  "T1092": [
+   "M1042",
+   "M1028"
+  ],
+  "T1027.013": [
+   "M1049",
+   "M1040"
+  ],
+  "T1090.001": [
+   "M1031"
+  ],
+  "T1574.013": [
+   "M1040"
+  ],
+  "T1596.004": [
+   "M1056"
+  ],
+  "T1597": [
+   "M1056"
+  ],
+  "T1199": [
+   "M1032",
+   "M1018",
+   "M1030"
+  ],
+  "T1567": [
+   "M1021",
+   "M1057"
+  ],
+  "T1543.005": [
+   "M1054",
+   "M1018"
+  ],
+  "T1689": [
+   "M1054",
+   "M1042"
+  ],
+  "T1087.004": [
+   "M1047",
+   "M1018"
+  ],
+  "T1591.001": [
+   "M1056"
+  ],
+  "T1218.013": [
+   "M1042",
+   "M1038"
+  ],
+  "T1205.002": [
+   "M1037"
+  ],
+  "T1127": [
+   "M1038",
+   "M1021",
+   "M1042"
+  ],
+  "T1675": [
+   "M1018"
+  ],
+  "T1185": [
+   "M1017",
+   "M1018"
+  ],
+  "T1055.011": [
+   "M1040"
+  ],
+  "T1555.001": [
+   "M1027"
+  ],
+  "T1561.001": [
+   "M1053"
+  ],
+  "T1657": [
+   "M1017",
+   "M1018"
+  ],
+  "T1583.006": [
+   "M1056"
+  ],
+  "T1490": [
+   "M1038",
+   "M1028",
+   "M1018",
+   "M1053"
+  ],
+  "T1219.002": [
+   "M1042",
+   "M1037",
+   "M1038"
+  ],
+  "T1498.001": [
+   "M1037"
+  ],
+  "T1552.001": [
+   "M1017",
+   "M1047",
+   "M1022",
+   "M1027"
+  ],
+  "T1021.002": [
+   "M1026",
+   "M1035",
+   "M1037",
+   "M1027"
+  ],
+  "T1560.001": [
+   "M1047"
+  ],
+  "T1036.007": [
+   "M1017",
+   "M1028"
+  ],
+  "T1059.008": [
+   "M1038",
+   "M1026",
+   "M1018"
+  ],
+  "T1137.005": [
+   "M1051",
+   "M1040"
+  ],
+  "T1584.005": [
+   "M1056"
+  ],
+  "T1111": [
+   "M1017"
+  ],
+  "T1595.001": [
+   "M1056"
+  ],
+  "T1036.012": [
+   "M1047"
+  ],
+  "T1548.006": [
+   "M1026",
+   "M1047",
+   "M1022"
+  ],
+  "T1584.003": [
+   "M1056"
+  ],
+  "T1029": [
+   "M1031"
+  ],
+  "T1597.002": [
+   "M1056"
+  ],
+  "T1592.004": [
+   "M1056"
+  ],
+  "T1592": [
+   "M1056"
+  ],
+  "T1480.001": [
+   "M1055"
+  ],
+  "T1564.014": [
+   "M1040"
+  ],
+  "T1218.011": [
+   "M1050"
+  ],
+  "T1486": [
+   "M1040",
+   "M1053"
+  ],
+  "T1556.002": [
+   "M1028"
+  ],
+  "T1218.007": [
+   "M1042",
+   "M1026"
+  ],
+  "T1560": [
+   "M1047"
+  ],
+  "T1590.002": [
+   "M1054"
+  ],
+  "T1559.003": [
+   "M1013"
+  ],
+  "T1037": [
+   "M1024",
+   "M1022"
+  ],
+  "T1585.002": [
+   "M1056"
+  ],
+  "T1087.002": [
+   "M1028"
+  ],
+  "T1564.007": [
+   "M1042"
+  ],
+  "T1071.005": [
+   "M1037",
+   "M1031"
+  ],
+  "T1027": [
+   "M1047",
+   "M1040",
+   "M1017",
+   "M1049"
+  ],
+  "T1037.002": [
+   "M1022"
+  ],
+  "T1030": [
+   "M1031"
+  ],
+  "T1027.017": [
+   "M1048"
+  ],
+  "T1080": [
+   "M1049",
+   "M1038",
+   "M1022",
+   "M1050"
+  ],
+  "T1555.003": [
+   "M1051",
+   "M1018",
+   "M1017",
+   "M1021",
+   "M1027"
+  ],
+  "T1685.006": [
+   "M1022",
+   "M1029",
+   "M1041"
+  ],
+  "T1546": [
+   "M1026",
+   "M1051"
+  ],
+  "T1090": [
+   "M1037",
+   "M1031",
+   "M1020"
+  ],
+  "T1499.001": [
+   "M1037"
+  ],
+  "T1027.002": [
+   "M1049"
+  ],
+  "T1564.002": [
+   "M1028"
+  ],
+  "T1598.002": [
+   "M1017",
+   "M1054"
+  ],
+  "T1027.016": [
+   "M1049"
+  ],
+  "T1573.002": [
+   "M1031",
+   "M1020"
+  ],
+  "T1127.001": [
+   "M1042",
+   "M1038"
+  ],
+  "T1558.001": [
+   "M1026",
+   "M1015"
+  ],
+  "T1059.003": [
+   "M1038"
+  ],
+  "T1011.001": [
+   "M1042",
+   "M1028"
+  ],
+  "T1593.003": [
+   "M1013",
+   "M1047"
+  ],
+  "T1552.003": [
+   "M1028"
+  ],
+  "T1218.014": [
+   "M1042",
+   "M1038"
+  ],
+  "T1578.002": [
+   "M1047",
+   "M1018"
+  ],
+  "T1485": [
+   "M1032",
+   "M1053",
+   "M1018"
+  ],
+  "T1056.003": [
+   "M1026"
+  ],
+  "T1595.002": [
+   "M1056"
+  ],
+  "T1583": [
+   "M1056"
+  ],
+  "T1220": [
+   "M1038"
+  ],
+  "T1098.006": [
+   "M1032",
+   "M1018"
+  ],
+  "T1135": [
+   "M1028"
+  ],
+  "T1546.014": [
+   "M1042"
+  ],
+  "T1591.002": [
+   "M1056"
+  ],
+  "T1218.010": [
+   "M1050"
+  ],
+  "T1102.003": [
+   "M1021",
+   "M1031"
+  ],
+  "T1685.002": [
+   "M1018"
+  ],
+  "T1055.008": [
+   "M1040",
+   "M1026"
+  ],
+  "T1059.009": [
+   "M1038",
+   "M1026"
+  ],
+  "T1110": [
+   "M1018",
+   "M1036",
+   "M1032",
+   "M1027"
+  ],
+  "T1548.005": [
+   "M1018"
+  ],
+  "T1056.002": [
+   "M1017"
+  ],
+  "T1592.001": [
+   "M1056"
+  ],
+  "T1538": [
+   "M1018"
+  ],
+  "T1584.002": [
+   "M1056"
+  ],
+  "T1556.004": [
+   "M1026",
+   "M1032"
+  ],
+  "T1491": [
+   "M1053"
+  ],
+  "T1584.006": [
+   "M1056"
+  ],
+  "T1590.004": [
+   "M1056"
+  ],
+  "T1546.004": [
+   "M1022"
+  ],
+  "T1505.003": [
+   "M1042",
+   "M1018"
+  ],
+  "T1569.003": [
+   "M1018"
+  ],
+  "T1586.003": [
+   "M1056"
+  ],
+  "T1071.001": [
+   "M1031",
+   "M1037"
+  ],
+  "T1573": [
+   "M1031",
+   "M1020"
+  ],
+  "T1001.002": [
+   "M1031"
+  ],
+  "T1583.001": [
+   "M1056"
+  ],
+  "T1574.014": [
+   "M1022"
+  ],
+  "T1590.001": [
+   "M1056"
+  ],
+  "T1006": [
+   "M1040",
+   "M1018"
+  ],
+  "T1608.003": [
+   "M1056"
+  ],
+  "T1021.007": [
+   "M1032",
+   "M1026"
+  ],
+  "T1583.003": [
+   "M1056"
+  ],
+  "T1587.004": [
+   "M1056"
+  ],
+  "T1001.003": [
+   "M1031"
+  ],
+  "T1588.001": [
+   "M1056"
+  ],
+  "T1546.008": [
+   "M1035",
+   "M1028",
+   "M1038"
+  ],
+  "T1653": [
+   "M1047"
+  ],
+  "T1020.001": [
+   "M1041",
+   "M1018",
+   "M1057"
+  ],
+  "T1542.002": [
+   "M1051"
+  ],
+  "T1036.010": [
+   "M1047",
+   "M1018"
+  ],
+  "T1547.012": [
+   "M1018"
+  ],
+  "T1567.002": [
+   "M1021"
+  ],
+  "T1137.003": [
+   "M1051",
+   "M1040"
+  ],
+  "T1586": [
+   "M1056"
+  ],
+  "T1505.006": [
+   "M1046",
+   "M1045",
+   "M1047"
+  ],
+  "T1561.002": [
+   "M1053"
+  ],
+  "T1588": [
+   "M1056"
+  ],
+  "T1596.003": [
+   "M1056"
+  ],
+  "T1025": [
+   "M1057"
+  ],
+  "T1564.009": [
+   "M1013"
+  ],
+  "T1592.003": [
+   "M1056"
+  ],
+  "T1546.009": [
+   "M1038"
+  ],
+  "T1583.008": [
+   "M1056"
+  ],
+  "T1567.001": [
+   "M1021"
+  ],
+  "T1561": [
+   "M1053"
+  ],
+  "T1567.003": [
+   "M1021"
+  ],
+  "T1195.002": [
+   "M1051",
+   "M1016"
+  ],
+  "T1201": [
+   "M1027"
+  ],
+  "T1608.005": [
+   "M1056"
+  ],
+  "T1569.001": [
+   "M1018"
+  ],
+  "T1596.002": [
+   "M1056"
+  ],
+  "T1567.004": [
+   "M1057"
+  ],
+  "T1588.005": [
+   "M1056"
+  ],
+  "T1218.003": [
+   "M1038",
+   "M1042"
+  ],
+  "T1593": [
+   "M1047",
+   "M1013"
+  ],
+  "T1608": [
+   "M1056"
+  ],
+  "T1036.003": [
+   "M1022"
+  ],
+  "T1055.005": [
+   "M1040"
+  ],
+  "T1584.008": [
+   "M1056"
+  ],
+  "T1591.004": [
+   "M1056"
+  ],
+  "T1491.002": [
+   "M1053"
+  ],
+  "T1667": [
+   "M1017",
+   "M1054"
+  ],
+  "T1132.001": [
+   "M1031"
+  ],
+  "T1584": [
+   "M1056"
+  ],
+  "T1055.001": [
+   "M1040"
+  ],
+  "T1132.002": [
+   "M1031"
+  ],
+  "T1651": [
+   "M1026"
+  ],
+  "T1596.005": [
+   "M1056"
+  ],
+  "T1593.001": [
+   "M1056"
+  ],
+  "T1685.003": [
+   "M1038"
+  ],
+  "T1650": [
+   "M1056"
+  ],
+  "T1608.002": [
+   "M1056"
+  ],
+  "T1055.015": [
+   "M1040"
+  ]
+ },
+ "technique_to_tactics": {
+  "T1055.011": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1053.005": [
+   "execution",
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1205.002": [
+   "stealth",
+   "persistence",
+   "command-and-control"
+  ],
+  "T1560.001": [
+   "collection"
+  ],
+  "T1021.005": [
+   "lateral-movement"
+  ],
+  "T1047": [
+   "execution"
+  ],
+  "T1687": [
+   "defense-impairment"
+  ],
+  "T1113": [
+   "collection"
+  ],
+  "T1027.011": [
+   "stealth"
+  ],
+  "T1037": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1557": [
+   "credential-access",
+   "collection"
+  ],
+  "T1033": [
+   "discovery"
+  ],
+  "T1583": [
+   "resource-development"
+  ],
+  "T1218.011": [
+   "stealth"
+  ],
+  "T1613": [
+   "discovery"
+  ],
+  "T1583.007": [
+   "resource-development"
+  ],
+  "T1132.001": [
+   "command-and-control"
+  ],
+  "T1027.009": [
+   "stealth"
+  ],
+  "T1556.003": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1578.004": [
+   "defense-impairment"
+  ],
+  "T1592": [
+   "reconnaissance"
+  ],
+  "T1596.003": [
+   "reconnaissance"
+  ],
+  "T1056.001": [
+   "collection",
+   "credential-access"
+  ],
+  "T1564.012": [
+   "stealth"
+  ],
+  "T1222.002": [
+   "defense-impairment"
+  ],
+  "T1110.001": [
+   "credential-access"
+  ],
+  "T1216.001": [
+   "stealth"
+  ],
+  "T1597.002": [
+   "reconnaissance"
+  ],
+  "T1003": [
+   "credential-access"
+  ],
+  "T1129": [
+   "execution"
+  ],
+  "T1602": [
+   "collection"
+  ],
+  "T1561.002": [
+   "impact"
+  ],
+  "T1498.001": [
+   "impact"
+  ],
+  "T1574.007": [
+   "stealth",
+   "execution"
+  ],
+  "T1213.002": [
+   "collection"
+  ],
+  "T1006": [
+   "stealth"
+  ],
+  "T1588.007": [
+   "resource-development"
+  ],
+  "T1666": [
+   "defense-impairment"
+  ],
+  "T1564.008": [
+   "stealth"
+  ],
+  "T1491.002": [
+   "impact"
+  ],
+  "T1027.013": [
+   "stealth"
+  ],
+  "T1590.005": [
+   "reconnaissance"
+  ],
+  "T1499.001": [
+   "impact"
+  ],
+  "T1014": [
+   "stealth"
+  ],
+  "T1546.013": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1059.007": [
+   "execution"
+  ],
+  "T1685.003": [
+   "defense-impairment"
+  ],
+  "T1590.002": [
+   "reconnaissance"
+  ],
+  "T1485.001": [
+   "impact"
+  ],
+  "T1123": [
+   "collection"
+  ],
+  "T1543": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1133": [
+   "persistence",
+   "initial-access"
+  ],
+  "T1546.006": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1539": [
+   "credential-access"
+  ],
+  "T1053.007": [
+   "execution",
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1568.002": [
+   "command-and-control"
+  ],
+  "T1036.007": [
+   "stealth"
+  ],
+  "T1548.002": [
+   "privilege-escalation"
+  ],
+  "T1496.003": [
+   "impact"
+  ],
+  "T1016.001": [
+   "discovery"
+  ],
+  "T1548.003": [
+   "privilege-escalation"
+  ],
+  "T1685.001": [
+   "defense-impairment"
+  ],
+  "T1682": [
+   "reconnaissance"
+  ],
+  "T1560.003": [
+   "collection"
+  ],
+  "T1578": [
+   "defense-impairment"
+  ],
+  "T1584.008": [
+   "resource-development"
+  ],
+  "T1583.008": [
+   "resource-development"
+  ],
+  "T1069": [
+   "discovery"
+  ],
+  "T1114": [
+   "collection"
+  ],
+  "T1003.002": [
+   "credential-access"
+  ],
+  "T1596.002": [
+   "reconnaissance"
+  ],
+  "T1542.001": [
+   "stealth",
+   "persistence"
+  ],
+  "T1594": [
+   "reconnaissance"
+  ],
+  "T1069.003": [
+   "discovery"
+  ],
+  "T1574.011": [
+   "stealth",
+   "execution"
+  ],
+  "T1596.001": [
+   "reconnaissance"
+  ],
+  "T1499.003": [
+   "impact"
+  ],
+  "T1195.001": [
+   "initial-access"
+  ],
+  "T1588.004": [
+   "resource-development"
+  ],
+  "T1583.002": [
+   "resource-development"
+  ],
+  "T1561": [
+   "impact"
+  ],
+  "T1071.004": [
+   "command-and-control"
+  ],
+  "T1552.005": [
+   "credential-access"
+  ],
+  "T1555.002": [
+   "credential-access"
+  ],
+  "T1615": [
+   "discovery"
+  ],
+  "T1542.003": [
+   "stealth",
+   "persistence"
+  ],
+  "T1025": [
+   "collection"
+  ],
+  "T1218.013": [
+   "stealth"
+  ],
+  "T1074.001": [
+   "collection"
+  ],
+  "T1036.005": [
+   "stealth"
+  ],
+  "T1587.003": [
+   "resource-development"
+  ],
+  "T1565.001": [
+   "impact"
+  ],
+  "T1110.002": [
+   "credential-access"
+  ],
+  "T1114.001": [
+   "collection"
+  ],
+  "T1555.001": [
+   "credential-access"
+  ],
+  "T1547": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1003.004": [
+   "credential-access"
+  ],
+  "T1600": [
+   "defense-impairment"
+  ],
+  "T1606.002": [
+   "credential-access"
+  ],
+  "T1036.008": [
+   "stealth"
+  ],
+  "T1489": [
+   "impact"
+  ],
+  "T1587.001": [
+   "resource-development"
+  ],
+  "T1652": [
+   "discovery"
+  ],
+  "T1087.002": [
+   "discovery"
+  ],
+  "T1547.014": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1564": [
+   "stealth"
+  ],
+  "T1559.002": [
+   "execution"
+  ],
+  "T1204.002": [
+   "execution"
+  ],
+  "T1591.003": [
+   "reconnaissance"
+  ],
+  "T1685.004": [
+   "defense-impairment"
+  ],
+  "T1071.005": [
+   "command-and-control"
+  ],
+  "T1592.001": [
+   "reconnaissance"
+  ],
+  "T1080": [
+   "lateral-movement"
+  ],
+  "T1484.002": [
+   "defense-impairment",
+   "privilege-escalation"
+  ],
+  "T1213.006": [
+   "collection"
+  ],
+  "T1573.001": [
+   "command-and-control"
+  ],
+  "T1087.001": [
+   "discovery"
+  ],
+  "T1586.001": [
+   "resource-development"
+  ],
+  "T1176.001": [
+   "persistence"
+  ],
+  "T1542.005": [
+   "stealth",
+   "persistence"
+  ],
+  "T1686.003": [
+   "defense-impairment"
+  ],
+  "T1543.003": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1568.001": [
+   "command-and-control"
+  ],
+  "T1497.001": [
+   "stealth",
+   "discovery"
+  ],
+  "T1053.003": [
+   "execution",
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1069.002": [
+   "discovery"
+  ],
+  "T1588.006": [
+   "resource-development"
+  ],
+  "T1566.002": [
+   "initial-access"
+  ],
+  "T1499.004": [
+   "impact"
+  ],
+  "T1137": [
+   "persistence"
+  ],
+  "T1218.004": [
+   "stealth"
+  ],
+  "T1598.003": [
+   "reconnaissance"
+  ],
+  "T1021.004": [
+   "lateral-movement"
+  ],
+  "T1098.003": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1547.012": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1566.001": [
+   "initial-access"
+  ],
+  "T1027.008": [
+   "stealth"
+  ],
+  "T1559.001": [
+   "execution"
+  ],
+  "T1574.001": [
+   "stealth",
+   "execution"
+  ],
+  "T1119": [
+   "collection"
+  ],
+  "T1689": [
+   "defense-impairment"
+  ],
+  "T1115": [
+   "collection"
+  ],
+  "T1003.007": [
+   "credential-access"
+  ],
+  "T1583.005": [
+   "resource-development"
+  ],
+  "T1555.005": [
+   "credential-access"
+  ],
+  "T1553.001": [
+   "defense-impairment"
+  ],
+  "T1675": [
+   "execution"
+  ],
+  "T1608.004": [
+   "resource-development"
+  ],
+  "T1007": [
+   "discovery"
+  ],
+  "T1040": [
+   "credential-access",
+   "discovery"
+  ],
+  "T1553.002": [
+   "defense-impairment"
+  ],
+  "T1530": [
+   "collection"
+  ],
+  "T1565.003": [
+   "impact"
+  ],
+  "T1552.002": [
+   "credential-access"
+  ],
+  "T1135": [
+   "discovery"
+  ],
+  "T1120": [
+   "discovery"
+  ],
+  "T1036.009": [
+   "stealth"
+  ],
+  "T1590.004": [
+   "reconnaissance"
+  ],
+  "T1587.002": [
+   "resource-development"
+  ],
+  "T1222.001": [
+   "defense-impairment"
+  ],
+  "T1137.006": [
+   "persistence"
+  ],
+  "T1685.002": [
+   "defense-impairment"
+  ],
+  "T1505.002": [
+   "persistence"
+  ],
+  "T1082": [
+   "discovery"
+  ],
+  "T1071": [
+   "command-and-control"
+  ],
+  "T1574.014": [
+   "stealth",
+   "execution"
+  ],
+  "T1074.002": [
+   "collection"
+  ],
+  "T1098.006": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1053": [
+   "execution",
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1218.007": [
+   "stealth"
+  ],
+  "T1590.003": [
+   "reconnaissance"
+  ],
+  "T1498.002": [
+   "impact"
+  ],
+  "T1556.002": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1505.005": [
+   "persistence"
+  ],
+  "T1059.002": [
+   "execution"
+  ],
+  "T1176": [
+   "persistence"
+  ],
+  "T1499.002": [
+   "impact"
+  ],
+  "T1195.003": [
+   "initial-access"
+  ],
+  "T1106": [
+   "execution"
+  ],
+  "T1558.005": [
+   "credential-access"
+  ],
+  "T1070.007": [
+   "stealth"
+  ],
+  "T1558.004": [
+   "credential-access"
+  ],
+  "T1584.003": [
+   "resource-development"
+  ],
+  "T1059.010": [
+   "execution"
+  ],
+  "T1600.001": [
+   "defense-impairment"
+  ],
+  "T1070.003": [
+   "stealth"
+  ],
+  "T1202": [
+   "stealth"
+  ],
+  "T1091": [
+   "lateral-movement",
+   "initial-access"
+  ],
+  "T1005": [
+   "collection"
+  ],
+  "T1140": [
+   "stealth"
+  ],
+  "T1137.005": [
+   "persistence"
+  ],
+  "T1586.003": [
+   "resource-development"
+  ],
+  "T1586.002": [
+   "resource-development"
+  ],
+  "T1098.007": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1608.001": [
+   "resource-development"
+  ],
+  "T1195": [
+   "initial-access"
+  ],
+  "T1190": [
+   "initial-access"
+  ],
+  "T1558": [
+   "credential-access"
+  ],
+  "T1555": [
+   "credential-access"
+  ],
+  "T1567": [
+   "exfiltration"
+  ],
+  "T1219": [
+   "command-and-control"
+  ],
+  "T1583.001": [
+   "resource-development"
+  ],
+  "T1560.002": [
+   "collection"
+  ],
+  "T1055.003": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1684": [
+   "stealth"
+  ],
+  "T1036": [
+   "stealth"
+  ],
+  "T1546.011": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1552": [
+   "credential-access"
+  ],
+  "T1547.010": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1070.008": [
+   "stealth"
+  ],
+  "T1037.002": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1659": [
+   "initial-access",
+   "command-and-control"
+  ],
+  "T1055": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1567.004": [
+   "exfiltration"
+  ],
+  "T1205": [
+   "stealth",
+   "persistence",
+   "command-and-control"
+  ],
+  "T1021.008": [
+   "lateral-movement"
+  ],
+  "T1218": [
+   "stealth"
+  ],
+  "T1070.006": [
+   "stealth"
+  ],
+  "T1557.004": [
+   "credential-access",
+   "collection"
+  ],
+  "T1620": [
+   "stealth"
+  ],
+  "T1016.002": [
+   "discovery"
+  ],
+  "T1480.002": [
+   "stealth"
+  ],
+  "T1564.011": [
+   "stealth"
+  ],
+  "T1611": [
+   "privilege-escalation"
+  ],
+  "T1518.002": [
+   "discovery"
+  ],
+  "T1547.009": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1010": [
+   "discovery"
+  ],
+  "T1569.003": [
+   "execution"
+  ],
+  "T1087.003": [
+   "discovery"
+  ],
+  "T1497.003": [
+   "stealth",
+   "discovery"
+  ],
+  "T1218.003": [
+   "stealth"
+  ],
+  "T1563.001": [
+   "lateral-movement"
+  ],
+  "T1029": [
+   "exfiltration"
+  ],
+  "T1021.002": [
+   "lateral-movement"
+  ],
+  "T1525": [
+   "persistence"
+  ],
+  "T1572": [
+   "command-and-control"
+  ],
+  "T1218.002": [
+   "stealth"
+  ],
+  "T1599.001": [
+   "defense-impairment"
+  ],
+  "T1608.002": [
+   "resource-development"
+  ],
+  "T1547.005": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1036.011": [
+   "stealth"
+  ],
+  "T1550": [
+   "lateral-movement"
+  ],
+  "T1597.001": [
+   "reconnaissance"
+  ],
+  "T1011": [
+   "exfiltration"
+  ],
+  "T1602.002": [
+   "collection"
+  ],
+  "T1589": [
+   "reconnaissance"
+  ],
+  "T1560": [
+   "collection"
+  ],
+  "T1553.003": [
+   "defense-impairment"
+  ],
+  "T1185": [
+   "collection"
+  ],
+  "T1021": [
+   "lateral-movement"
+  ],
+  "T1071.003": [
+   "command-and-control"
+  ],
+  "T1556.007": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1595.002": [
+   "reconnaissance"
+  ],
+  "T1059.009": [
+   "execution"
+  ],
+  "T1596": [
+   "reconnaissance"
+  ],
+  "T1218.015": [
+   "stealth"
+  ],
+  "T1207": [
+   "defense-impairment"
+  ],
+  "T1553.006": [
+   "defense-impairment"
+  ],
+  "T1610": [
+   "execution"
+  ],
+  "T1112": [
+   "defense-impairment",
+   "persistence"
+  ],
+  "T1543.004": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1580": [
+   "discovery"
+  ],
+  "T1555.003": [
+   "credential-access"
+  ],
+  "T1574.008": [
+   "stealth",
+   "execution"
+  ],
+  "T1491": [
+   "impact"
+  ],
+  "T1535": [
+   "stealth"
+  ],
+  "T1557.003": [
+   "credential-access",
+   "collection"
+  ],
+  "T1563": [
+   "lateral-movement"
+  ],
+  "T1564.013": [
+   "stealth"
+  ],
+  "T1027.001": [
+   "stealth"
+  ],
+  "T1505.003": [
+   "persistence"
+  ],
+  "T1484.001": [
+   "defense-impairment",
+   "privilege-escalation"
+  ],
+  "T1685.006": [
+   "defense-impairment"
+  ],
+  "T1217": [
+   "discovery"
+  ],
+  "T1552.004": [
+   "credential-access"
+  ],
+  "T1583.004": [
+   "resource-development"
+  ],
+  "T1021.006": [
+   "lateral-movement"
+  ],
+  "T1011.001": [
+   "exfiltration"
+  ],
+  "T1078.001": [
+   "stealth",
+   "persistence",
+   "privilege-escalation",
+   "initial-access"
+  ],
+  "T1547.003": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1546.005": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1574.006": [
+   "stealth",
+   "execution"
+  ],
+  "T1136.001": [
+   "persistence"
+  ],
+  "T1681": [
+   "reconnaissance"
+  ],
+  "T1674": [
+   "execution"
+  ],
+  "T1092": [
+   "command-and-control"
+  ],
+  "T1585.002": [
+   "resource-development"
+  ],
+  "T1557.001": [
+   "credential-access",
+   "collection"
+  ],
+  "T1222": [
+   "defense-impairment"
+  ],
+  "T1003.001": [
+   "credential-access"
+  ],
+  "T1176.002": [
+   "persistence"
+  ],
+  "T1595": [
+   "reconnaissance"
+  ],
+  "T1027.016": [
+   "stealth"
+  ],
+  "T1548": [
+   "privilege-escalation"
+  ],
+  "T1134.002": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1548.001": [
+   "privilege-escalation"
+  ],
+  "T1547.004": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1021.003": [
+   "lateral-movement"
+  ],
+  "T1110.003": [
+   "credential-access"
+  ],
+  "T1090.002": [
+   "command-and-control"
+  ],
+  "T1056.003": [
+   "collection",
+   "credential-access"
+  ],
+  "T1589.002": [
+   "reconnaissance"
+  ],
+  "T1598.004": [
+   "reconnaissance"
+  ],
+  "T1683.001": [
+   "resource-development"
+  ],
+  "T1003.005": [
+   "credential-access"
+  ],
+  "T1098.004": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1673": [
+   "discovery"
+  ],
+  "T1590.006": [
+   "reconnaissance"
+  ],
+  "T1546.012": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1218.008": [
+   "stealth"
+  ],
+  "T1593.002": [
+   "reconnaissance"
+  ],
+  "T1591.002": [
+   "reconnaissance"
+  ],
+  "T1548.005": [
+   "privilege-escalation"
+  ],
+  "T1125": [
+   "collection"
+  ],
+  "T1055.013": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1016": [
+   "discovery"
+  ],
+  "T1578.003": [
+   "defense-impairment"
+  ],
+  "T1593.003": [
+   "reconnaissance"
+  ],
+  "T1574.005": [
+   "stealth",
+   "execution"
+  ],
+  "T1546.008": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1496.002": [
+   "impact"
+  ],
+  "T1087": [
+   "discovery"
+  ],
+  "T1090": [
+   "command-and-control"
+  ],
+  "T1059": [
+   "execution"
+  ],
+  "T1204.005": [
+   "execution"
+  ],
+  "T1685.005": [
+   "defense-impairment"
+  ],
+  "T1136.002": [
+   "persistence"
+  ],
+  "T1564.014": [
+   "stealth"
+  ],
+  "T1589.003": [
+   "reconnaissance"
+  ],
+  "T1677": [
+   "execution"
+  ],
+  "T1482": [
+   "discovery"
+  ],
+  "T1558.001": [
+   "credential-access"
+  ],
+  "T1020": [
+   "exfiltration"
+  ],
+  "T1592.004": [
+   "reconnaissance"
+  ],
+  "T1219.001": [
+   "command-and-control"
+  ],
+  "T1036.002": [
+   "stealth"
+  ],
+  "T1588.001": [
+   "resource-development"
+  ],
+  "T1027.017": [
+   "stealth"
+  ],
+  "T1542.002": [
+   "stealth",
+   "persistence"
+  ],
+  "T1070": [
+   "stealth"
+  ],
+  "T1048.001": [
+   "exfiltration"
+  ],
+  "T1137.001": [
+   "persistence"
+  ],
+  "T1583.003": [
+   "resource-development"
+  ],
+  "T1213.001": [
+   "collection"
+  ],
+  "T1550.003": [
+   "lateral-movement"
+  ],
+  "T1609": [
+   "execution"
+  ],
+  "T1083": [
+   "discovery"
+  ],
+  "T1568": [
+   "command-and-control"
+  ],
+  "T1036.004": [
+   "stealth"
+  ],
+  "T1055.004": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1020.001": [
+   "exfiltration"
+  ],
+  "T1647": [
+   "defense-impairment"
+  ],
+  "T1127.003": [
+   "stealth",
+   "execution"
+  ],
+  "T1546.009": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1114.003": [
+   "collection"
+  ],
+  "T1074": [
+   "collection"
+  ],
+  "T1649": [
+   "credential-access"
+  ],
+  "T1098.005": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1049": [
+   "discovery"
+  ],
+  "T1584": [
+   "resource-development"
+  ],
+  "T1553.005": [
+   "defense-impairment"
+  ],
+  "T1600.002": [
+   "defense-impairment"
+  ],
+  "T1542": [
+   "stealth",
+   "persistence"
+  ],
+  "T1612": [
+   "stealth"
+  ],
+  "T1055.002": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1218.012": [
+   "stealth"
+  ],
+  "T1586": [
+   "resource-development"
+  ],
+  "T1569.001": [
+   "execution"
+  ],
+  "T1584.005": [
+   "resource-development"
+  ],
+  "T1059.008": [
+   "execution"
+  ],
+  "T1552.003": [
+   "credential-access"
+  ],
+  "T1559.003": [
+   "execution"
+  ],
+  "T1497": [
+   "stealth",
+   "discovery"
+  ],
+  "T1102": [
+   "command-and-control"
+  ],
+  "T1552.001": [
+   "credential-access"
+  ],
+  "T1568.003": [
+   "command-and-control"
+  ],
+  "T1218.005": [
+   "stealth"
+  ],
+  "T1547.015": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1608": [
+   "resource-development"
+  ],
+  "T1608.005": [
+   "resource-development"
+  ],
+  "T1104": [
+   "command-and-control"
+  ],
+  "T1657": [
+   "impact"
+  ],
+  "T1480": [
+   "stealth"
+  ],
+  "T1619": [
+   "discovery"
+  ],
+  "T1606.001": [
+   "credential-access"
+  ],
+  "T1654": [
+   "discovery"
+  ],
+  "T1134.001": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1567.001": [
+   "exfiltration"
+  ],
+  "T1021.007": [
+   "lateral-movement"
+  ],
+  "T1205.001": [
+   "stealth",
+   "persistence",
+   "command-and-control"
+  ],
+  "T1027.012": [
+   "stealth"
+  ],
+  "T1583.006": [
+   "resource-development"
+  ],
+  "T1528": [
+   "credential-access"
+  ],
+  "T1598.002": [
+   "reconnaissance"
+  ],
+  "T1098.001": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1204": [
+   "execution"
+  ],
+  "T1491.001": [
+   "impact"
+  ],
+  "T1564.002": [
+   "stealth"
+  ],
+  "T1134.003": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1552.006": [
+   "credential-access"
+  ],
+  "T1048.002": [
+   "exfiltration"
+  ],
+  "T1087.004": [
+   "discovery"
+  ],
+  "T1683.002": [
+   "resource-development"
+  ],
+  "T1057": [
+   "discovery"
+  ],
+  "T1556.008": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1546.003": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1596.004": [
+   "reconnaissance"
+  ],
+  "T1497.002": [
+   "stealth",
+   "discovery"
+  ],
+  "T1496.004": [
+   "impact"
+  ],
+  "T1585.003": [
+   "resource-development"
+  ],
+  "T1072": [
+   "execution",
+   "lateral-movement"
+  ],
+  "T1041": [
+   "exfiltration"
+  ],
+  "T1134.004": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1591": [
+   "reconnaissance"
+  ],
+  "T1606": [
+   "credential-access"
+  ],
+  "T1621": [
+   "credential-access"
+  ],
+  "T1554": [
+   "persistence"
+  ],
+  "T1552.008": [
+   "credential-access"
+  ],
+  "T1059.001": [
+   "execution"
+  ],
+  "T1546.001": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1055.014": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1071.002": [
+   "command-and-control"
+  ],
+  "T1679": [
+   "stealth"
+  ],
+  "T1212": [
+   "credential-access"
+  ],
+  "T1546.014": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1102.003": [
+   "command-and-control"
+  ],
+  "T1590": [
+   "reconnaissance"
+  ],
+  "T1210": [
+   "lateral-movement"
+  ],
+  "T1534": [
+   "lateral-movement"
+  ],
+  "T1574.010": [
+   "stealth",
+   "execution"
+  ],
+  "T1547.001": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1199": [
+   "initial-access"
+  ],
+  "T1136.003": [
+   "persistence"
+  ],
+  "T1069.001": [
+   "discovery"
+  ],
+  "T1593": [
+   "reconnaissance"
+  ],
+  "T1098": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1048": [
+   "exfiltration"
+  ],
+  "T1547.006": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1678": [
+   "stealth"
+  ],
+  "T1056.002": [
+   "collection",
+   "credential-access"
+  ],
+  "T1686.002": [
+   "defense-impairment"
+  ],
+  "T1588.002": [
+   "resource-development"
+  ],
+  "T1052.001": [
+   "exfiltration"
+  ],
+  "T1574.013": [
+   "stealth",
+   "execution"
+  ],
+  "T1597": [
+   "reconnaissance"
+  ],
+  "T1053.006": [
+   "execution",
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1566": [
+   "initial-access"
+  ],
+  "T1542.004": [
+   "stealth",
+   "persistence"
+  ],
+  "T1218.001": [
+   "stealth"
+  ],
+  "T1496.001": [
+   "impact"
+  ],
+  "T1070.005": [
+   "stealth"
+  ],
+  "T1090.003": [
+   "command-and-control"
+  ],
+  "T1110": [
+   "credential-access"
+  ],
+  "T1059.004": [
+   "execution"
+  ],
+  "T1137.003": [
+   "persistence"
+  ],
+  "T1219.003": [
+   "command-and-control"
+  ],
+  "T1565": [
+   "impact"
+  ],
+  "T1559": [
+   "execution"
+  ],
+  "T1001": [
+   "command-and-control"
+  ],
+  "T1039": [
+   "collection"
+  ],
+  "T1584.006": [
+   "resource-development"
+  ],
+  "T1601": [
+   "defense-impairment"
+  ],
+  "T1574": [
+   "stealth",
+   "execution"
+  ],
+  "T1036.012": [
+   "stealth"
+  ],
+  "T1059.011": [
+   "execution"
+  ],
+  "T1027.005": [
+   "stealth"
+  ],
+  "T1204.003": [
+   "execution"
+  ],
+  "T1543.005": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1078": [
+   "stealth",
+   "persistence",
+   "privilege-escalation",
+   "initial-access"
+  ],
+  "T1571": [
+   "command-and-control"
+  ],
+  "T1585.001": [
+   "resource-development"
+  ],
+  "T1055.012": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1068": [
+   "privilege-escalation"
+  ],
+  "T1564.009": [
+   "stealth"
+  ],
+  "T1531": [
+   "impact"
+  ],
+  "T1110.004": [
+   "credential-access"
+  ],
+  "T1027": [
+   "stealth"
+  ],
+  "T1556.006": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1114.002": [
+   "collection"
+  ],
+  "T1505.004": [
+   "persistence"
+  ],
+  "T1036.001": [
+   "stealth"
+  ],
+  "T1683": [
+   "resource-development"
+  ],
+  "T1564.006": [
+   "stealth"
+  ],
+  "T1027.014": [
+   "stealth"
+  ],
+  "T1201": [
+   "discovery"
+  ],
+  "T1546": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1546.004": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1187": [
+   "credential-access"
+  ],
+  "T1134.005": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1599": [
+   "defense-impairment"
+  ],
+  "T1486": [
+   "impact"
+  ],
+  "T1690": [
+   "defense-impairment"
+  ],
+  "T1553": [
+   "defense-impairment"
+  ],
+  "T1548.004": [
+   "privilege-escalation"
+  ],
+  "T1592.003": [
+   "reconnaissance"
+  ],
+  "T1573": [
+   "command-and-control"
+  ],
+  "T1547.002": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1218.010": [
+   "stealth"
+  ],
+  "T1567.003": [
+   "exfiltration"
+  ],
+  "T1592.002": [
+   "reconnaissance"
+  ],
+  "T1056": [
+   "collection",
+   "credential-access"
+  ],
+  "T1566.004": [
+   "initial-access"
+  ],
+  "T1587.004": [
+   "resource-development"
+  ],
+  "T1685": [
+   "defense-impairment"
+  ],
+  "T1593.001": [
+   "reconnaissance"
+  ],
+  "T1213.004": [
+   "collection"
+  ],
+  "T1546.015": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1589.001": [
+   "reconnaissance"
+  ],
+  "T1195.002": [
+   "initial-access"
+  ],
+  "T1036.003": [
+   "stealth"
+  ],
+  "T1102.002": [
+   "command-and-control"
+  ],
+  "T1203": [
+   "execution"
+  ],
+  "T1595.003": [
+   "reconnaissance"
+  ],
+  "T1667": [
+   "impact"
+  ],
+  "T1137.004": [
+   "persistence"
+  ],
+  "T1573.002": [
+   "command-and-control"
+  ],
+  "T1567.002": [
+   "exfiltration"
+  ],
+  "T1570": [
+   "lateral-movement"
+  ],
+  "T1574.009": [
+   "stealth",
+   "execution"
+  ],
+  "T1608.003": [
+   "resource-development"
+  ],
+  "T1037.005": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1614.001": [
+   "discovery"
+  ],
+  "T1095": [
+   "command-and-control"
+  ],
+  "T1059.013": [
+   "execution"
+  ],
+  "T1027.003": [
+   "stealth"
+  ],
+  "T1584.002": [
+   "resource-development"
+  ],
+  "T1671": [
+   "persistence"
+  ],
+  "T1001.003": [
+   "command-and-control"
+  ],
+  "T1012": [
+   "discovery"
+  ],
+  "T1030": [
+   "exfiltration"
+  ],
+  "T1550.004": [
+   "lateral-movement"
+  ],
+  "T1078.002": [
+   "stealth",
+   "persistence",
+   "privilege-escalation",
+   "initial-access"
+  ],
+  "T1218.009": [
+   "stealth"
+  ],
+  "T1546.018": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1553.004": [
+   "defense-impairment"
+  ],
+  "T1037.003": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1499": [
+   "impact"
+  ],
+  "T1027.004": [
+   "stealth"
+  ],
+  "T1688": [
+   "defense-impairment"
+  ],
+  "T1614": [
+   "discovery"
+  ],
+  "T1564.007": [
+   "stealth"
+  ],
+  "T1197": [
+   "stealth",
+   "persistence",
+   "execution"
+  ],
+  "T1127.001": [
+   "stealth",
+   "execution"
+  ],
+  "T1578.005": [
+   "defense-impairment"
+  ],
+  "T1090.004": [
+   "command-and-control"
+  ],
+  "T1557.002": [
+   "credential-access",
+   "collection"
+  ],
+  "T1518.001": [
+   "discovery"
+  ],
+  "T1564.003": [
+   "stealth"
+  ],
+  "T1127.002": [
+   "stealth",
+   "execution"
+  ],
+  "T1059.006": [
+   "execution"
+  ],
+  "T1070.010": [
+   "stealth"
+  ],
+  "T1591.004": [
+   "reconnaissance"
+  ],
+  "T1132": [
+   "command-and-control"
+  ],
+  "T1546.010": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1598": [
+   "reconnaissance"
+  ],
+  "T1496": [
+   "impact"
+  ],
+  "T1684.001": [
+   "stealth"
+  ],
+  "T1585": [
+   "resource-development"
+  ],
+  "T1588": [
+   "resource-development"
+  ],
+  "T1546.002": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1556.009": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1578.002": [
+   "defense-impairment"
+  ],
+  "T1555.006": [
+   "credential-access"
+  ],
+  "T1213.003": [
+   "collection"
+  ],
+  "T1565.002": [
+   "impact"
+  ],
+  "T1003.008": [
+   "credential-access"
+  ],
+  "T1543.001": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1569": [
+   "execution"
+  ],
+  "T1059.003": [
+   "execution"
+  ],
+  "T1055.009": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1650": [
+   "resource-development"
+  ],
+  "T1601.001": [
+   "defense-impairment"
+  ],
+  "T1558.002": [
+   "credential-access"
+  ],
+  "T1213": [
+   "collection"
+  ],
+  "T1070.009": [
+   "stealth"
+  ],
+  "T1059.012": [
+   "execution"
+  ],
+  "T1555.004": [
+   "credential-access"
+  ],
+  "T1036.010": [
+   "stealth"
+  ],
+  "T1200": [
+   "initial-access"
+  ],
+  "T1219.002": [
+   "command-and-control"
+  ],
+  "T1505": [
+   "persistence"
+  ],
+  "T1485": [
+   "impact"
+  ],
+  "T1132.002": [
+   "command-and-control"
+  ],
+  "T1556.001": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1537": [
+   "exfiltration"
+  ],
+  "T1027.006": [
+   "stealth"
+  ],
+  "T1556.005": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1027.010": [
+   "stealth"
+  ],
+  "T1070.004": [
+   "stealth"
+  ],
+  "T1189": [
+   "initial-access"
+  ],
+  "T1498": [
+   "impact"
+  ],
+  "T1651": [
+   "execution"
+  ],
+  "T1546.016": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1595.001": [
+   "reconnaissance"
+  ],
+  "T1221": [
+   "stealth"
+  ],
+  "T1037.004": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1134": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1111": [
+   "credential-access"
+  ],
+  "T1027.002": [
+   "stealth"
+  ],
+  "T1584.007": [
+   "resource-development"
+  ],
+  "T1071.001": [
+   "command-and-control"
+  ],
+  "T1059.005": [
+   "execution"
+  ],
+  "T1564.005": [
+   "stealth"
+  ],
+  "T1543.002": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1668": [
+   "persistence"
+  ],
+  "T1563.002": [
+   "lateral-movement"
+  ],
+  "T1136": [
+   "persistence"
+  ],
+  "T1547.013": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1584.004": [
+   "resource-development"
+  ],
+  "T1526": [
+   "discovery"
+  ],
+  "T1204.004": [
+   "execution"
+  ],
+  "T1018": [
+   "discovery"
+  ],
+  "T1046": [
+   "discovery"
+  ],
+  "T1590.001": [
+   "reconnaissance"
+  ],
+  "T1518": [
+   "discovery"
+  ],
+  "T1538": [
+   "discovery"
+  ],
+  "T1055.005": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1622": [
+   "stealth",
+   "discovery"
+  ],
+  "T1036.006": [
+   "stealth"
+  ],
+  "T1547.007": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1608.006": [
+   "resource-development"
+  ],
+  "T1550.002": [
+   "lateral-movement"
+  ],
+  "T1052": [
+   "exfiltration"
+  ],
+  "T1105": [
+   "command-and-control"
+  ],
+  "T1216.002": [
+   "stealth"
+  ],
+  "T1098.002": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1588.003": [
+   "resource-development"
+  ],
+  "T1648": [
+   "execution"
+  ],
+  "T1548.006": [
+   "privilege-escalation"
+  ],
+  "T1027.018": [
+   "stealth"
+  ],
+  "T1055.008": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1653": [
+   "persistence"
+  ],
+  "T1027.007": [
+   "stealth"
+  ],
+  "T1021.001": [
+   "lateral-movement"
+  ],
+  "T1037.001": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1055.015": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1665": [
+   "command-and-control"
+  ],
+  "T1484": [
+   "defense-impairment",
+   "privilege-escalation"
+  ],
+  "T1220": [
+   "stealth"
+  ],
+  "T1596.005": [
+   "reconnaissance"
+  ],
+  "T1564.001": [
+   "stealth"
+  ],
+  "T1578.001": [
+   "defense-impairment"
+  ],
+  "T1591.001": [
+   "reconnaissance"
+  ],
+  "T1137.002": [
+   "persistence"
+  ],
+  "T1587": [
+   "resource-development"
+  ],
+  "T1003.003": [
+   "credential-access"
+  ],
+  "T1686.001": [
+   "defense-impairment"
+  ],
+  "T1602.001": [
+   "collection"
+  ],
+  "T1686": [
+   "defense-impairment"
+  ],
+  "T1001.002": [
+   "command-and-control"
+  ],
+  "T1204.001": [
+   "execution"
+  ],
+  "T1550.001": [
+   "lateral-movement"
+  ],
+  "T1547.008": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1569.002": [
+   "execution"
+  ],
+  "T1078.004": [
+   "stealth",
+   "persistence",
+   "privilege-escalation",
+   "initial-access"
+  ],
+  "T1480.001": [
+   "stealth"
+  ],
+  "T1008": [
+   "command-and-control"
+  ],
+  "T1680": [
+   "discovery"
+  ],
+  "T1564.004": [
+   "stealth"
+  ],
+  "T1558.003": [
+   "credential-access"
+  ],
+  "T1003.006": [
+   "credential-access"
+  ],
+  "T1124": [
+   "discovery"
+  ],
+  "T1053.002": [
+   "execution",
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1055.001": [
+   "stealth",
+   "privilege-escalation"
+  ],
+  "T1588.005": [
+   "resource-development"
+  ],
+  "T1556": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1546.017": [
+   "persistence",
+   "privilege-escalation"
+  ],
+  "T1056.004": [
+   "collection",
+   "credential-access"
+  ],
+  "T1495": [
+   "impact"
+  ],
+  "T1490": [
+   "impact"
+  ],
+  "T1546.007": [
+   "privilege-escalation",
+   "persistence"
+  ],
+  "T1566.003": [
+   "initial-access"
+  ],
+  "T1090.001": [
+   "command-and-control"
+  ],
+  "T1216": [
+   "stealth"
+  ],
+  "T1102.001": [
+   "command-and-control"
+  ],
+  "T1001.001": [
+   "command-and-control"
+  ],
+  "T1598.001": [
+   "reconnaissance"
+  ],
+  "T1505.006": [
+   "persistence"
+  ],
+  "T1552.007": [
+   "credential-access"
+  ],
+  "T1584.001": [
+   "resource-development"
+  ],
+  "T1505.001": [
+   "persistence"
+  ],
+  "T1556.004": [
+   "defense-impairment",
+   "persistence",
+   "credential-access"
+  ],
+  "T1561.001": [
+   "impact"
+  ],
+  "T1213.005": [
+   "collection"
+  ],
+  "T1048.003": [
+   "exfiltration"
+  ],
+  "T1027.015": [
+   "stealth"
+  ],
+  "T1574.004": [
+   "stealth",
+   "execution"
+  ],
+  "T1601.002": [
+   "defense-impairment"
+  ],
+  "T1684.002": [
+   "stealth"
+  ],
+  "T1078.003": [
+   "stealth",
+   "persistence",
+   "privilege-escalation",
+   "initial-access"
+  ],
+  "T1669": [
+   "initial-access"
+  ],
+  "T1211": [
+   "stealth"
+  ],
+  "T1127": [
+   "stealth",
+   "execution"
+  ],
+  "T1529": [
+   "impact"
+  ],
+  "T1218.014": [
+   "stealth"
+  ],
+  "T1564.010": [
+   "stealth"
+  ],
+  "T1574.012": [
+   "stealth",
+   "execution"
+  ]
+ }
+}

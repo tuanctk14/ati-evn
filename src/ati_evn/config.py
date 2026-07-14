@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     llm_cpe_min_confidence: float = 0.6
     llm_max_concurrent: int = 5
 
+    # ── ATT&CK enrichment (slice 4.5) ────────────────────────────────────────
+    attack_bert_model: str = "basel/ATTACK-BERT"
+    attack_bert_device: str = "cpu"
+    smet_embeddings_cache: str = "./src/ati_evn/data/technique_embeddings.npz"
+
+    # ── Sigma rules (slice 4.7) ──────────────────────────────────────────────
+    sigma_repo_dir: str = "./data/sigmahq"
+    sigma_rule_min_score: int = 0   # for filtering community results
+
     # ── CVE feeds ────────────────────────────────────────────────────────────
     nvd_api_key: str = ""
     vulners_api_key: str = ""
@@ -74,6 +83,17 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_alert_chat_id: str = ""
     telegram_allowed_user_ids: str = ""  # comma-separated ints
+
+    # ── Telegram Bot 1 (Alert Notifier) — slice 5A ────────────────────────────
+    telegram_alert_bot_token: str = ""
+    telegram_analyst_bot_username: str = ""  # for "@<bot>" command hints in alerts
+
+    # Dispatch behavior
+    alert_dedupe_window_minutes: int = 5
+    alert_batch_trigger_count: int = 3    # >=3 findings same customer → batch
+    alert_batch_window_seconds: int = 60
+    alert_retry_max_attempts: int = 5
+    alert_retry_backoff_seconds: int = 300  # 5-min fixed interval per spec
 
     @property
     def telegram_allowed_ids(self) -> set[int]:

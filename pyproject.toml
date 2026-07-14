@@ -39,6 +39,29 @@ dependencies = [
 
     # Matching
     "packaging>=24.0",
+
+    # ATT&CK enrichment (slice 4.5)
+    # torch >=2.6 required: transformers/ST refuse to torch.load legacy .bin
+    # weights (basel/ATTACK-BERT ships .bin only) on older torch due to
+    # CVE-2025-32434. 2.6 unblocks the primary ATTACK-BERT model.
+    "torch>=2.6",
+    "sentence-transformers>=2.6",
+
+    # Sigma rules (slice 4.7)
+    "pyyaml>=6.0",
+    "pysigma>=0.11",
+    "gitpython>=3.1",
+
+    # Alert dispatch (slice 5A)
+    "tenacity>=8.2",
+    # pysigma-backend-qradar intentionally NOT pinned here: the only
+    # available release (0.3.3) requires pysigma<0.10 + packaging<23,
+    # which conflicts with this project's packaging>=24.0 pin (used by
+    # match/version_range.py) and with pysigma>=0.11 above — installing
+    # it downgrades both and leaves `import sigma` a broken namespace
+    # package. aql_converter.py degrades gracefully (AQL_AVAILABLE=False)
+    # when it's absent; install it in an isolated environment if QRadar
+    # AQL output is needed.
 ]
 
 [project.optional-dependencies]

@@ -13,7 +13,10 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ati_evn.db.models import Detection, DetectionStatus, FpMemory
+from ati_evn.alerts.dedupe import compute_dedupe_key, find_existing_dispatch
+from ati_evn.alerts.dispatch_rule import should_dispatch
+from ati_evn.config import get_settings
+from ati_evn.db.models import AlertQueue, Detection, DetectionStatus, Finding, FpMemory
 from ati_evn.match.asset_index import AssetIndex
 from ati_evn.match.finding_merger import upsert_finding, upsert_probable_exposure
 from ati_evn.match.fp_check import is_false_positive
@@ -100,6 +103,8 @@ async def route_detections(
     against the OLD asset set and deserve a fresh look against the new one).
     """
     stats = RouteStats()
+    new_findings: list[Finding] = []
+    new_finding_asset_ids: dict[int, int | None] = {}  # finding.id -> asset.id
     idx = await AssetIndex.build(session)
     detections = await _select_detections(session, since_hours, only_new, only_status)
 
@@ -155,6 +160,10 @@ async def route_detections(
                     finding = await upsert_finding(session, det, match, severity)
                     if finding.source_count == 1:
                         stats.findings_created += 1
+                        new_findings.append(finding)
+                        new_finding_asset_ids[finding.id] = (
+                            match.asset.id if match.asset is not None else None
+                        )
                     else:
                         stats.findings_merged += 1
 
@@ -186,4 +195,56 @@ async def route_detections(
         stats.findings_created, stats.findings_merged, stats.findings_auto_fp,
         stats.probable_exposures_created,
     )
+
+    # ── Slice 4.5: chain-only enrichment ──
+    # smet_mapper=None deliberately — semantic BERT path (ATTACK-BERT and its
+    # MiniLM fallback) failed calibration diagnostics (0/4 and 1/4 on real CVE
+    # descriptions; expected techniques ranked near the bottom of all 697).
+    # CWE→ATT&CK chain is deterministic and was verified correct in the
+    # offline smoke test, so it's the only enrichment path wired in for now.
+    if new_findings and not dry_run:
+        from ati_evn.enrichment.orchestrator import enrich_finding
+        logger.info("Enriching %d new findings (chain-only)...", len(new_findings))
+        enriched = 0
+        for finding in new_findings:
+            try:
+                ctx = await enrich_finding(session, finding, smet_mapper=None)
+                if ctx:
+                    enriched += 1
+            except Exception as e:
+                logger.warning("Enrichment failed for finding %d: %s", finding.id, e)
+        await session.commit()
+        logger.info("Enriched %d/%d findings", enriched, len(new_findings))
+
+    # ── Slice 5A: push dispatch-eligible new findings to alert_queue ──
+    # The router NEVER sends Telegram messages itself — that's Bot 1's job
+    # (telegram/bot_alert.py), polling this table. Pushing happens after
+    # enrichment so the alert formatter can read Finding.metadata_.attack_context.
+    if new_findings and not dry_run:
+        settings = get_settings()
+        queued = 0
+        for finding in new_findings:
+            ok, reason = should_dispatch(finding)
+            if not ok:
+                continue
+
+            asset_id = new_finding_asset_ids.get(finding.id)
+            dedupe_key = compute_dedupe_key(finding.customer_id, finding.ioc_value, asset_id)
+            existing_id = await find_existing_dispatch(
+                session, dedupe_key, settings.alert_dedupe_window_minutes,
+            )
+            state = "deduped" if existing_id else "pending"
+
+            session.add(AlertQueue(
+                finding_id=finding.id,
+                customer_id=finding.customer_id,
+                state=state,
+                dispatch_reason=reason,
+                dedupe_key=dedupe_key,
+                deduped_of_id=existing_id,
+            ))
+            queued += 1
+        await session.commit()
+        logger.info("Queued %d/%d new findings for alert dispatch", queued, len(new_findings))
+
     return stats

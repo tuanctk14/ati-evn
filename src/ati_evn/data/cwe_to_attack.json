@@ -1,0 +1,2205 @@
+{
+ "_meta": {
+  "generated_at": "2026-07-13T00:00:00Z",
+  "cwe_entries": 185,
+  "sources_combined": [
+   "MITRE CAPEC STIX (v2.1) — 149 CWEs via CAPEC→ATT&CK reverse chain",
+   "Center for Threat-Informed Defense curated (33 CWEs, from ATI ref)",
+   "CWE Top 25 (2023) manual curation — 25 CWEs, high confidence",
+   "Common implementation CWEs manual curation — ~25 CWEs"
+  ],
+  "confidence_scale": {
+   "0.90-1.00": "Ground truth (published Top 25 or ATT&CK doc)",
+   "0.75-0.89": "Strong curation / CAPEC direct chain",
+   "0.60-0.74": "Inferred / parent-fallback / weak reference"
+  },
+  "schema_version": 2
+ },
+ "cwe_to_attack": {
+  "CWE-276": {
+   "techniques": [
+    "T1078",
+    "T1083",
+    "T1548",
+    "T1574.010"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "Incorrect Default Permissions: valid accounts + priv abuse",
+   "parent_used": null
+  },
+  "CWE-285": {
+   "techniques": [
+    "T1005",
+    "T1012",
+    "T1078",
+    "T1083",
+    "T1134.001",
+    "T1548",
+    "T1550.004",
+    "T1552.002",
+    "T1562.003",
+    "T1565.002",
+    "T1574.005",
+    "T1574.006",
+    "T1574.007",
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-127, CAPEC-13 (+4)",
+   "parent_used": null
+  },
+  "CWE-434": {
+   "techniques": [
+    "T1105",
+    "T1190",
+    "T1195",
+    "T1566",
+    "T1574.010"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Unrestricted File Upload: web exploit + tool ingress",
+   "parent_used": null
+  },
+  "CWE-693": {
+   "techniques": [
+    "T1040",
+    "T1078",
+    "T1083",
+    "T1548",
+    "T1565.002",
+    "T1574.005",
+    "T1574.010",
+    "T1611"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-127, CAPEC-17 (+4)",
+   "parent_used": null
+  },
+  "CWE-732": {
+   "techniques": [
+    "T1068",
+    "T1083",
+    "T1134.001",
+    "T1505.005",
+    "T1548",
+    "T1550.004",
+    "T1553.002",
+    "T1554",
+    "T1574.005",
+    "T1574.010"
+   ],
+   "source": "curated",
+   "confidence": 0.8,
+   "reasoning": "Incorrect Permissions: priv abuse + escalation",
+   "parent_used": null
+  },
+  "CWE-1191": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1193": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1220": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1297": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1311": {
+   "techniques": [
+    "T1548",
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180, CAPEC-233",
+   "parent_used": null
+  },
+  "CWE-1314": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1",
+   "parent_used": null
+  },
+  "CWE-1315": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1318": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1320": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1321": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1, CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1327": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-1",
+   "parent_used": null
+  },
+  "CWE-430": {
+   "techniques": [
+    "T1036.006",
+    "T1190",
+    "T1566"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-11",
+   "parent_used": null
+  },
+  "CWE-330": {
+   "techniques": [
+    "T1110",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-112, CAPEC-485",
+   "parent_used": null
+  },
+  "CWE-326": {
+   "techniques": [
+    "T1110"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-112",
+   "parent_used": null
+  },
+  "CWE-521": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1078",
+    "T1078.001",
+    "T1110",
+    "T1110.001",
+    "T1110.002",
+    "T1110.003",
+    "T1114.002",
+    "T1133",
+    "T1558.003"
+   ],
+   "source": "curated",
+   "confidence": 0.8,
+   "reasoning": "Weak Password: valid accounts + brute force",
+   "parent_used": null
+  },
+  "CWE-287": {
+   "techniques": [
+    "T1040",
+    "T1078",
+    "T1110",
+    "T1134",
+    "T1185",
+    "T1505.003",
+    "T1548",
+    "T1550.001",
+    "T1557",
+    "T1563"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Improper Authentication: valid accounts + brute force",
+   "parent_used": null
+  },
+  "CWE-1244": {
+   "techniques": [
+    "T1548"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-114",
+   "parent_used": null
+  },
+  "CWE-269": {
+   "techniques": [
+    "T1068",
+    "T1078",
+    "T1548"
+   ],
+   "source": "top25",
+   "confidence": 0.95,
+   "reasoning": "Improper Priv Management: priv escalation abuse",
+   "parent_used": null
+  },
+  "CWE-1317": {
+   "techniques": [
+    "T1548"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-122",
+   "parent_used": null
+  },
+  "CWE-404": {
+   "techniques": [
+    "T1498.001",
+    "T1499",
+    "T1499.001",
+    "T1499.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-125, CAPEC-130, CAPEC-131 (+1)",
+   "parent_used": null
+  },
+  "CWE-770": {
+   "techniques": [
+    "T1498.001",
+    "T1498.002",
+    "T1499",
+    "T1499.001",
+    "T1499.002",
+    "T1499.003"
+   ],
+   "source": "curated",
+   "confidence": 0.9,
+   "reasoning": "(dup)",
+   "parent_used": null
+  },
+  "CWE-424": {
+   "techniques": [
+    "T1083"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-127",
+   "parent_used": null
+  },
+  "CWE-425": {
+   "techniques": [
+    "T1083",
+    "T1565.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-127, CAPEC-668",
+   "parent_used": null
+  },
+  "CWE-288": {
+   "techniques": [
+    "T1083",
+    "T1211",
+    "T1542.002",
+    "T1556"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-127, CAPEC-665",
+   "parent_used": null
+  },
+  "CWE-353": {
+   "techniques": [
+    "T1211",
+    "T1542.002",
+    "T1556",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-13, CAPEC-665",
+   "parent_used": null
+  },
+  "CWE-302": {
+   "techniques": [
+    "T1134",
+    "T1528",
+    "T1539",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-13, CAPEC-21, CAPEC-31",
+   "parent_used": null
+  },
+  "CWE-74": {
+   "techniques": [
+    "T1027",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-13, CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-15": {
+   "techniques": [
+    "T1112",
+    "T1547.001",
+    "T1547.004",
+    "T1547.014",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007",
+    "T1647"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-13, CAPEC-203, CAPEC-270 (+1)",
+   "parent_used": null
+  },
+  "CWE-73": {
+   "techniques": [
+    "T1027",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-13, CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-20": {
+   "techniques": [
+    "T1027",
+    "T1036.001",
+    "T1059",
+    "T1190",
+    "T1203",
+    "T1539",
+    "T1553.002",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "Improper Input Validation: broad — commonly enables public-facing exploit",
+   "parent_used": null
+  },
+  "CWE-200": {
+   "techniques": [
+    "T1005",
+    "T1007",
+    "T1016",
+    "T1018",
+    "T1033",
+    "T1036.005",
+    "T1046",
+    "T1049",
+    "T1057",
+    "T1069",
+    "T1082",
+    "T1083",
+    "T1087",
+    "T1111",
+    "T1120",
+    "T1124",
+    "T1134.001",
+    "T1135",
+    "T1217",
+    "T1550.004",
+    "T1552",
+    "T1562.003",
+    "T1574.006",
+    "T1574.007",
+    "T1590",
+    "T1592",
+    "T1595",
+    "T1615"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-13, CAPEC-169, CAPEC-292 (+16)",
+   "parent_used": null
+  },
+  "CWE-1325": {
+   "techniques": [
+    "T1499.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-130",
+   "parent_used": null
+  },
+  "CWE-59": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1083",
+    "T1547.009",
+    "T1548",
+    "T1564.009",
+    "T1574.005",
+    "T1574.010"
+   ],
+   "source": "curated",
+   "confidence": 0.8,
+   "reasoning": "Symlink attack: priv abuse + file discovery",
+   "parent_used": null
+  },
+  "CWE-348": {
+   "techniques": [
+    "T1557.002",
+    "T1584.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-141, CAPEC-142",
+   "parent_used": null
+  },
+  "CWE-345": {
+   "techniques": [
+    "T1078",
+    "T1211",
+    "T1491",
+    "T1542.002",
+    "T1556",
+    "T1557",
+    "T1557.002",
+    "T1584.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-141, CAPEC-142, CAPEC-148 (+1)",
+   "parent_used": null
+  },
+  "CWE-349": {
+   "techniques": [
+    "T1557.002",
+    "T1584.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-141, CAPEC-142",
+   "parent_used": null
+  },
+  "CWE-346": {
+   "techniques": [
+    "T1134",
+    "T1134.001",
+    "T1528",
+    "T1539",
+    "T1550.004",
+    "T1557.002",
+    "T1584.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-141, CAPEC-142, CAPEC-21 (+1)",
+   "parent_used": null
+  },
+  "CWE-350": {
+   "techniques": [
+    "T1584.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-142",
+   "parent_used": null
+  },
+  "CWE-552": {
+   "techniques": [
+    "T1003",
+    "T1039",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1552.001",
+    "T1552.003",
+    "T1552.004",
+    "T1552.006",
+    "T1555",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-639",
+   "parent_used": null
+  },
+  "CWE-1239": {
+   "techniques": [
+    "T1003",
+    "T1005",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1552.004",
+    "T1555",
+    "T1555.001",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-204, CAPEC-37 (+1)",
+   "parent_used": null
+  },
+  "CWE-1258": {
+   "techniques": [
+    "T1003",
+    "T1005",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1552.004",
+    "T1555",
+    "T1555.001",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-204, CAPEC-37 (+1)",
+   "parent_used": null
+  },
+  "CWE-1266": {
+   "techniques": [
+    "T1003",
+    "T1005",
+    "T1052",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1552.004",
+    "T1555",
+    "T1555.001",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-37, CAPEC-545 (+1)",
+   "parent_used": null
+  },
+  "CWE-1272": {
+   "techniques": [
+    "T1003",
+    "T1005",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1552.004",
+    "T1555",
+    "T1555.001",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-37, CAPEC-545",
+   "parent_used": null
+  },
+  "CWE-1323": {
+   "techniques": [
+    "T1003",
+    "T1005",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1555",
+    "T1555.001",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-545",
+   "parent_used": null
+  },
+  "CWE-1330": {
+   "techniques": [
+    "T1003",
+    "T1005",
+    "T1119",
+    "T1213",
+    "T1530",
+    "T1552.004",
+    "T1555",
+    "T1555.001",
+    "T1602"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-150, CAPEC-37, CAPEC-545",
+   "parent_used": null
+  },
+  "CWE-311": {
+   "techniques": [
+    "T1005",
+    "T1040",
+    "T1056.004",
+    "T1111",
+    "T1539",
+    "T1552",
+    "T1552.004"
+   ],
+   "source": "curated",
+   "confidence": 0.75,
+   "reasoning": "Missing Encryption: unsecured creds + network sniffing",
+   "parent_used": null
+  },
+  "CWE-706": {
+   "techniques": [
+    "T1036",
+    "T1574.002",
+    "T1574.008"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-159, CAPEC-177, CAPEC-641",
+   "parent_used": null
+  },
+  "CWE-451": {
+   "techniques": [
+    "T1036",
+    "T1204.001",
+    "T1534",
+    "T1566",
+    "T1566.001",
+    "T1566.002",
+    "T1566.003",
+    "T1598",
+    "T1598.001",
+    "T1598.002",
+    "T1598.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-163, CAPEC-98",
+   "parent_used": null
+  },
+  "CWE-272": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1564.009",
+    "T1574.005",
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-17, CAPEC-35",
+   "parent_used": null
+  },
+  "CWE-282": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1564.009",
+    "T1574.005",
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-17, CAPEC-35",
+   "parent_used": null
+  },
+  "CWE-270": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1055.003",
+    "T1564.009",
+    "T1574.005",
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-17, CAPEC-30, CAPEC-35",
+   "parent_used": null
+  },
+  "CWE-1190": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1268": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-1280": {
+   "techniques": [
+    "T1574.010"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-180",
+   "parent_used": null
+  },
+  "CWE-494": {
+   "techniques": [
+    "T1072",
+    "T1185",
+    "T1195.001",
+    "T1195.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-186, CAPEC-187, CAPEC-538 (+4)",
+   "parent_used": null
+  },
+  "CWE-284": {
+   "techniques": [
+    "T1014",
+    "T1027.009",
+    "T1037",
+    "T1078",
+    "T1080",
+    "T1505.005",
+    "T1542.003",
+    "T1543",
+    "T1543.001",
+    "T1543.003",
+    "T1543.004",
+    "T1546.001",
+    "T1546.004",
+    "T1546.008",
+    "T1546.016",
+    "T1547",
+    "T1547.006",
+    "T1548",
+    "T1553.004",
+    "T1556.006",
+    "T1562.001",
+    "T1562.002",
+    "T1562.004",
+    "T1562.007",
+    "T1562.008",
+    "T1562.009",
+    "T1574.011"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "Improper Access Control: valid accounts + priv abuse",
+   "parent_used": null
+  },
+  "CWE-798": {
+   "techniques": [
+    "T1078",
+    "T1078.001",
+    "T1552",
+    "T1552.001"
+   ],
+   "source": "curated",
+   "confidence": 0.95,
+   "reasoning": "(dup)",
+   "parent_used": null
+  },
+  "CWE-384": {
+   "techniques": [
+    "T1134",
+    "T1134.001",
+    "T1134.002",
+    "T1134.003",
+    "T1528",
+    "T1539",
+    "T1550.004",
+    "T1606"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-196, CAPEC-21, CAPEC-31 (+1)",
+   "parent_used": null
+  },
+  "CWE-664": {
+   "techniques": [
+    "T1134",
+    "T1134.001",
+    "T1134.002",
+    "T1134.003",
+    "T1528",
+    "T1539",
+    "T1550.004",
+    "T1606"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-196, CAPEC-21, CAPEC-60",
+   "parent_used": null
+  },
+  "CWE-645": {
+   "techniques": [
+    "T1531"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-2",
+   "parent_used": null
+  },
+  "CWE-524": {
+   "techniques": [
+    "T1005"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-204",
+   "parent_used": null
+  },
+  "CWE-290": {
+   "techniques": [
+    "T1036.001",
+    "T1078",
+    "T1134",
+    "T1134.001",
+    "T1528",
+    "T1539",
+    "T1550.004",
+    "T1553.002",
+    "T1556",
+    "T1557"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-21, CAPEC-473, CAPEC-60 (+1)",
+   "parent_used": null
+  },
+  "CWE-539": {
+   "techniques": [
+    "T1134",
+    "T1134.001",
+    "T1528",
+    "T1539",
+    "T1550.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-21, CAPEC-31, CAPEC-60",
+   "parent_used": null
+  },
+  "CWE-6": {
+   "techniques": [
+    "T1134",
+    "T1528",
+    "T1539"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-21",
+   "parent_used": null
+  },
+  "CWE-602": {
+   "techniques": [
+    "T1056.004",
+    "T1134",
+    "T1528",
+    "T1539"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-21, CAPEC-31, CAPEC-383",
+   "parent_used": null
+  },
+  "CWE-642": {
+   "techniques": [
+    "T1134",
+    "T1528",
+    "T1539"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-21, CAPEC-31",
+   "parent_used": null
+  },
+  "CWE-400": {
+   "techniques": [
+    "T1499"
+   ],
+   "source": "curated",
+   "confidence": 0.9,
+   "reasoning": "Uncontrolled Resource Consumption: DoS",
+   "parent_used": null
+  },
+  "CWE-1264": {
+   "techniques": [
+    "T1548"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-233",
+   "parent_used": null
+  },
+  "CWE-412": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-25",
+   "parent_used": null
+  },
+  "CWE-567": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-25",
+   "parent_used": null
+  },
+  "CWE-662": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-25",
+   "parent_used": null
+  },
+  "CWE-667": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-25",
+   "parent_used": null
+  },
+  "CWE-833": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-25",
+   "parent_used": null
+  },
+  "CWE-1322": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-25",
+   "parent_used": null
+  },
+  "CWE-829": {
+   "techniques": [
+    "T1055",
+    "T1176",
+    "T1195.001",
+    "T1505.004",
+    "T1505.005",
+    "T1574.006",
+    "T1574.013",
+    "T1620"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-251, CAPEC-538, CAPEC-640 (+3)",
+   "parent_used": null
+  },
+  "CWE-173": {
+   "techniques": [
+    "T1027"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-172": {
+   "techniques": [
+    "T1027"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-180": {
+   "techniques": [
+    "T1027"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-181": {
+   "techniques": [
+    "T1027"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-697": {
+   "techniques": [
+    "T1027"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-692": {
+   "techniques": [
+    "T1027"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-267",
+   "parent_used": null
+  },
+  "CWE-117": {
+   "techniques": [
+    "T1070",
+    "T1562.002",
+    "T1562.003",
+    "T1562.008"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-268",
+   "parent_used": null
+  },
+  "CWE-565": {
+   "techniques": [
+    "T1539"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-31",
+   "parent_used": null
+  },
+  "CWE-113": {
+   "techniques": [
+    "T1539"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-31",
+   "parent_used": null
+  },
+  "CWE-315": {
+   "techniques": [
+    "T1005",
+    "T1539",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-31, CAPEC-37",
+   "parent_used": null
+  },
+  "CWE-472": {
+   "techniques": [
+    "T1539"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-31",
+   "parent_used": null
+  },
+  "CWE-94": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1059",
+    "T1059.006",
+    "T1203",
+    "T1564.009"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Code Injection: interpreter abuse + client exec",
+   "parent_used": null
+  },
+  "CWE-96": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1564.009"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-35",
+   "parent_used": null
+  },
+  "CWE-95": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1059",
+    "T1059.006",
+    "T1564.009"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-35",
+   "parent_used": null
+  },
+  "CWE-97": {
+   "techniques": [
+    "T1027.006",
+    "T1027.009",
+    "T1564.009"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-35",
+   "parent_used": null
+  },
+  "CWE-226": {
+   "techniques": [
+    "T1005",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37",
+   "parent_used": null
+  },
+  "CWE-525": {
+   "techniques": [
+    "T1005",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37",
+   "parent_used": null
+  },
+  "CWE-312": {
+   "techniques": [
+    "T1005",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37",
+   "parent_used": null
+  },
+  "CWE-314": {
+   "techniques": [
+    "T1005",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37",
+   "parent_used": null
+  },
+  "CWE-318": {
+   "techniques": [
+    "T1005",
+    "T1040",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37, CAPEC-65",
+   "parent_used": null
+  },
+  "CWE-1278": {
+   "techniques": [
+    "T1005",
+    "T1552.004",
+    "T1555.001"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37, CAPEC-545",
+   "parent_used": null
+  },
+  "CWE-1301": {
+   "techniques": [
+    "T1005",
+    "T1552.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-37",
+   "parent_used": null
+  },
+  "CWE-426": {
+   "techniques": [
+    "T1574.007",
+    "T1574.009"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-38",
+   "parent_used": null
+  },
+  "CWE-427": {
+   "techniques": [
+    "T1548",
+    "T1574.001",
+    "T1574.004",
+    "T1574.007",
+    "T1574.008",
+    "T1574.009"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "Uncontrolled Search Path: search order hijacking",
+   "parent_used": null
+  },
+  "CWE-319": {
+   "techniques": [
+    "T1040",
+    "T1056.004",
+    "T1552",
+    "T1557"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "Cleartext Transmission: creds + sniffing + AiTM",
+   "parent_used": null
+  },
+  "CWE-419": {
+   "techniques": [
+    "T1056.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-383",
+   "parent_used": null
+  },
+  "CWE-1269": {
+   "techniques": [
+    "T1195"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-439",
+   "parent_used": null
+  },
+  "CWE-506": {
+   "techniques": [
+    "T1001.002",
+    "T1027.003",
+    "T1027.004",
+    "T1027.009",
+    "T1190",
+    "T1195.001",
+    "T1195.002",
+    "T1218.001",
+    "T1221"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-442, CAPEC-448, CAPEC-636",
+   "parent_used": null
+  },
+  "CWE-1299": {
+   "techniques": [
+    "T1091",
+    "T1092"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-457",
+   "parent_used": null
+  },
+  "CWE-359": {
+   "techniques": [
+    "T1606.001"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-464",
+   "parent_used": null
+  },
+  "CWE-441": {
+   "techniques": [
+    "T1090.001"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-465",
+   "parent_used": null
+  },
+  "CWE-772": {
+   "techniques": [
+    "T1499.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-469",
+   "parent_used": null
+  },
+  "CWE-327": {
+   "techniques": [
+    "T1005",
+    "T1036.001",
+    "T1552",
+    "T1553.002",
+    "T1600"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-473",
+   "parent_used": null
+  },
+  "CWE-522": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1078",
+    "T1110.004",
+    "T1114.002",
+    "T1133",
+    "T1543",
+    "T1550.002",
+    "T1550.003",
+    "T1552",
+    "T1552.004",
+    "T1558",
+    "T1558.003"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "(dup)",
+   "parent_used": null
+  },
+  "CWE-923": {
+   "techniques": [
+    "T1090.004",
+    "T1557.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-481, CAPEC-697",
+   "parent_used": null
+  },
+  "CWE-262": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1078",
+    "T1078.001",
+    "T1110.001",
+    "T1110.002",
+    "T1110.003",
+    "T1110.004",
+    "T1114.002",
+    "T1133",
+    "T1558",
+    "T1558.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49, CAPEC-509, CAPEC-55 (+7)",
+   "parent_used": null
+  },
+  "CWE-263": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1078",
+    "T1078.001",
+    "T1110.001",
+    "T1110.002",
+    "T1110.003",
+    "T1110.004",
+    "T1114.002",
+    "T1133",
+    "T1558",
+    "T1558.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49, CAPEC-509, CAPEC-55 (+7)",
+   "parent_used": null
+  },
+  "CWE-257": {
+   "techniques": [
+    "T1110.001"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49",
+   "parent_used": null
+  },
+  "CWE-654": {
+   "techniques": [
+    "T1078",
+    "T1078.001",
+    "T1110.001",
+    "T1110.002",
+    "T1110.003",
+    "T1110.004",
+    "T1558"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49, CAPEC-55, CAPEC-560 (+4)",
+   "parent_used": null
+  },
+  "CWE-307": {
+   "techniques": [
+    "T1078",
+    "T1110.001",
+    "T1110.003",
+    "T1110.004",
+    "T1558"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49, CAPEC-560, CAPEC-565 (+2)",
+   "parent_used": null
+  },
+  "CWE-308": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1078",
+    "T1078.001",
+    "T1110.001",
+    "T1110.002",
+    "T1110.003",
+    "T1110.004",
+    "T1114.002",
+    "T1133",
+    "T1550.002",
+    "T1550.003",
+    "T1558",
+    "T1558.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49, CAPEC-509, CAPEC-55 (+9)",
+   "parent_used": null
+  },
+  "CWE-309": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1078",
+    "T1078.001",
+    "T1110.001",
+    "T1110.002",
+    "T1110.003",
+    "T1110.004",
+    "T1114.002",
+    "T1133",
+    "T1558",
+    "T1558.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-49, CAPEC-509, CAPEC-55 (+7)",
+   "parent_used": null
+  },
+  "CWE-1021": {
+   "techniques": [
+    "T1036.004",
+    "T1056",
+    "T1185",
+    "T1189",
+    "T1548.004"
+   ],
+   "source": "curated",
+   "confidence": 0.75,
+   "reasoning": "Clickjacking: drive-by + browser session hijack",
+   "parent_used": null
+  },
+  "CWE-294": {
+   "techniques": [
+    "T1021",
+    "T1021.002",
+    "T1114.002",
+    "T1133",
+    "T1134.001",
+    "T1550.002",
+    "T1550.003",
+    "T1550.004",
+    "T1557",
+    "T1558",
+    "T1558.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-509, CAPEC-555, CAPEC-561 (+5)",
+   "parent_used": null
+  },
+  "CWE-204": {
+   "techniques": [
+    "T1082",
+    "T1592.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-541, CAPEC-580",
+   "parent_used": null
+  },
+  "CWE-205": {
+   "techniques": [
+    "T1082",
+    "T1592.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-541, CAPEC-580",
+   "parent_used": null
+  },
+  "CWE-208": {
+   "techniques": [
+    "T1078",
+    "T1082",
+    "T1110",
+    "T1592.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-541, CAPEC-580",
+   "parent_used": null
+  },
+  "CWE-1243": {
+   "techniques": [
+    "T1005",
+    "T1555.001"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-545",
+   "parent_used": null
+  },
+  "CWE-261": {
+   "techniques": [
+    "T1110.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-55",
+   "parent_used": null
+  },
+  "CWE-916": {
+   "techniques": [
+    "T1110.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-55",
+   "parent_used": null
+  },
+  "CWE-1273": {
+   "techniques": [
+    "T1078"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-560",
+   "parent_used": null
+  },
+  "CWE-300": {
+   "techniques": [
+    "T1040",
+    "T1185",
+    "T1557"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-57, CAPEC-662, CAPEC-94",
+   "parent_used": null
+  },
+  "CWE-488": {
+   "techniques": [
+    "T1134.001",
+    "T1550.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-60",
+   "parent_used": null
+  },
+  "CWE-757": {
+   "techniques": [
+    "T1600"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-620",
+   "parent_used": null
+  },
+  "CWE-1270": {
+   "techniques": [
+    "T1134"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-633",
+   "parent_used": null
+  },
+  "CWE-267": {
+   "techniques": [
+    "T1113",
+    "T1115",
+    "T1123",
+    "T1125",
+    "T1135",
+    "T1513"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-634, CAPEC-637, CAPEC-643 (+1)",
+   "parent_used": null
+  },
+  "CWE-162": {
+   "techniques": [
+    "T1036.007"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-635",
+   "parent_used": null
+  },
+  "CWE-114": {
+   "techniques": [
+    "T1505.005",
+    "T1574.006",
+    "T1574.013",
+    "T1620"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-640",
+   "parent_used": null
+  },
+  "CWE-836": {
+   "techniques": [
+    "T1550.002",
+    "T1558"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-644, CAPEC-652",
+   "parent_used": null
+  },
+  "CWE-46": {
+   "techniques": [
+    "T1036.006"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-649",
+   "parent_used": null
+  },
+  "CWE-553": {
+   "techniques": [
+    "T1505.003"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-650",
+   "parent_used": null
+  },
+  "CWE-1188": {
+   "techniques": [
+    "T1078",
+    "T1211",
+    "T1542.002",
+    "T1548",
+    "T1556"
+   ],
+   "source": "curated",
+   "confidence": 0.75,
+   "reasoning": "Insecure Default Init: valid accounts abuse",
+   "parent_used": null
+  },
+  "CWE-862": {
+   "techniques": [
+    "T1078",
+    "T1211",
+    "T1542.002",
+    "T1548",
+    "T1556"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "Missing Authorization: valid accounts abuse + priv escalation",
+   "parent_used": null
+  },
+  "CWE-325": {
+   "techniques": [
+    "T1553.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-68",
+   "parent_used": null
+  },
+  "CWE-328": {
+   "techniques": [
+    "T1553.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-68",
+   "parent_used": null
+  },
+  "CWE-1326": {
+   "techniques": [
+    "T1553.002"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-68",
+   "parent_used": null
+  },
+  "CWE-497": {
+   "techniques": [
+    "T1614"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-694",
+   "parent_used": null
+  },
+  "CWE-507": {
+   "techniques": [
+    "T1176",
+    "T1505.004"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-698",
+   "parent_used": null
+  },
+  "CWE-593": {
+   "techniques": [
+    "T1557"
+   ],
+   "source": "capec_stix",
+   "confidence": 0.75,
+   "reasoning": "CAPEC chain via CAPEC-94",
+   "parent_used": null
+  },
+  "CWE-89": {
+   "techniques": [
+    "T1059",
+    "T1190"
+   ],
+   "source": "curated",
+   "confidence": 0.9,
+   "reasoning": "(dup Top 25)",
+   "parent_used": null
+  },
+  "CWE-120": {
+   "techniques": [
+    "T1055",
+    "T1190"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-119": {
+   "techniques": [
+    "T1055",
+    "T1190",
+    "T1203"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "Buffer errors: process injection + client-side exploit",
+   "parent_used": null
+  },
+  "CWE-122": {
+   "techniques": [
+    "T1055",
+    "T1190"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-680": {
+   "techniques": [
+    "T1055",
+    "T1190"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-502": {
+   "techniques": [
+    "T1055",
+    "T1203",
+    "T1598"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Deserialization: client-side exploit + process injection",
+   "parent_used": null
+  },
+  "CWE-78": {
+   "techniques": [
+    "T1059",
+    "T1190",
+    "T1569"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "OS Command Injection: direct command interpreter + public-facing app",
+   "parent_used": null
+  },
+  "CWE-79": {
+   "techniques": [
+    "T1059.007",
+    "T1189",
+    "T1566.002"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "XSS: JS execution in browser, drive-by compromise, spearphishing link",
+   "parent_used": null
+  },
+  "CWE-83": {
+   "techniques": [
+    "T1059.007",
+    "T1566.002"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-352": {
+   "techniques": [
+    "T1189",
+    "T1204.001",
+    "T1566",
+    "T1598"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "CSRF: drive-by + user execution of malicious link",
+   "parent_used": null
+  },
+  "CWE-611": {
+   "techniques": [
+    "T1005",
+    "T1059",
+    "T1190",
+    "T1213"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "XXE: info from repositories + local data collection",
+   "parent_used": null
+  },
+  "CWE-90": {
+   "techniques": [
+    "T1059",
+    "T1190"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-22": {
+   "techniques": [
+    "T1005",
+    "T1083",
+    "T1190"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Path Traversal: file discovery + local data collection + web exploit",
+   "parent_used": null
+  },
+  "CWE-362": {
+   "techniques": [
+    "T1055",
+    "T1203",
+    "T1552"
+   ],
+   "source": "top25",
+   "confidence": 0.8,
+   "reasoning": "Race Condition: client-side exploit + injection primitives",
+   "parent_used": null
+  },
+  "CWE-190": {
+   "techniques": [
+    "T1055",
+    "T1190",
+    "T1203",
+    "T1499.004"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "Integer Overflow: client-side exploit + DoS",
+   "parent_used": null
+  },
+  "CWE-134": {
+   "techniques": [
+    "T1055",
+    "T1190"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-778": {
+   "techniques": [
+    "T1562"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-16": {
+   "techniques": [
+    "T1562",
+    "T1562.008"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-338": {
+   "techniques": [
+    "T1078",
+    "T1552",
+    "T1566",
+    "T1598"
+   ],
+   "source": "ati_src_curated",
+   "confidence": 0.75,
+   "reasoning": "Center for Threat-Informed Defense mapping (curated)",
+   "parent_used": null
+  },
+  "CWE-787": {
+   "techniques": [
+    "T1203",
+    "T1499.004"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Out-of-bounds Write: memory corruption enables endpoint DoS + client-side exploit",
+   "parent_used": null
+  },
+  "CWE-416": {
+   "techniques": [
+    "T1055",
+    "T1203"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Use After Free: client-side execution + process injection primitives",
+   "parent_used": null
+  },
+  "CWE-125": {
+   "techniques": [
+    "T1203",
+    "T1499.004"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "Out-of-bounds Read: information leak → client-side exploit chain",
+   "parent_used": null
+  },
+  "CWE-476": {
+   "techniques": [
+    "T1499.004"
+   ],
+   "source": "top25",
+   "confidence": 0.85,
+   "reasoning": "NULL Deref: endpoint DoS (application exhaustion)",
+   "parent_used": null
+  },
+  "CWE-77": {
+   "techniques": [
+    "T1059",
+    "T1203"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Command Injection: shell/interpreter abuse + client exec",
+   "parent_used": null
+  },
+  "CWE-918": {
+   "techniques": [
+    "T1090",
+    "T1210"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "SSRF: proxy + exploitation of remote services",
+   "parent_used": null
+  },
+  "CWE-306": {
+   "techniques": [
+    "T1078",
+    "T1190"
+   ],
+   "source": "top25",
+   "confidence": 0.9,
+   "reasoning": "Missing Auth for Critical Function: valid accounts + web exploit",
+   "parent_used": null
+  },
+  "CWE-863": {
+   "techniques": [
+    "T1078",
+    "T1548"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "(dup Top 25)",
+   "parent_used": null
+  },
+  "CWE-668": {
+   "techniques": [
+    "T1005",
+    "T1213"
+   ],
+   "source": "curated",
+   "confidence": 0.7,
+   "reasoning": "Exposure of Resource: info repositories + local collection",
+   "parent_used": null
+  },
+  "CWE-807": {
+   "techniques": [
+    "T1078",
+    "T1190"
+   ],
+   "source": "curated",
+   "confidence": 0.75,
+   "reasoning": "Reliance on Untrusted Input: web exploit + auth bypass",
+   "parent_used": null
+  },
+  "CWE-259": {
+   "techniques": [
+    "T1078",
+    "T1552.001"
+   ],
+   "source": "curated",
+   "confidence": 0.9,
+   "reasoning": "Hardcoded Password: creds in files + valid accounts",
+   "parent_used": null
+  },
+  "CWE-1236": {
+   "techniques": [
+    "T1059",
+    "T1204.002"
+   ],
+   "source": "curated",
+   "confidence": 0.75,
+   "reasoning": "CSV Injection: user execution + command interpreter",
+   "parent_used": null
+  },
+  "CWE-601": {
+   "techniques": [
+    "T1204.001",
+    "T1566.002"
+   ],
+   "source": "curated",
+   "confidence": 0.8,
+   "reasoning": "Open Redirect: link execution + spearphishing",
+   "parent_used": null
+  },
+  "CWE-834": {
+   "techniques": [
+    "T1499"
+   ],
+   "source": "curated",
+   "confidence": 0.85,
+   "reasoning": "Excessive Iteration: DoS",
+   "parent_used": null
+  },
+  "CWE-1284": {
+   "techniques": [
+    "T1190"
+   ],
+   "source": "curated",
+   "confidence": 0.7,
+   "reasoning": "(dup)",
+   "parent_used": null
+  },
+  "CWE-1333": {
+   "techniques": [
+    "T1499"
+   ],
+   "source": "curated",
+   "confidence": 0.9,
+   "reasoning": "Regex DoS: endpoint DoS",
+   "parent_used": null
+  },
+  "CWE-347": {
+   "techniques": [
+    "T1078",
+    "T1557"
+   ],
+   "source": "curated",
+   "confidence": 0.75,
+   "reasoning": "Improper Signature Verification: valid accounts abuse",
+   "parent_used": null
+  }
+ }
+}

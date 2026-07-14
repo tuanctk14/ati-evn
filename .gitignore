@@ -25,3 +25,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Cloned/generated data (recreated via scripts/, not source)
+/data/sigmahq/
+src/ati_evn/data/technique_embeddings.npz
