@@ -1,0 +1,224 @@
+"""Function-calling agent loop.
+
+Loops: send messages+tools -> parse response -> if tool_calls: execute ->
+append tool results -> repeat. Terminates when model returns content
+with no tool_calls, or on max_steps / timeout / token cap.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import time
+
+from ati_evn.agent.loop.config import (
+    MAX_STEPS, SYSTEM_PROMPT, TOKEN_SOFT_CAP, render_context_prefix,
+)
+from ati_evn.agent.loop.trace import AgentRunTrace, ToolCallTrace
+from ati_evn.agent.session.state import SessionState
+from ati_evn.agent.tools import TOOL_REGISTRY
+from ati_evn.agent.tools._base import get_all_openai_schemas
+
+logger = logging.getLogger("ati_evn.agent.fc")
+
+
+class FunctionCallingFailure(Exception):
+    """Raised when function-calling loop fails structurally (bad
+    tool name, invalid JSON args, model refuses schema). Runner
+    catches and falls back to ReAct."""
+
+
+async def run_function_calling(
+    client, session_state: SessionState, user_message: str,
+    *, max_steps: int = MAX_STEPS, token_soft_cap: int = TOKEN_SOFT_CAP,
+) -> tuple[str, AgentRunTrace]:
+    """Return (final_answer_text, trace)."""
+    trace = AgentRunTrace(method="function_calling")
+    overall_start = time.monotonic()
+
+    tools_schema = get_all_openai_schemas()
+    context_prefix = render_context_prefix(session_state.entity_summary())
+
+    # Build initial messages from session history + this user turn
+    messages: list[dict] = []
+    for h in session_state.history[-10:]:
+        messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({
+        "role": "user",
+        "content": (context_prefix + "\n\n" + user_message).strip(),
+    })
+
+    for step in range(max_steps):
+        try:
+            response = await client.chat_with_tools(
+                system=SYSTEM_PROMPT,
+                messages=messages,
+                tools=tools_schema,
+                max_tokens=2048,
+                temperature=0.1,
+                timeout=30.0,
+            )
+        except Exception as e:
+            raise FunctionCallingFailure(f"LLM API error: {e}") from e
+
+        trace.total_llm_calls += 1
+        usage = response.get("usage") or {}
+        trace.total_prompt_tokens += usage.get("prompt_tokens", 0)
+        trace.total_completion_tokens += usage.get("completion_tokens", 0)
+
+        total_tok = trace.total_prompt_tokens + trace.total_completion_tokens
+        if total_tok > token_soft_cap:
+            logger.warning(
+                "Token cap %d reached at step %d (used %d) — forcing final answer",
+                token_soft_cap, step, total_tok,
+            )
+            answer, trace = await _force_final_answer(client, messages, trace)
+            trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
+            return answer, trace
+
+        choices = response.get("choices") or []
+        if not choices:
+            raise FunctionCallingFailure("Empty choices in response")
+        msg = choices[0].get("message") or {}
+        tool_calls = msg.get("tool_calls") or []
+        content = msg.get("content") or ""
+
+        if not tool_calls:
+            # Final answer
+            trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
+            return content, trace
+
+        # Append assistant message (with tool_calls) to history
+        messages.append({
+            "role": "assistant",
+            "content": content,
+            "tool_calls": tool_calls,
+        })
+
+        # Execute each tool call, append tool responses
+        for tc in tool_calls:
+            tc_id = tc.get("id")
+            fn = tc.get("function") or {}
+            fn_name = fn.get("name")
+            fn_args_raw = fn.get("arguments") or "{}"
+
+            if not fn_name or fn_name not in TOOL_REGISTRY:
+                trace.tool_calls.append(ToolCallTrace(
+                    tool_name=fn_name or "unknown",
+                    args={},
+                    result_summary="error: unknown tool",
+                    duration_ms=0,
+                    success=False,
+                ))
+                tool_result = {
+                    "success": False,
+                    "error": f"Unknown tool: {fn_name}",
+                }
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc_id,
+                    "content": json.dumps(tool_result),
+                })
+                continue
+
+            try:
+                fn_args = json.loads(fn_args_raw)
+            except json.JSONDecodeError as e:
+                raise FunctionCallingFailure(
+                    f"Model returned invalid JSON args for {fn_name}: {e}"
+                )
+
+            call_start = time.monotonic()
+            tool_result = await TOOL_REGISTRY[fn_name].handler(**fn_args)
+            call_duration = int((time.monotonic() - call_start) * 1000)
+
+            _update_session_from_tool(session_state, fn_name, fn_args, tool_result)
+
+            trace.tool_calls.append(ToolCallTrace(
+                tool_name=fn_name,
+                args=fn_args,
+                result_summary=trace.summarize_tool_result(tool_result),
+                duration_ms=call_duration,
+                success=tool_result.get("success", True),
+            ))
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc_id,
+                "content": json.dumps(tool_result, ensure_ascii=False,
+                                       default=str)[:8000],
+            })
+
+    # max_steps reached without final answer — force summary
+    logger.warning("Agent hit max_steps=%d — forcing final answer", max_steps)
+    answer, trace = await _force_final_answer(client, messages, trace)
+    trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
+    return answer, trace
+
+
+async def _force_final_answer(client, messages, trace) -> tuple[str, AgentRunTrace]:
+    """When budget exhausted, ask model for final answer with no tools."""
+    messages.append({
+        "role": "user",
+        "content": (
+            "Đã dùng hết budget hoặc max steps. Hãy tổng hợp câu trả lời "
+            "cuối cùng cho analyst dựa trên dữ liệu đã thu thập được, "
+            "không cần gọi thêm tool. Trả lời ngắn gọn, tiếng Việt."
+        ),
+    })
+    response = await client.chat_with_tools(
+        system=SYSTEM_PROMPT,
+        messages=messages,
+        tools=[],
+        tool_choice="none",
+        max_tokens=1500,
+        temperature=0.1,
+    )
+    content = (response.get("choices") or [{}])[0].get("message", {}).get("content", "")
+    trace.total_llm_calls += 1
+    usage = response.get("usage") or {}
+    trace.total_prompt_tokens += usage.get("prompt_tokens", 0)
+    trace.total_completion_tokens += usage.get("completion_tokens", 0)
+    return content, trace
+
+
+def _update_session_from_tool(state: SessionState, fn_name: str,
+                               args: dict, result: dict) -> None:
+    """Update SessionState entities based on tool call + result.
+
+    Field names here match the ACTUAL dict shapes returned by the 15
+    tools implemented in slice 5B.3A (get_finding_detail/search_cve/etc
+    return their fields flattened at the top level, not nested under a
+    "finding"/"cve" key).
+    """
+    if fn_name == "get_finding_detail" and result.get("success"):
+        state.update_entity(
+            last_finding_id=result.get("id"),
+            last_cve_id=(result.get("cve_id") or "").upper() or None,
+        )
+        customer = result.get("customer") or {}
+        if customer.get("name"):
+            state.update_entity(last_customer_name=customer["name"])
+        asset = result.get("asset") or {}
+        if asset.get("id"):
+            state.update_entity(last_asset_id=asset["id"])
+    elif fn_name == "search_cve" and result.get("success"):
+        cves = result.get("cves") or []
+        if cves:
+            state.update_entity(last_cve_id=cves[0].get("cve_id"))
+    elif fn_name == "search_findings" and result.get("success"):
+        findings = result.get("findings") or []
+        state.update_entity(
+            last_result_ids=[f.get("id") for f in findings if f.get("id")],
+            last_filters=args,
+        )
+        if args.get("customer"):
+            state.update_entity(last_customer_name=args["customer"])
+    elif fn_name in ("get_customer_summary", "summarize_customer", "timeline") and args.get("customer"):
+        state.update_entity(last_customer_name=args["customer"])
+    elif fn_name == "search_ioc" and result.get("success"):
+        state.update_entity(
+            last_ioc_value=result.get("ioc_value"),
+            last_ioc_type=result.get("ioc_type"),
+        )
+    elif fn_name == "search_asset" and args.get("customer"):
+        state.update_entity(last_customer_name=args["customer"])

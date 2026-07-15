@@ -564,3 +564,25 @@ class PlaybookCache(Base):
     __table_args__ = (
         UniqueConstraint("cve_id", "network_segment", name="uq_playbook_cve_seg"),
     )
+
+
+class AgentSession(Base):
+    """Short-term memory for a Telegram user's agentic chat.
+
+    state stores structured context (last customer/CVE/finding/asset/IOC
+    + last result IDs + filters). conversation_history stores turn list
+    for LLM context.
+    """
+    __tablename__ = "agent_sessions"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    telegram_user_id = Column(BigInteger, nullable=False)
+    state = Column(JSON, default=dict)
+    conversation_history = Column(JSON, default=list)
+    last_active = Column(DateTime(timezone=True), default=_utcnow,
+                          nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_utcnow,
+                         nullable=False)
+
+    __table_args__ = (
+        Index("ix_agent_user_active", "telegram_user_id", "last_active"),
+    )

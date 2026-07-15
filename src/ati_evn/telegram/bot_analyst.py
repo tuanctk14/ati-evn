@@ -5,7 +5,9 @@ import logging
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from ati_evn.agent.session.cleanup import cleanup_expired_sessions
 from ati_evn.config import get_settings
 from ati_evn.telegram.auth import AllowlistMiddleware
 from ati_evn.telegram.commands.action import router as action_router
@@ -27,8 +29,7 @@ from ati_evn.telegram.commands.rule import router as rule_router
 from ati_evn.telegram.commands.update_asset import router as update_asset_router
 from ati_evn.telegram.commands.update_customer import router as update_customer_router
 from ati_evn.telegram.commands.update_ioc import router as update_ioc_router
-
-# 5B.3 will add: free-text handler as router.message.middleware or last handler
+from ati_evn.telegram.commands.agent_handler import handle_free_text
 
 logger = logging.getLogger("ati_evn.bot_analyst")
 
@@ -72,29 +73,45 @@ async def run_forever() -> int:
     dp.include_router(action_router)
     dp.include_router(rescan_router)
 
-    # Fallback for unknown commands / free text (5B.3 replaces this).
-    # MUST live in its own router included LAST — aiogram's Router.propagate_event
-    # checks the current router's own observer before descending into
-    # sub_routers, so a filterless handler registered directly on `dp`
-    # would swallow every update before help_router/query_router ever see it.
+    # Catch-all for anything not matched by an explicit command router
+    # above. MUST live in its own router included LAST — aiogram's
+    # Router.propagate_event checks the current router's own observer
+    # before descending into sub_routers, so a filterless handler
+    # registered directly on `dp` would swallow every update before
+    # help_router/query_router ever see it.
+    #
+    # `/unknown_command` -> rejection message. Free text -> agent loop
+    # (function-calling -> ReAct fallback, see agent_handler.py).
     fallback_router = Router()
 
     @fallback_router.message()
-    async def _unknown(message: Message):
+    async def _catchall(message: Message):
         text = (message.text or "").strip()
+        if not text:
+            return
         if text.startswith("/"):
             cmd = text.split()[0]
             await message.answer(
-                f"Lệnh {cmd} chưa được implement hoặc không tồn tại.\n"
+                f"Lệnh {cmd} không tồn tại hoặc chưa được implement.\n"
                 f"Gõ /help all để xem list."
             )
-        else:
-            await message.answer(
-                "Free-text query sẽ được hỗ trợ ở slice 5B.3.\n"
-                "Bây giờ dùng command trực tiếp. Gõ /help để xem list."
-            )
+            return
+        await handle_free_text(message)
 
     dp.include_router(fallback_router)
+
+    # Session cleanup background task — agent_sessions rows past their
+    # 30-min TTL (see agent/session/state.py) are swept every 5 minutes
+    # so the table doesn't grow unbounded across long-running bot uptime.
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        cleanup_expired_sessions,
+        "interval",
+        minutes=5,
+        id="agent_session_cleanup",
+    )
+    scheduler.start()
+    logger.info("Session cleanup scheduled (every 5min)")
 
     logger.info(
         "Bot 2 (analyst) starting; allowlist=%s",
@@ -103,5 +120,6 @@ async def run_forever() -> int:
     try:
         await dp.start_polling(bot)
     finally:
+        scheduler.shutdown()
         await bot.session.close()
     return 0

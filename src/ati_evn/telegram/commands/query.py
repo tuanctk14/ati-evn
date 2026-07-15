@@ -16,7 +16,7 @@ from ati_evn.db.models import (
     Finding,
     FindingStatus,
 )
-from ati_evn.db.query_utils import only_live_asset, only_live_customer
+from ati_evn.db.query_utils import customer_name_or_code_match, only_live_asset, only_live_customer
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
 from ati_evn.telegram.audit import log_command
@@ -215,10 +215,7 @@ async def cmd_customer(message: Message):
         if customer is None:
             result = await session.execute(
                 select(Customer).where(
-                    or_(
-                        Customer.name.ilike(f"%{query_str}%"),
-                        Customer.short_code.ilike(f"%{query_str}%"),
-                    ),
+                    customer_name_or_code_match(query_str),
                     only_live_customer(),
                 ).limit(1)
             )
