@@ -68,6 +68,13 @@ CAMPAIGN:
   /reject_campaign <id> --reason=X
   /add_test_campaign --customer=X --techniques=T1,T2 [--count=N] [--source-mix]
 
+INGESTION:
+  /ingest <URL | text | PDF attachment>
+  /list_ingests [--status=pending|confirmed|rejected|expired] [--limit=N] [--page=N]
+  /confirm_ingest <session_id>
+  /reject_ingest <session_id> [--reason=X]
+  /edit_ingest <session_id> [--drop=1,3,5] [--drop-cves=2,4]
+
 Free-text query (slice 5B.3):
   Gõ câu hỏi tự nhiên → agent xử lý.
   Action bắt buộc dùng command.
@@ -108,6 +115,11 @@ HELP_DETAIL = {
     "restore_customer": "/restore_customer <id|name> [--with-assets]\n\nKhôi phục customer đã soft-delete. Mặc định KHÔNG khôi phục asset kèm theo — dùng --with-assets để khôi phục luôn asset bị cascade-delete.\n\nVí dụ: /restore_customer \"TEST_CORP\" --with-assets",
     "restore_asset": "/restore_asset <id>\n\nKhôi phục asset đã soft-delete (customer phải đang active). Tự động trigger rescan.\n\nVí dụ: /restore_asset 42",
     "restore_ioc": "/restore_ioc <detection_id>\n\nKhôi phục IOC nội bộ đã soft-delete, reset status=NEW và chạy lại matcher cho riêng IOC đó.\n\nVí dụ: /restore_ioc 501",
+    "ingest": "/ingest <URL | text | PDF attachment>\n\nNhập bài báo/report để LLM trích xuất IOC/CVE/malware/ATT&CK. Trả về preview kèm session ID.\n\nVí dụ: /ingest https://example.com/article\n       /ingest <paste văn bản>\n       Attach PDF với caption /ingest",
+    "list_ingests": "/list_ingests [flags]\n\nFlags:\n  --status=pending|confirmed|rejected|expired\n  --limit=<N> (default 10)\n  --page=<N> (default 1)",
+    "confirm_ingest": "/confirm_ingest <session_id>\n\nXác nhận ingestion session: tạo Detection cho IOC/CVE, auto-fetch CVE thiếu từ NVD, chạy matcher scoped.\n\nVí dụ: /confirm_ingest 3",
+    "reject_ingest": "/reject_ingest <session_id> [--reason=X]\n\nTừ chối ingestion session — không tạo Detection nào.\n\nVí dụ: /reject_ingest 3 --reason=\"Not relevant\"",
+    "edit_ingest": "/edit_ingest <session_id> [--drop=1,3,5] [--drop-cves=2,4]\n\nXóa IOC/CVE khỏi extraction trước khi confirm. Index 1-based, theo preview hiện tại (reshuffled sau mỗi edit).\n\nVí dụ: /edit_ingest 3 --drop=1,3\n       /edit_ingest 3 --drop-cves=2",
 }
 
 

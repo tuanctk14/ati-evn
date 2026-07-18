@@ -63,6 +63,13 @@ FIX_MAP: dict[str, str] = {
     # Stats
     "/dashboard": "/stats",
     "/status": "/stats",
+    # Ingestion
+    "/ingestion": "/ingest",
+    "/ingest_confirm": "/confirm_ingest",
+    "/ingest_reject": "/reject_ingest",
+    "/ingest_edit": "/edit_ingest",
+    "/list_ingest": "/list_ingests",
+    "/ingest_list": "/list_ingests",
 }
 
 # All real Bot 2 commands, sourced from the router registry
@@ -78,6 +85,8 @@ WHITELIST: frozenset[str] = frozenset({
     "/ack", "/close", "/mark_fp", "/reopen", "/silence", "/rescan",
     "/campaign", "/list_campaigns", "/confirm_campaign",
     "/reject_campaign", "/add_test_campaign",
+    "/ingest", "/confirm_ingest", "/reject_ingest",
+    "/edit_ingest", "/list_ingests",
 })
 
 # Match /command_name at a word boundary (line start or preceded by

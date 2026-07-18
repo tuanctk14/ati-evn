@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from ati_evn.config import get_settings
 from ati_evn.db.models import Finding, Severity
+from ati_evn.telegram.formatter.common import truncate
 
 SEVERITY_EMOJI = {
     Severity.CRITICAL: "🔴",
@@ -20,7 +21,8 @@ def _analyst_bot_mention() -> str:
     return f"@{username}" if username else "@<TELEGRAM_ANALYST_BOT_USERNAME>"
 
 
-def format_alert_single(finding, customer_name, asset_display, attack_summary) -> str:
+def format_alert_single(finding, customer_name, asset_display, attack_summary,
+                          ingestion_source: str | None = None) -> str:
     """Format a single-finding alert message.
 
     Layout (target ~500 chars, plenty of room in Telegram's 4096 limit):
@@ -36,6 +38,10 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary) -
           /finding 12847
           /rule CVE-2024-12345
           /playbook 12847
+
+    ingestion_source: when the finding originates from an analyst
+    /ingest session (Detection.source == "analyst_ingested"), the
+    article URL/filename to display with a 📥 badge (slice 7B).
     """
     emoji = SEVERITY_EMOJI.get(finding.severity, "•")
     sources = ", ".join(finding.sources or []) or "unknown"
@@ -62,17 +68,24 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary) -
         cmd_lines.append(f"  /rule {finding.ioc_value.upper()}")
         cmd_lines.append(f"  /playbook {finding.id}")
 
+    is_ingested = "analyst_ingested" in (finding.sources or [])
     internal_tag = ""
     if "internal" in (finding.sources or []):
         internal_tag = " [INTERNAL]"
+    elif is_ingested:
+        internal_tag = " [INGESTED]"
+
+    ingest_badge = "📥 " if is_ingested else ""
+    ingest_line = f"\n📥 Ingested from: {truncate(ingestion_source, 100)}" if ingestion_source else ""
 
     return (
-        f"{emoji} {customer_name} — {finding.severity.value}{internal_tag}\n"
+        f"{ingest_badge}{emoji} {customer_name} — {finding.severity.value}{internal_tag}\n"
         f"{cve_line} — {finding.title[:100]}\n"
         f"Asset: {asset_display}\n"
         f"Detected: {first_seen_local}\n"
         f"Finding #{finding.id} · Sources: {sources}"
-        f"{attack_line}\n\n"
+        f"{attack_line}"
+        f"{ingest_line}\n\n"
         f"Xem chi tiết trong {_analyst_bot_mention()}:\n"
         + "\n".join(cmd_lines)
     )

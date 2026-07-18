@@ -24,7 +24,7 @@ from sqlalchemy import or_, select
 
 from ati_evn.alerts.batcher import check_and_batch
 from ati_evn.config import get_settings
-from ati_evn.db.models import AlertBatch, AlertQueue, Customer, Finding
+from ati_evn.db.models import AlertBatch, AlertQueue, Customer, Detection, Finding
 from ati_evn.db.session import async_session
 from ati_evn.telegram.formatter.alert import format_alert_batch, format_alert_single
 
@@ -56,7 +56,23 @@ async def _dispatch_single(bot: Bot, chat_id: str, alert: AlertQueue, session) -
     customer = await session.get(Customer, alert.customer_id)
     customer_name = customer.name if customer else f"Customer#{alert.customer_id}"
     asset_display = finding.matched_asset or "-"
-    message = format_alert_single(finding, customer_name, asset_display, None)
+
+    ingestion_source = None
+    if "analyst_ingested" in (finding.sources or []):
+        det_result = await session.execute(
+            select(Detection.metadata_).where(
+                Detection.finding_id == finding.id,
+                Detection.source == "analyst_ingested",
+            ).limit(1)
+        )
+        det_row = det_result.first()
+        if det_row:
+            det_meta = det_row[0] or {}
+            ingestion_source = det_meta.get("article_url") or det_meta.get("article_filename")
+
+    message = format_alert_single(
+        finding, customer_name, asset_display, None, ingestion_source=ingestion_source,
+    )
     msg = await bot.send_message(chat_id, message, disable_web_page_preview=True)
     alert.telegram_message_id = msg.message_id
     alert.state = "dispatched"
