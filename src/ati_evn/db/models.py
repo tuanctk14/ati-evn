@@ -654,3 +654,68 @@ class CampaignFinding(Base):
         UniqueConstraint("campaign_id", "finding_id", name="uq_campaign_finding"),
         Index("ix_cf_finding", "finding_id"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Article ingestion (slice 7A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class IngestionStatus(str, enum.Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+    EXPIRED = "expired"   # 24h no action
+
+
+class IngestionSource(str, enum.Enum):
+    URL = "url"
+    TEXT = "text"
+    PDF = "pdf"
+
+
+class IngestionSession(Base):
+    """Analyst-driven article ingestion for data enrichment.
+
+    Flow:
+      1. Analyst /ingest URL/text/PDF -> PENDING
+      2. LLM extracts IOCs/CVEs/malware/techniques
+      3. Analyst reviews preview -> confirm/reject/edit
+      4. On CONFIRMED (7B): creates Detections + auto-fetches missing CVEs
+         + triggers matcher -> potentially Findings
+    """
+    __tablename__ = "ingestion_sessions"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    telegram_user_id = Column(BigInteger, nullable=False)
+    telegram_username = Column(String(100), nullable=True)
+
+    source_type = Column(String(10), nullable=False)  # url/text/pdf
+    source_url = Column(String(2000), nullable=True)
+    source_text = Column(Text, nullable=True)  # truncated to 8000 chars
+    source_filename = Column(String(500), nullable=True)  # for PDFs
+
+    # LLM output — see ati_evn.ingestion.extractor.EXTRACTION_SYSTEM for schema
+    extracted_data = Column(JSON, default=dict)
+
+    extraction_model = Column(String(80), nullable=True)
+    extraction_error = Column(Text, nullable=True)  # if LLM failed
+
+    # State — plain String, not SAEnum (see Campaign.status comment above
+    # for why: avoids emitting `::ingestionstatus` casts against a type
+    # that was never created in Postgres).
+    status = Column(String(20), nullable=False, default=IngestionStatus.PENDING.value)
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_reason = Column(Text, nullable=True)
+
+    # Downstream links (populated in 7B on confirm)
+    detection_ids_created = Column(JSON, default=list)
+    finding_ids_created = Column(JSON, default=list)
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_ingest_user_status", "telegram_user_id", "status"),
+        Index("ix_ingest_expires", "expires_at", "status"),
+    )

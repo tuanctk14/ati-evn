@@ -55,6 +55,10 @@ dependencies = [
     # Alert dispatch (slice 5A)
     "tenacity>=8.2",
 
+    # Article ingestion (slice 7A)
+    "pypdf>=4.0",
+    "trafilatura>=1.6",
+
     # Export weekly_report PDF (slice 5B.2) — optional; export.py degrades
     # to markdown output if reportlab isn't installed.
     "reportlab>=4.0",

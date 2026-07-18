@@ -11,6 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from ati_evn.agent.session.cleanup import cleanup_expired_sessions
 from ati_evn.campaigns.detector import run_detection_once as campaign_detect
 from ati_evn.config import get_settings
+from ati_evn.ingestion.cleanup import cleanup_expired_ingestions
 from ati_evn.telegram.auth import AllowlistMiddleware
 from ati_evn.telegram.commands.action import router as action_router
 from ati_evn.telegram.commands.add_asset import router as add_asset_router
@@ -20,6 +21,7 @@ from ati_evn.telegram.commands.add_ioc import router as add_ioc_router
 from ati_evn.telegram.commands.campaign_action import router as campaign_action_router
 from ati_evn.telegram.commands.campaign_query import router as campaign_query_router
 from ati_evn.telegram.commands.delete_asset import router as delete_asset_router
+from ati_evn.telegram.commands.ingest import router as ingest_router
 from ati_evn.telegram.commands.delete_customer import router as delete_customer_router
 from ati_evn.telegram.commands.delete_ioc import router as delete_ioc_router
 from ati_evn.telegram.commands.export import router as export_router
@@ -54,6 +56,7 @@ COMMAND_MENU = [
     BotCommand(command="export", description="Xuất báo cáo tuần/tháng"),
     BotCommand(command="rescan", description="Chạy lại matcher"),
     BotCommand(command="list_campaigns", description="Danh sách Campaign Candidate"),
+    BotCommand(command="ingest", description="Nhập bài báo/report để enrich"),
 ]
 
 
@@ -105,6 +108,7 @@ async def run_forever() -> int:
     dp.include_router(add_test_campaign_router)
     dp.include_router(campaign_query_router)
     dp.include_router(campaign_action_router)
+    dp.include_router(ingest_router)
 
     # Catch-all for anything not matched by an explicit command router
     # above. MUST live in its own router included LAST — aiogram's
@@ -151,9 +155,16 @@ async def run_forever() -> int:
         # First run 5 min after boot to not delay startup
         next_run_time=datetime.now(timezone.utc) + timedelta(minutes=5),
     )
+    scheduler.add_job(
+        cleanup_expired_ingestions,
+        "interval",
+        minutes=15,
+        id="ingestion_cleanup",
+    )
     scheduler.start()
     logger.info("Session cleanup scheduled (every 5min)")
     logger.info("Campaign detection scheduled (hourly)")
+    logger.info("Ingestion cleanup scheduled (15min)")
 
     logger.info(
         "Bot 2 (analyst) starting; allowlist=%s",
