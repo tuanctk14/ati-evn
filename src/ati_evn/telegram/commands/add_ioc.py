@@ -1,8 +1,17 @@
 """/add_ioc --type=T --value=V [--severity=X] [--note=N] [--expire=30d]
+            [--malware=<family_name>]
 
 Creates a Detection with source='internal'. If --expire=Nd, sets
 Detection.expires_at = now + N days (TTL worker will transition
 Finding.status -> EXPIRED when reached).
+
+--malware tags the Detection with a malware family name (stored as
+metadata_["malware_printable"], the same field feeds like ThreatFox
+populate) so the enrichment orchestrator's Malware->S-series lookup
+(slice 6.1) can attribute real ATT&CK techniques instead of falling
+back to the generic per-IOC-type heuristic. Not validated against the
+MITRE catalog here — any name analysts type is accepted; the
+enrichment lookup itself resolves or gracefully falls back.
 
 Runs an immediate matcher pass (via customer_router) — matched assets
 -> Findings -> alert_queue -> Bot 1 dispatch.
@@ -37,7 +46,7 @@ async def cmd_add_ioc(message: Message):
     if not ioc_type or not value:
         await message.answer(
             "Cú pháp: /add_ioc --type=T --value=V [--severity=X] "
-            "[--note=N] [--expire=Nd]"
+            "[--note=N] [--expire=Nd] [--malware=<family_name>]"
         )
         return
     if ioc_type not in VALID_IOC_TYPES:
@@ -63,6 +72,11 @@ async def cmd_add_ioc(message: Message):
             await message.answer(f"--expire format không hợp lệ: {expire_str} (dùng '30d')")
             return
 
+    malware = args.get("malware")
+    det_metadata = {"added_by": who}
+    if malware:
+        det_metadata["malware_printable"] = malware
+
     async with async_session() as session:
         det = Detection(
             source="internal",
@@ -72,7 +86,7 @@ async def cmd_add_ioc(message: Message):
             severity=severity,
             status=DetectionStatus.NEW,
             expires_at=expires_at,
-            metadata_={"added_by": who},
+            metadata_=det_metadata,
         )
         session.add(det)
         await session.commit()
@@ -98,6 +112,8 @@ async def cmd_add_ioc(message: Message):
         f"  Severity: {severity.value}\n"
         f"  Source: internal\n"
     )
+    if malware:
+        reply += f"  Malware: {malware}\n"
     if expires_at:
         reply += f"  Expires: {expires_at.strftime('%d/%m/%Y %H:%M')} UTC\n"
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from aiogram import Bot, Dispatcher, Router
-from aiogram.types import Message
+from aiogram.types import BotCommand, Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from ati_evn.agent.session.cleanup import cleanup_expired_sessions
@@ -33,6 +33,23 @@ from ati_evn.telegram.commands.agent_handler import handle_free_text
 
 logger = logging.getLogger("ati_evn.bot_analyst")
 
+COMMAND_MENU = [
+    BotCommand(command="start", description="Bắt đầu và menu chính"),
+    BotCommand(command="help", description="Hướng dẫn sử dụng"),
+    BotCommand(command="finding", description="Xem chi tiết Finding"),
+    BotCommand(command="cve", description="Chi tiết CVE và ATT&CK context"),
+    BotCommand(command="ioc", description="Chi tiết IOC (IP/domain/hash)"),
+    BotCommand(command="customer", description="Chi tiết customer/subsidiary"),
+    BotCommand(command="asset", description="Chi tiết tài sản"),
+    BotCommand(command="list_open", description="Danh sách Finding đang mở"),
+    BotCommand(command="list_alerts", description="Danh sách alert gần đây"),
+    BotCommand(command="stats", description="Dashboard tổng quan"),
+    BotCommand(command="rule", description="Sinh Sigma rule cho CVE"),
+    BotCommand(command="playbook", description="Tạo playbook NIST 800-61"),
+    BotCommand(command="export", description="Xuất báo cáo tuần/tháng"),
+    BotCommand(command="rescan", description="Chạy lại matcher"),
+]
+
 
 async def run_forever() -> int:
     logging.basicConfig(
@@ -51,6 +68,13 @@ async def run_forever() -> int:
         return 2
 
     bot = Bot(token=settings.telegram_analyst_bot_token)
+
+    try:
+        await bot.set_my_commands(COMMAND_MENU)
+        logger.info("Telegram command menu registered: %d commands", len(COMMAND_MENU))
+    except Exception as e:
+        logger.warning("Failed to register command menu: %s", e)
+
     dp = Dispatcher()
     dp.message.middleware(AllowlistMiddleware())
     dp.include_router(help_router)

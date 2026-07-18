@@ -24,8 +24,11 @@ from ati_evn.enrichment.attack_bert import AttackBertMapper, load_mapper_or_none
 from ati_evn.enrichment.attack_catalog import (
     get_mitigation_name,
     get_mitigations_for_technique,
+    get_software_name,
     get_tactics_for_technique,
     get_technique_name,
+    get_techniques_for_software,
+    lookup_software_by_name,
 )
 from ati_evn.enrichment.cwe_chain import build_chain
 
@@ -166,12 +169,15 @@ async def _enrich_cve(session, finding, smet_mapper) -> dict:
 # ══════════════════════════════════════════════════════════════════════════
 
 async def _enrich_ioc(session, finding) -> dict:
-    """For IP/domain/URL/hash IOCs, use the source feed's malware family
-    tag (if any) as a heuristic hint for kill chain phase and mitigations.
+    """For IP/domain/URL/hash IOCs.
 
-    We don't have a Malware→Technique lookup shipped in this slice (would
-    require another data file). Instead we set some sensible defaults per
-    IOC type."""
+    Priority:
+      1. If the source feed tagged a malware family → look up the
+         MITRE ATT&CK Software (S-series) entry for it → use that
+         malware's real technique list (rich, malware-specific).
+      2. Else fall back to per-IOC-type default heuristics (unchanged
+         from the pre-6.1 behavior).
+    """
     # Grab metadata from any linked Detection
     result = await session.execute(
         select(Detection.metadata_, Detection.source).where(
@@ -189,7 +195,46 @@ async def _enrich_ioc(session, finding) -> dict:
         meta.get("signature") or meta.get("threat")
     )
 
-    # Rough per-ioc-type defaults — a hint, not a claim
+    software_id = lookup_software_by_name(malware) if malware else None
+
+    if software_id:
+        technique_ids = get_techniques_for_software(software_id)
+        if technique_ids:
+            # Cap at top 10 to keep enrichment JSON compact
+            technique_ids = technique_ids[:10]
+            techniques = [
+                {"id": tid, "name": get_technique_name(tid),
+                 "confidence": 0.8, "source": "malware_software"}
+                for tid in technique_ids
+            ]
+            mitigation_ids: set[str] = set()
+            phases: set[str] = set()
+            for tid in technique_ids:
+                mitigation_ids.update(get_mitigations_for_technique(tid))
+                phases.update(get_tactics_for_technique(tid))
+
+            mitigations = [
+                {"id": mid, "name": get_mitigation_name(mid)}
+                for mid in sorted(mitigation_ids)[:15]
+            ]
+
+            return {
+                "techniques": techniques,
+                "cwe_ids": [],
+                "kill_chain_phases": sorted(phases),
+                "mitigations": mitigations,
+                "smet_used": False,
+                "chain_used": False,
+                "malware_software_used": True,
+                "malware_family": malware,
+                "attributed_software": {
+                    "id": software_id,
+                    "name": get_software_name(software_id),
+                },
+                "feed_source": source,
+            }
+
+    # Fallback: per-IOC-type default heuristics (existing behavior)
     ioc_defaults: dict[str, tuple[list[str], list[str]]] = {
         # (technique_ids, kill_chain_phases)
         "ipv4":   (["T1071"], ["command-and-control"]),
@@ -209,19 +254,19 @@ async def _enrich_ioc(session, finding) -> dict:
          "source": "ioc-heuristic"}
         for tid in tech_ids
     ]
-    mitigation_ids: set[str] = set()
+    mitigation_ids2: set[str] = set()
     for tid in tech_ids:
-        mitigation_ids.update(get_mitigations_for_technique(tid))
-    mitigations = [
+        mitigation_ids2.update(get_mitigations_for_technique(tid))
+    mitigations2 = [
         {"id": mid, "name": get_mitigation_name(mid)}
-        for mid in sorted(mitigation_ids)
+        for mid in sorted(mitigation_ids2)
     ]
 
     ctx = {
         "techniques": techniques,
         "cwe_ids": [],
         "kill_chain_phases": phases,
-        "mitigations": mitigations,
+        "mitigations": mitigations2,
         "smet_used": False,
         "chain_used": False,
         "ioc_heuristic_used": True,

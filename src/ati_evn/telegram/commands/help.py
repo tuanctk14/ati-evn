@@ -38,7 +38,7 @@ RULES + CONTENT:
 CREATE:
   /add_customer --name=X [--parent=Y] [--domain=Z] [--tier=X]
   /add_asset --customer=X --type=T [--vendor=V] [--product=P] ...
-  /add_ioc --type=T --value=V [--severity=X] [--expire=Nd] [--note=X]
+  /add_ioc --type=T --value=V [--severity=X] [--expire=Nd] [--note=X] [--malware=X]
 
 UPDATE:
   /update_customer <id|name> [--name=X] [--parent=Y] [--domain=Z] ...
@@ -80,7 +80,7 @@ HELP_DETAIL = {
     "export": "/export <type> [flags]\n\nTypes: findings | alerts | assets | ioc_summary | weekly_report\nFlags:\n  --customer=<name>\n  --since=7d|24h\n  --format=csv|json|md|pdf\n  --limit=<N> (findings/alerts)\n\nVí dụ: /export findings --limit=20 --format=csv\n       /export weekly_report --format=pdf",
     "add_customer": "/add_customer --name=X [--parent=Y] [--domain=Z] [--short-code=X] [--tier=critical|high|medium]\n\nVí dụ: /add_customer --name=\"EVN TEST\" --tier=high",
     "add_asset": "/add_asset --customer=X --type=T [--vendor=V] [--product=P] [--version=Ver] [--device-type=DT] [--network-segment=NS] [--criticality=X] [--is-ics] [--is-internet-facing] [--value=V]\n\nTự động trigger rescan sau khi thêm.\n\nVí dụ: /add_asset --customer=\"EVN NPC\" --type=device --vendor=Fortinet --product=FortiOS --version=7.2.4",
-    "add_ioc": "/add_ioc --type=T --value=V [--severity=X] [--note=N] [--expire=Nd]\n\nThêm IOC nội bộ (source=internal), chạy matcher ngay.\n\nVí dụ: /add_ioc --type=ipv4 --value=192.0.2.1 --severity=HIGH --expire=30d",
+    "add_ioc": "/add_ioc --type=T --value=V [--severity=X] [--note=N] [--expire=Nd] [--malware=X]\n\nThêm IOC nội bộ (source=internal), chạy matcher ngay. --malware gắn tên họ malware (VD: Emotet, Cobalt Strike) để enrichment tra ATT&CK technique thật từ MITRE S-series thay vì heuristic chung.\n\nVí dụ: /add_ioc --type=ipv4 --value=192.0.2.1 --severity=HIGH --expire=30d\n       /add_ioc --type=domain --value=evil.tld --malware=\"Cobalt Strike\"",
     "ack": "/ack <alert_id> [--note=X]\n\nAcknowledge một alert.\n\nVí dụ: /ack 42",
     "close": "/close <finding_id> --reason=X\n\nĐóng Finding với lý do.\n\nVí dụ: /close 12847 --reason=\"Patched\"",
     "mark_fp": "/mark_fp <finding_id> [--all-assets] [--reason=X]\n\nMark Finding là false positive. Mặc định chỉ scope 1 asset; --all-assets áp dụng cho toàn bộ asset của customer.\n\nVí dụ: /mark_fp 12847 --reason=\"Known benign\"",

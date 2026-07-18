@@ -1,9 +1,11 @@
 """Static ATT&CK catalog loader.
 
-Wraps the 3 JSON files shipped in ati_evn/data/:
-  - mitre_attack_enterprise.json  — 697 techniques (name, description, tactic, ...)
+Wraps the 4 JSON files shipped in ati_evn/data/:
+  - mitre_attack_enterprise.json  — 846 techniques (name, description, tactic, ...)
   - attack_mitigations.json       — 44 M-mitigations + Technique→Mitigations map
   - cwe_to_attack.json            — curated CWE→Technique fallback
+  - attack_software.json          — 821 S-series software (malware/tools) +
+                                     name index for Malware family lookups
 
 Loaded once per process (module-level, lazy). All lookups are O(1) dict access
 after load.
@@ -75,6 +77,21 @@ def _load_cwe_map() -> dict[str, dict]:
             }
     logger.info("CWE→ATT&CK map: %d entries (schema v%d)", len(normalized), schema_version)
     return normalized
+
+
+@functools.lru_cache(maxsize=1)
+def _load_software() -> dict:
+    data_pkg = resources.files("ati_evn.data")
+    with data_pkg.joinpath("attack_software.json").open("r", encoding="utf-8") as f:
+        d = json.load(f)
+    logger.info(
+        "ATT&CK software loaded: %d software, %d techniques mapped, "
+        "%d name index",
+        len(d.get("software") or {}),
+        len(d.get("software_to_techniques") or {}),
+        len(d.get("name_to_software") or {}),
+    )
+    return d
 
 
 # ── Public lookups ─────────────────────────────────────────────────────────
@@ -153,8 +170,50 @@ def get_cwe_entry(cwe_id: str) -> dict | None:
     return _load_cwe_map().get(key.upper())
 
 
+def is_technique_revoked(technique_id: str) -> bool:
+    """Check if a technique is marked revoked in the catalog (still has a
+    name for display — MITRE keeps revoked entries around after
+    reorganizing the taxonomy, e.g. splitting one technique into several
+    sub-techniques)."""
+    t = _load_techniques().get(technique_id.upper())
+    return bool(t and t.get("revoked"))
+
+
+def lookup_software_by_name(malware_name: str) -> str | None:
+    """Given a malware/tool name (case-insensitive, tolerates space
+    and hyphen variations), return S-series ID or None.
+
+    Uses aggressive normalization to match feed-provided names against
+    MITRE's canonical names + aliases.
+    """
+    if not malware_name:
+        return None
+    d = _load_software()
+    idx = d.get("name_to_software") or {}
+    # Try exact + case-insensitive
+    key = malware_name.lower().strip()
+    if key in idx:
+        return idx[key]
+    # Try normalized (strip whitespace, hyphens, underscores)
+    norm = key.replace(" ", "").replace("-", "").replace("_", "").replace(".", "")
+    return idx.get(norm)
+
+
+def get_techniques_for_software(software_id: str) -> list[str]:
+    """Return list of ATT&CK technique IDs that this software uses."""
+    d = _load_software()
+    return list((d.get("software_to_techniques") or {}).get(software_id) or [])
+
+
+def get_software_name(software_id: str) -> str:
+    d = _load_software()
+    s = (d.get("software") or {}).get(software_id) or {}
+    return s.get("name") or software_id
+
+
 # ── Counts (for smoke-test scripts) ────────────────────────────────────────
 
 TECHNIQUE_COUNT = len(_load_techniques())
 MITIGATION_COUNT = len(_load_mitigations().get("mitigations") or {})
 CWE_MAP_SIZE = len(_load_cwe_map())
+SOFTWARE_COUNT = len(_load_software().get("software") or {})
