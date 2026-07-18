@@ -70,6 +70,10 @@ FIX_MAP: dict[str, str] = {
     "/ingest_edit": "/edit_ingest",
     "/list_ingest": "/list_ingests",
     "/ingest_list": "/list_ingests",
+    # Censys
+    "/censys": "/scan_censys",
+    "/censys_scan": "/scan_censys",
+    "/scan_external": "/scan_censys",
 }
 
 # All real Bot 2 commands, sourced from the router registry
@@ -87,6 +91,7 @@ WHITELIST: frozenset[str] = frozenset({
     "/reject_campaign", "/add_test_campaign",
     "/ingest", "/confirm_ingest", "/reject_ingest",
     "/edit_ingest", "/list_ingests",
+    "/scan_censys",
 })
 
 # Match /command_name at a word boundary (line start or preceded by

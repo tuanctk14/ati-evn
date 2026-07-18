@@ -72,6 +72,8 @@ class Settings(BaseSettings):
 
     # ── Attack surface discovery ─────────────────────────────────────────────
     censys_api_key: str = ""
+    censys_default_asn: str = "149069"   # EVNICT
+    censys_max_hosts_per_scan: int = 100
     leakix_api_key: str = ""
     grayhatwarfare_api_key: str = ""
 

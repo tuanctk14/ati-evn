@@ -719,3 +719,84 @@ class IngestionSession(Base):
         Index("ix_ingest_user_status", "telegram_user_id", "status"),
         Index("ix_ingest_expires", "expires_at", "status"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# External exposure monitoring — Censys (slice 9A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ExposureStatus(str, enum.Enum):
+    ACTIVE = "active"             # last seen recently
+    DISAPPEARED = "disappeared"   # was seen but not in latest scan
+    STALE = "stale"               # not scanned in >30d
+
+
+class Exposure(Base):
+    """Raw observation of an internet-facing service, as seen by Censys.
+
+    One row per (ip, port, service_name) tuple. Rescanning updates
+    last_seen_local in place rather than inserting a duplicate.
+
+    Attribution:
+      - asset_id populated if the IP matches a CustomerAsset (exact IP
+        or CIDR containment)
+      - customer_id denormalized from the asset for query speed
+      - If the IP has no matching asset, asset_id is NULL unless the
+        caller opts into auto-discovery (see external/attribution.py)
+
+    Finding linkage (9B): Exposures are raw data; Findings are derived
+    by a rule engine that hasn't landed yet. A single Exposure may
+    spawn 0-N Findings depending on rules.
+    """
+    __tablename__ = "exposures"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+
+    ip = Column(String(45), nullable=False)  # v4 or v6
+    port = Column(Integer, nullable=False)
+    service_name = Column(String(60), nullable=True)  # http, ssh, dns, ...
+    transport = Column(String(10), nullable=True)      # tcp, udp
+
+    # Service metadata (from Censys)
+    product = Column(String(120), nullable=True)
+    version = Column(String(80), nullable=True)
+    vendor = Column(String(120), nullable=True)
+    banner = Column(Text, nullable=True)  # truncated to 2000 chars
+
+    # Configuration signals (used by 9B rule engine)
+    tls_enabled = Column(Boolean, default=False)
+    tls_version = Column(String(20), nullable=True)
+    tls_expired = Column(Boolean, default=False)
+    tls_self_signed = Column(Boolean, default=False)
+    auth_required = Column(Boolean, nullable=True)  # NULL if unknown
+    capabilities = Column(JSON, default=dict)
+    # e.g. {"http.default_page": true, "http.directory_listing": true}
+
+    # Attribution
+    asset_id = Column(BigInteger, ForeignKey("customer_assets.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    asn = Column(String(20), nullable=True)
+    asn_organization = Column(String(200), nullable=True)
+    country = Column(String(80), nullable=True)
+
+    # Timeline
+    first_seen_censys = Column(DateTime(timezone=True), nullable=True)
+    last_seen_censys = Column(DateTime(timezone=True), nullable=True)
+    first_seen_local = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    last_seen_local = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    # Plain String, not SAEnum — see Campaign.status comment above for why.
+    status = Column(String(20), nullable=False, default=ExposureStatus.ACTIVE.value)
+
+    censys_raw = Column(JSON, default=dict)  # full Censys service dict
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("ip", "port", "service_name", name="uq_exposure_ip_port_svc"),
+        Index("ix_exposure_asset", "asset_id"),
+        Index("ix_exposure_customer", "customer_id"),
+        Index("ix_exposure_ip", "ip"),
+        Index("ix_exposure_status_last_seen", "status", "last_seen_local"),
+    )

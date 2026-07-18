@@ -26,6 +26,7 @@ from ati_evn.telegram.commands.edit_ingest import router as edit_ingest_router
 from ati_evn.telegram.commands.ingest import router as ingest_router
 from ati_evn.telegram.commands.list_ingests import router as list_ingests_router
 from ati_evn.telegram.commands.reject_ingest import router as reject_ingest_router
+from ati_evn.telegram.commands.scan_censys import router as scan_censys_router
 from ati_evn.telegram.commands.delete_customer import router as delete_customer_router
 from ati_evn.telegram.commands.delete_ioc import router as delete_ioc_router
 from ati_evn.telegram.commands.export import router as export_router
@@ -62,6 +63,7 @@ COMMAND_MENU = [
     BotCommand(command="list_campaigns", description="Danh sách Campaign Candidate"),
     BotCommand(command="ingest", description="Nhập bài báo/report để enrich"),
     BotCommand(command="list_ingests", description="Danh sách phiên nhập bài báo"),
+    BotCommand(command="scan_censys", description="Quét external service qua Censys"),
 ]
 
 
@@ -118,6 +120,7 @@ async def run_forever() -> int:
     dp.include_router(reject_ingest_router)
     dp.include_router(edit_ingest_router)
     dp.include_router(list_ingests_router)
+    dp.include_router(scan_censys_router)
 
     # Catch-all for anything not matched by an explicit command router
     # above. MUST live in its own router included LAST — aiogram's
