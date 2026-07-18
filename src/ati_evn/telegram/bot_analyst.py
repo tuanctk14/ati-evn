@@ -2,18 +2,23 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.types import BotCommand, Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from ati_evn.agent.session.cleanup import cleanup_expired_sessions
+from ati_evn.campaigns.detector import run_detection_once as campaign_detect
 from ati_evn.config import get_settings
 from ati_evn.telegram.auth import AllowlistMiddleware
 from ati_evn.telegram.commands.action import router as action_router
 from ati_evn.telegram.commands.add_asset import router as add_asset_router
+from ati_evn.telegram.commands.add_test_campaign import router as add_test_campaign_router
 from ati_evn.telegram.commands.add_customer import router as add_customer_router
 from ati_evn.telegram.commands.add_ioc import router as add_ioc_router
+from ati_evn.telegram.commands.campaign_action import router as campaign_action_router
+from ati_evn.telegram.commands.campaign_query import router as campaign_query_router
 from ati_evn.telegram.commands.delete_asset import router as delete_asset_router
 from ati_evn.telegram.commands.delete_customer import router as delete_customer_router
 from ati_evn.telegram.commands.delete_ioc import router as delete_ioc_router
@@ -48,6 +53,7 @@ COMMAND_MENU = [
     BotCommand(command="playbook", description="Tạo playbook NIST 800-61"),
     BotCommand(command="export", description="Xuất báo cáo tuần/tháng"),
     BotCommand(command="rescan", description="Chạy lại matcher"),
+    BotCommand(command="list_campaigns", description="Danh sách Campaign Candidate"),
 ]
 
 
@@ -96,6 +102,9 @@ async def run_forever() -> int:
     dp.include_router(restore_ioc_router)
     dp.include_router(action_router)
     dp.include_router(rescan_router)
+    dp.include_router(add_test_campaign_router)
+    dp.include_router(campaign_query_router)
+    dp.include_router(campaign_action_router)
 
     # Catch-all for anything not matched by an explicit command router
     # above. MUST live in its own router included LAST — aiogram's
@@ -134,8 +143,17 @@ async def run_forever() -> int:
         minutes=5,
         id="agent_session_cleanup",
     )
+    scheduler.add_job(
+        campaign_detect,
+        "interval",
+        hours=1,
+        id="campaign_detection",
+        # First run 5 min after boot to not delay startup
+        next_run_time=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
     scheduler.start()
     logger.info("Session cleanup scheduled (every 5min)")
+    logger.info("Campaign detection scheduled (hourly)")
 
     logger.info(
         "Bot 2 (analyst) starting; allowlist=%s",

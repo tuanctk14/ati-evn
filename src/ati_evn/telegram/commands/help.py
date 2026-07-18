@@ -61,6 +61,13 @@ ACTIONS:
   /silence <finding_id> --hours=N
   /rescan [--customer=X] [--asset=id]
 
+CAMPAIGN:
+  /campaign <id>
+  /list_campaigns [--status=candidate|confirmed|rejected|expired] [--customer=X] [--limit=N] [--page=N]
+  /confirm_campaign <id> [--notes=X]
+  /reject_campaign <id> --reason=X
+  /add_test_campaign --customer=X --techniques=T1,T2 [--count=N] [--source-mix]
+
 Free-text query (slice 5B.3):
   Gõ câu hỏi tự nhiên → agent xử lý.
   Action bắt buộc dùng command.
@@ -87,6 +94,11 @@ HELP_DETAIL = {
     "reopen": "/reopen <finding_id> --reason=X\n\nMở lại Finding đã đóng.\n\nVí dụ: /reopen 12847 --reason=\"Recurred\"",
     "rescan": "/rescan [--customer=X] [--asset=id]\n\nTrigger rescan bất đồng bộ toàn hệ thống (hoặc scope hẹp hơn).\n\nVí dụ: /rescan",
     "silence": "/silence <finding_id> --hours=N\n\nTạm ngưng alert dispatch cho Finding trong N giờ (1-720).\n\nVí dụ: /silence 12847 --hours=24",
+    "add_test_campaign": "/add_test_campaign --customer=X --techniques=T1190,T1059 [--count=4] [--source-mix]\n\nTạo test scenario để verify campaign detection algorithm. Chỉ dùng khi test — không dùng trong production.\n\nVí dụ: /add_test_campaign --customer=NPC --techniques=T1190,T1059,T1105 --count=4",
+    "campaign": "/campaign <id>\n\nXem chi tiết Campaign — findings, kill chain, techniques, confidence breakdown.\n\nVí dụ: /campaign 12",
+    "list_campaigns": "/list_campaigns [flags]\n\nFlags:\n  --status=candidate|confirmed|rejected|expired\n  --customer=<name|short_code>\n  --limit=<N> (default 10)\n  --page=<N> (default 1)",
+    "confirm_campaign": "/confirm_campaign <id> [--notes=X]\n\nXác nhận Campaign candidate là attack thật.\nNotes tùy chọn — analyst có thể thêm context.",
+    "reject_campaign": "/reject_campaign <id> --reason=X\n\nTừ chối Campaign candidate là false positive.\nReason bắt buộc.",
     "update_customer": "/update_customer <id|name> [--name=X] [--parent=Y] [--domain=Z] [--tier=X] [--short-code=X] [--active=true|false]\n\nCập nhật thông tin customer. Chỉ hiển thị field nào thực sự thay đổi.\n\nVí dụ: /update_customer \"EVN NPC\" --tier=critical",
     "update_asset": "/update_asset <id> [--vendor=X] [--product=Y] [--version=Z] [--value=V] [--device-type=DT] [--network-segment=NS] [--criticality=X] [--is-ics=true|false] [--is-internet-facing=true|false] [--notes=X]\n\nCập nhật asset. Nếu vendor/product/version/is-internet-facing thay đổi, tự động trigger rescan.\n\nVí dụ: /update_asset 42 --version=7.2.5 --criticality=critical",
     "update_ioc": "/update_ioc <detection_id> [--severity=X] [--expire=Nd|clear] [--note=X]\n\nChỉ update được IOC source=internal. Nếu đổi severity, Finding liên quan (chưa đóng/FP/expired) cũng được cập nhật theo.\n\nVí dụ: /update_ioc 501 --severity=CRITICAL",

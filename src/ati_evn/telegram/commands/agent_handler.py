@@ -21,6 +21,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message
 
 from ati_evn.agent.loop import run_agent
+from ati_evn.agent.loop.postfilter import postfilter_answer
 from ati_evn.agent.session.state import load_or_create
 from ati_evn.config import get_settings
 from ati_evn.db.models import CommandLog
@@ -57,6 +58,10 @@ async def handle_free_text(message: Message) -> None:
         session = await load_or_create(user_id)
 
         answer, trace, trace_block = await run_agent(client, session, text)
+        answer, filter_stats = postfilter_answer(answer)
+        if filter_stats["replaced"] or filter_stats["stripped"]:
+            fixes = ", ".join(f"{b}->{g}" for b, g in filter_stats["replaced"])
+            trace_block = (trace_block or "") + f"\n  [postfilter fixed: {fixes}]"
         summary = (
             f"agent {trace.method}, {len(trace.tool_calls)} tools, "
             f"{trace.total_prompt_tokens + trace.total_completion_tokens} tok"

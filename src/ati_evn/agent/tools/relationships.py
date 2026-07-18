@@ -7,6 +7,8 @@ from sqlalchemy import select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.db.models import (
+    Campaign,
+    CampaignFinding,
     Customer,
     CustomerAsset,
     Detection,
@@ -201,13 +203,48 @@ async def _rel_technique(session, technique_id: str) -> dict:
     }
 
 
+async def _rel_campaign(session, campaign_id: str) -> dict:
+    try:
+        cid = int(campaign_id)
+    except ValueError:
+        return tool_error(f"campaign_id must be int, got '{campaign_id}'")
+    campaign = await session.get(Campaign, cid)
+    if not campaign:
+        return tool_error(f"Campaign #{cid} not found")
+
+    f_stmt = select(Finding).join(
+        CampaignFinding, Finding.id == CampaignFinding.finding_id,
+    ).where(CampaignFinding.campaign_id == cid).limit(CAP)
+    findings = list((await session.execute(f_stmt)).scalars())
+
+    assets_set = {(f.matched_asset or "") for f in findings if f.matched_asset}
+    cves = sorted({f.ioc_value.upper() for f in findings if f.ioc_type == "cve_id"})
+    iocs = sorted({f.ioc_value for f in findings if f.ioc_type != "cve_id"})
+    techniques = [{"id": tid, "label": get_technique_name(tid)}
+                  for tid in (campaign.technique_ids or [])]
+
+    return {
+        "findings": [
+            {"id": f.id, "label":
+             f"{f.ioc_value[:30]} ({f.severity.value if hasattr(f.severity, 'value') else str(f.severity)})"}
+            for f in findings[:CAP]
+        ],
+        "assets": [{"id": None, "label": a} for a in sorted(assets_set)[:CAP]],
+        "cves": [{"id": c, "label": c} for c in cves[:CAP]],
+        "iocs": [{"id": None, "label": i} for i in iocs[:CAP]],
+        "techniques": techniques[:CAP],
+    }
+
+
 @register_tool(
     name="relationships",
-    description="Get graph adjacency (related entities) for a CVE, IOC, finding, asset, customer, or ATT&CK technique.",
+    description="Get graph adjacency (related entities) for a CVE, IOC, finding, asset, customer, ATT&CK technique, or Campaign.",
     parameters={
         "type": "object",
         "properties": {
-            "entity_type": {"type": "string", "description": "cve|ioc|finding|asset|customer|technique"},
+            "entity_type": {"type": "string", "enum":
+                            ["cve", "ioc", "finding", "asset", "customer",
+                             "technique", "campaign"]},
             "entity_id": {"type": "string", "description": "Identifier for the entity (ID or value)"},
         },
         "required": ["entity_type", "entity_id"],
@@ -228,10 +265,14 @@ async def relationships(entity_type: str, entity_id: str) -> dict:
             related = await _rel_customer(session, entity_id)
         elif entity_type == "technique":
             related = await _rel_technique(session, entity_id)
+        elif entity_type == "campaign":
+            related = await _rel_campaign(session, entity_id)
+            if isinstance(related, dict) and related.get("success") is False:
+                return related
         else:
             return tool_error(
                 f"Unknown entity_type '{entity_type}'",
-                hint="Use one of: cve, ioc, finding, asset, customer, technique.",
+                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign.",
             )
 
     return {

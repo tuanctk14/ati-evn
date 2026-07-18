@@ -586,3 +586,71 @@ class AgentSession(Base):
     __table_args__ = (
         Index("ix_agent_user_active", "telegram_user_id", "last_active"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Campaign detection (slice 6.2A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class CampaignStatus(str, enum.Enum):
+    CANDIDATE = "candidate"     # detected, awaiting analyst review
+    CONFIRMED = "confirmed"     # analyst confirmed as real campaign
+    REJECTED = "rejected"       # analyst confirmed NOT campaign
+    EXPIRED = "expired"         # 7 days without decision -> auto-expire
+
+
+class Campaign(Base):
+    """Detected attack campaign (cluster of related findings)."""
+    __tablename__ = "campaigns"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+
+    # Detection window
+    window_start = Column(DateTime(timezone=True), nullable=False)
+    window_end = Column(DateTime(timezone=True), nullable=False)
+
+    # Aggregated features
+    finding_count = Column(Integer, default=0)
+    asset_count = Column(Integer, default=0)
+    technique_ids = Column(JSON, default=list)      # ["T1190", "T1059"]
+    tactic_ids = Column(JSON, default=list)          # ["initial-access", "execution"]
+    source_ids = Column(JSON, default=list)          # ["nvd", "threatfox"]
+    severities = Column(JSON, default=dict)          # {"HIGH": 3, "MEDIUM": 2}
+
+    # Detection scoring
+    confidence = Column(Float, nullable=False)
+    detection_reason = Column(Text, nullable=True)
+    # e.g. "5 findings, 6h window, T1190 overlap 80%, 4 assets, 2 sources"
+
+    # Lifecycle
+    # Plain String (not SAEnum) — matches AlertQueue.state's pattern: the
+    # DDL below creates this column as VARCHAR, not a Postgres native enum
+    # type, so a SAEnum column here would emit `::campaignstatus` casts
+    # against a type that was never created.
+    status = Column(String(20), default=CampaignStatus.CANDIDATE.value, nullable=False)
+    reviewed_by = Column(String(120), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    review_notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_campaign_customer_status", "customer_id", "status"),
+        Index("ix_campaign_status_created", "status", "created_at"),
+    )
+
+
+class CampaignFinding(Base):
+    """Many-to-many between Campaign and Finding."""
+    __tablename__ = "campaign_findings"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    campaign_id = Column(BigInteger, ForeignKey("campaigns.id", ondelete="CASCADE"),
+                          nullable=False)
+    finding_id = Column(BigInteger, ForeignKey("findings.id"), nullable=False)
+    added_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "finding_id", name="uq_campaign_finding"),
+        Index("ix_cf_finding", "finding_id"),
+    )
