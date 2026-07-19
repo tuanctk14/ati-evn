@@ -111,10 +111,13 @@ class ThreatFoxFetcher(IOCFetcher):
             except httpx.HTTPStatusError as e:
                 body = e.response.text[:300]
                 logger.error("ThreatFox HTTP %s: %s", e.response.status_code, body)
-                return []
+                # Re-raise so callers (fetchers/scheduler.py) see this as a
+                # failure rather than an empty-but-successful fetch — an
+                # auth error would otherwise silently look like "no new IOCs".
+                raise
             except (httpx.HTTPError, ValueError) as e:
                 logger.error("ThreatFox transport error: %s", e)
-                return []
+                raise
 
         if data.get("query_status") != "ok":
             logger.error("ThreatFox query_status=%s data=%s",

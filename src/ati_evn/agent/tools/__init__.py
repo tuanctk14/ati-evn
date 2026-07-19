@@ -28,5 +28,7 @@ from ati_evn.agent.tools import explain_attack_technique    # noqa
 from ati_evn.agent.tools import explain_mitigation          # noqa
 from ati_evn.agent.tools import search_campaigns            # noqa
 from ati_evn.agent.tools import get_campaign_detail         # noqa
+from ati_evn.agent.tools import search_exposures             # noqa
+from ati_evn.agent.tools import get_exposure_detail          # noqa
 
 __all__ = ["Tool", "TOOL_REGISTRY", "tool_error"]

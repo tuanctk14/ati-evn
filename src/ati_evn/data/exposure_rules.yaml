@@ -1,0 +1,144 @@
+# Exposure rules — Service Exposure + Configuration groups.
+# Match: service name (case-insensitive), regardless of port.
+# Vulnerability rules (CVE-based) are handled separately by the LLM-assisted
+# vuln_matcher, not defined here.
+
+rules:
+
+  # ─────────────────────────────
+  # Service Exposure Rules
+  # ─────────────────────────────
+  - id: ssh_exposed
+    type: service
+    enabled: true
+    condition:
+      service: ssh
+    severity: medium
+    title: "Internet-facing SSH service exposed"
+    description: |
+      SSH service is reachable from the Internet. Consider restricting
+      via firewall or VPN. Ensure strong authentication (key-based only,
+      MFA) and rate-limiting configured.
+
+  - id: rdp_exposed
+    type: service
+    enabled: true
+    condition:
+      service: rdp
+    severity: high
+    title: "Internet-facing RDP service exposed"
+    description: |
+      RDP is a common brute-force and ransomware entry vector. Restrict
+      via VPN. If required, enforce NLA + strong passwords + account
+      lockout.
+
+  - id: telnet_exposed
+    type: service
+    enabled: true
+    condition:
+      service: telnet
+    severity: critical
+    title: "Internet-facing Telnet service exposed"
+    description: |
+      Telnet transmits credentials in cleartext. Disable immediately
+      and replace with SSH.
+
+  - id: ftp_exposed
+    type: service
+    enabled: true
+    condition:
+      service: ftp
+    severity: medium
+    title: "Internet-facing FTP service exposed"
+    description: |
+      FTP transmits credentials in cleartext. Replace with SFTP/FTPS.
+
+  - id: smb_exposed
+    type: service
+    enabled: true
+    condition:
+      service: smb
+    severity: high
+    title: "Internet-facing SMB service exposed"
+    description: |
+      SMB exposed to Internet is high-risk (EternalBlue, WannaCry).
+      Block port 445 at perimeter.
+
+  - id: docker_api_exposed
+    type: service
+    enabled: true
+    condition:
+      service: docker
+    severity: critical
+    title: "Internet-facing Docker API exposed"
+    description: |
+      Docker API on internet = remote code execution. Enable TLS auth
+      or bind to localhost only.
+
+  - id: kubernetes_api_exposed
+    type: service
+    enabled: true
+    condition:
+      service: kubernetes
+    severity: critical
+    title: "Internet-facing Kubernetes API exposed"
+    description: |
+      Unauthenticated Kubernetes API = cluster takeover.
+
+  - id: redis_no_auth
+    type: service
+    enabled: true
+    condition:
+      service: redis
+      auth_required: false
+    severity: high
+    title: "Redis exposed without authentication"
+    description: |
+      Redis without auth = full read/write access. Attackers can
+      write cron entries via SLAVEOF trick.
+
+  - id: mongodb_no_auth
+    type: service
+    enabled: true
+    condition:
+      service: mongodb
+      auth_required: false
+    severity: critical
+    title: "MongoDB exposed without authentication"
+    description: |
+      MongoDB without auth = ransomware pattern (common attack).
+
+  - id: elasticsearch_exposed
+    type: service
+    enabled: true
+    condition:
+      service: elasticsearch
+    severity: critical
+    title: "Elasticsearch cluster exposed"
+    description: |
+      Public Elasticsearch = data exposure + ransom.
+
+  # ─────────────────────────────
+  # Configuration Rules
+  # ─────────────────────────────
+  - id: weak_tls
+    type: configuration
+    enabled: true
+    condition:
+      tls_version_in: [TLSv1, TLSv1.0, TLSv1.1]
+    severity: medium
+    title: "Weak or deprecated TLS version"
+    description: |
+      Deprecated TLS versions vulnerable to POODLE, BEAST. Enforce
+      TLS 1.2+.
+
+  - id: default_web_page
+    type: configuration
+    enabled: true
+    condition:
+      capability: http.default_page
+    severity: low
+    title: "Default web server page exposed"
+    description: |
+      Default install page indicates misconfigured/orphan host. Fix
+      or take offline.

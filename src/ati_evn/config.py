@@ -81,6 +81,17 @@ class Settings(BaseSettings):
     virustotal_api_key: str = ""
     abuseipdb_api_key: str = ""
 
+    # ── Fetcher scheduler (slice 9.5) ────────────────────────────────────────
+    fetcher_scheduler_enabled: bool = True
+    fetcher_nvd_interval_min: int = 60
+    fetcher_threatfox_interval_min: int = 30
+    fetcher_malwarebazaar_interval_min: int = 60
+    fetcher_urlhaus_interval_min: int = 60
+    fetcher_feodo_interval_min: int = 360
+    fetcher_window_buffer_hours: int = 6
+    fetcher_default_first_window_hours: int = 48
+    fetcher_failure_alert_threshold: int = 3
+
     # ── Telegram ─────────────────────────────────────────────────────────────
     telegram_bot_token: str = ""
     telegram_alert_chat_id: str = ""

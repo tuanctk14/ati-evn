@@ -75,10 +75,12 @@ class URLhausFetcher(IOCFetcher):
             except httpx.HTTPStatusError as e:
                 body = e.response.text[:300]
                 logger.error("URLhaus HTTP %s: %s", e.response.status_code, body)
-                return []
+                # Re-raise so callers (fetchers/scheduler.py) see this as a
+                # failure rather than an empty-but-successful fetch.
+                raise
             except (httpx.HTTPError, ValueError) as e:
                 logger.error("URLhaus transport error: %s", e)
-                return []
+                raise
 
         if data.get("query_status") != "ok":
             logger.error("URLhaus query_status=%s data=%s",

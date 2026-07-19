@@ -800,3 +800,41 @@ class Exposure(Base):
         Index("ix_exposure_ip", "ip"),
         Index("ix_exposure_status_last_seen", "status", "last_seen_local"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fetcher scheduler (slice 9.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class FeedRunStatus(str, enum.Enum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    SKIPPED = "skipped"  # e.g. rate-limited, no-op
+
+
+class FeedRunHistory(Base):
+    """Per-feed run tracking for scheduler + failure detection.
+
+    One row per fetcher invocation. The latest row per feed_name (by
+    started_at) is the source of truth for last_fetched_at.
+    """
+    __tablename__ = "feed_run_history"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    feed_name = Column(String(40), nullable=False)  # nvd/threatfox/malwarebazaar/urlhaus/feodo
+    started_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Plain String, not SAEnum — see Campaign.status comment above for why.
+    status = Column(String(20), nullable=False, default=FeedRunStatus.SUCCESS.value)
+
+    window_start = Column(DateTime(timezone=True), nullable=True)
+    window_end = Column(DateTime(timezone=True), nullable=True)
+    detections_added = Column(Integer, default=0)
+    detections_updated = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    trigger_reason = Column(String(80), nullable=True)  # startup_catchup/scheduled/manual_force_fetch/test
+
+    __table_args__ = (
+        Index("ix_feedrun_name_started", "feed_name", "started_at"),
+        Index("ix_feedrun_status_started", "status", "started_at"),
+    )

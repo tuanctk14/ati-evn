@@ -1,6 +1,7 @@
 """Bot 2 — Analyst Command Bot. Standalone process."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -11,6 +12,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from ati_evn.agent.session.cleanup import cleanup_expired_sessions
 from ati_evn.campaigns.detector import run_detection_once as campaign_detect
 from ati_evn.config import get_settings
+from ati_evn.external.weekly_scan import run_weekly_censys_scan
+from ati_evn.fetchers.scheduler import register_feed_jobs, startup_catchup
 from ati_evn.ingestion.cleanup import cleanup_expired_ingestions
 from ati_evn.telegram.auth import AllowlistMiddleware
 from ati_evn.telegram.commands.action import router as action_router
@@ -25,6 +28,7 @@ from ati_evn.telegram.commands.delete_asset import router as delete_asset_router
 from ati_evn.telegram.commands.edit_ingest import router as edit_ingest_router
 from ati_evn.telegram.commands.ingest import router as ingest_router
 from ati_evn.telegram.commands.list_ingests import router as list_ingests_router
+from ati_evn.telegram.commands.force_fetch import router as force_fetch_router
 from ati_evn.telegram.commands.reject_ingest import router as reject_ingest_router
 from ati_evn.telegram.commands.scan_censys import router as scan_censys_router
 from ati_evn.telegram.commands.delete_customer import router as delete_customer_router
@@ -121,6 +125,7 @@ async def run_forever() -> int:
     dp.include_router(edit_ingest_router)
     dp.include_router(list_ingests_router)
     dp.include_router(scan_censys_router)
+    dp.include_router(force_fetch_router)
 
     # Catch-all for anything not matched by an explicit command router
     # above. MUST live in its own router included LAST — aiogram's
@@ -173,10 +178,26 @@ async def run_forever() -> int:
         minutes=15,
         id="ingestion_cleanup",
     )
+    scheduler.add_job(
+        run_weekly_censys_scan,
+        "cron",
+        day_of_week="mon",
+        hour=2,
+        minute=0,
+        id="weekly_censys_scan",
+    )
+    fetcher_job_count = register_feed_jobs(scheduler)
     scheduler.start()
     logger.info("Session cleanup scheduled (every 5min)")
     logger.info("Campaign detection scheduled (hourly)")
     logger.info("Ingestion cleanup scheduled (15min)")
+    logger.info("Weekly Censys scan scheduled (Monday 02:00 UTC)")
+    logger.info("Fetcher scheduler: %d feed jobs registered", fetcher_job_count)
+
+    # Startup catch-up runs as a background task — fetchers can take
+    # 10-30s each, and bot_analyst must not delay Telegram polling start
+    # while waiting on them.
+    asyncio.create_task(startup_catchup())
 
     logger.info(
         "Bot 2 (analyst) starting; allowlist=%s",

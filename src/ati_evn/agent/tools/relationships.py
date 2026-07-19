@@ -12,6 +12,7 @@ from ati_evn.db.models import (
     Customer,
     CustomerAsset,
     Detection,
+    Exposure,
     Finding,
     SigmaRule,
 )
@@ -203,6 +204,44 @@ async def _rel_technique(session, technique_id: str) -> dict:
     }
 
 
+async def _rel_exposure(session, exposure_id: str) -> dict:
+    try:
+        eid = int(exposure_id)
+    except ValueError:
+        return tool_error("exposure_id must be int")
+    exp = await session.get(Exposure, eid)
+    if not exp:
+        return tool_error(f"Exposure #{eid} not found")
+
+    # Finding.metadata_ is a plain JSON column (not JSONB) — no SQL-level
+    # ->>/astext filter available, so load and check metadata_ in Python
+    # (same pattern as exposure_rules/finding_creator.py's dedup check).
+    rows = await session.execute(select(Finding))
+    findings = [
+        f for f in rows.scalars()
+        if (f.metadata_ or {}).get("exposure_id") == eid
+    ][:CAP]
+
+    asset_label = None
+    if exp.asset_id:
+        asset = await session.get(CustomerAsset, exp.asset_id)
+        if asset:
+            asset_label = f"{asset.asset_value} ({asset.asset_type.value})"
+
+    return {
+        "findings": [
+            {"id": f.id, "label":
+             f"{f.title[:50]} ({f.severity.value if hasattr(f.severity,'value') else str(f.severity)})"}
+            for f in findings
+        ],
+        "assets": [{"id": exp.asset_id, "label": asset_label}] if asset_label else [],
+        "cves": [
+            {"id": (f.metadata_ or {}).get("cve_id"), "label": (f.metadata_ or {}).get("cve_id")}
+            for f in findings if (f.metadata_ or {}).get("cve_id")
+        ][:CAP],
+    }
+
+
 async def _rel_campaign(session, campaign_id: str) -> dict:
     try:
         cid = int(campaign_id)
@@ -244,7 +283,7 @@ async def _rel_campaign(session, campaign_id: str) -> dict:
         "properties": {
             "entity_type": {"type": "string", "enum":
                             ["cve", "ioc", "finding", "asset", "customer",
-                             "technique", "campaign"]},
+                             "technique", "campaign", "exposure"]},
             "entity_id": {"type": "string", "description": "Identifier for the entity (ID or value)"},
         },
         "required": ["entity_type", "entity_id"],
@@ -269,10 +308,14 @@ async def relationships(entity_type: str, entity_id: str) -> dict:
             related = await _rel_campaign(session, entity_id)
             if isinstance(related, dict) and related.get("success") is False:
                 return related
+        elif entity_type == "exposure":
+            related = await _rel_exposure(session, entity_id)
+            if isinstance(related, dict) and related.get("success") is False:
+                return related
         else:
             return tool_error(
                 f"Unknown entity_type '{entity_type}'",
-                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign.",
+                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign, exposure.",
             )
 
     return {

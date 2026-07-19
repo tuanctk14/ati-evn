@@ -218,10 +218,14 @@ class NVDFetcher(IOCFetcher):
                 except httpx.HTTPStatusError as e:
                     body = e.response.text[:300]
                     logger.error("NVD HTTP %s: %s", e.response.status_code, body)
-                    break
+                    # Re-raise rather than silently returning what we have
+                    # so far — a 401/403/404 usually means a bad API key,
+                    # and callers (e.g. fetchers/scheduler.py) need to see
+                    # that as a failure, not an empty-but-successful fetch.
+                    raise
                 except (httpx.HTTPError, ValueError) as e:
                     logger.error("NVD transport error: %s", e)
-                    break
+                    raise
 
                 total_results = data.get("totalResults", 0)
                 vulnerabilities = data.get("vulnerabilities") or []

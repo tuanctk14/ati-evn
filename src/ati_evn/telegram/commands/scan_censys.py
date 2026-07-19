@@ -28,9 +28,10 @@ from aiogram.types import Message
 from sqlalchemy import select
 
 from ati_evn.config import get_settings
-from ati_evn.db.models import Customer
+from ati_evn.db.models import Customer, Exposure
 from ati_evn.db.query_utils import customer_name_or_code_match
 from ati_evn.db.session import async_session
+from ati_evn.exposure_rules.finding_creator import process_exposures
 from ati_evn.external.censys_client import (
     CensysConfigError,
     CensysNotAvailable,
@@ -138,6 +139,12 @@ async def cmd_scan_censys(message: Message):
 
     stats = await upsert_exposures(exposures, auto_discover_customer_id=auto_discover_customer_id)
 
+    scanned_ips = list({e["ip"] for e in exposures})
+    async with async_session() as sess2:
+        row = await sess2.execute(select(Exposure.id).where(Exposure.ip.in_(scanned_ips)))
+        exposure_ids = [r[0] for r in row]
+    proc_stats = await process_exposures(exposure_ids) if exposure_ids else {}
+
     lines = [
         f"✅ Scan Censys hoàn tất — scope: {scope_desc}",
         "",
@@ -148,8 +155,15 @@ async def cmd_scan_censys(message: Message):
         f"  Matched to asset: {stats['attributed']}",
         f"  Orphan (no asset match): {stats['orphan']}",
     ]
+    if proc_stats:
+        lines.append("")
+        lines.append("Rule engine result:")
+        lines.append(f"  Service findings: {proc_stats.get('service_findings', 0)}")
+        lines.append(f"  Config findings: {proc_stats.get('config_findings', 0)}")
+        lines.append(f"  Vulnerability findings: {proc_stats.get('vuln_findings', 0)}")
+        lines.append(f"  LLM vuln calls: {proc_stats.get('vuln_llm_calls', 0)}")
+        lines.append(f"  Skipped (dedup): {proc_stats.get('skipped_dedup', 0)}")
     lines.append("")
-    lines.append("Rule engine + Finding creation: slice 9B (chưa implement).")
     lines.append("Xem raw exposures qua SQL:")
     lines.append(
         "  SELECT ip, port, service_name, product, version, "

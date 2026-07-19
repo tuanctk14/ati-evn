@@ -68,20 +68,36 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
         cmd_lines.append(f"  /rule {finding.ioc_value.upper()}")
         cmd_lines.append(f"  /playbook {finding.id}")
 
+    is_exposure = any(s.startswith("exposure_") for s in (finding.sources or []))
     is_ingested = "analyst_ingested" in (finding.sources or [])
-    internal_tag = ""
-    if "internal" in (finding.sources or []):
-        internal_tag = " [INTERNAL]"
-    elif is_ingested:
-        internal_tag = " [INGESTED]"
+    is_internal = "internal" in (finding.sources or [])
 
-    ingest_badge = "📥 " if is_ingested else ""
+    prefix = ""
+    tag = ""
+    if is_exposure:
+        prefix = "📡 "
+        tag = " [EXPOSURE]"
+    elif is_ingested:
+        prefix = "📥 "
+        tag = " [INGESTED]"
+    elif is_internal:
+        tag = " [INTERNAL]"
+
+    exposure_line = ""
+    if is_exposure:
+        meta = finding.metadata_ or {}
+        ip = meta.get("ip") or ""
+        port = meta.get("port") or ""
+        service = meta.get("service") or ""
+        exposure_line = f"\nExposure: {ip}:{port} ({service})"
+
     ingest_line = f"\n📥 Ingested from: {truncate(ingestion_source, 100)}" if ingestion_source else ""
 
     return (
-        f"{ingest_badge}{emoji} {customer_name} — {finding.severity.value}{internal_tag}\n"
+        f"{prefix}{emoji} {customer_name} — {finding.severity.value}{tag}\n"
         f"{cve_line} — {finding.title[:100]}\n"
-        f"Asset: {asset_display}\n"
+        f"Asset: {asset_display}"
+        f"{exposure_line}\n"
         f"Detected: {first_seen_local}\n"
         f"Finding #{finding.id} · Sources: {sources}"
         f"{attack_line}"
