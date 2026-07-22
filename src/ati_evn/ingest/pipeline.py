@@ -26,6 +26,14 @@ from ati_evn.fetchers.base import RawIOC
 
 logger = logging.getLogger("ati_evn.ingest.pipeline")
 
+# Postgres's extended query protocol caps a single statement at 32767
+# bound parameters. pg_insert(...).values(rows) binds len(rows) * ncols
+# params in ONE statement, so a long fetcher catch-up window (slice 9.5
+# can span 60-70+ hours after downtime) can produce enough CVE product-
+# map / CWE rows to blow past that limit. Chunking keeps each statement
+# comfortably under it regardless of column count.
+CHUNK_SIZE = 1000
+
 _HASH_LENGTHS = {32, 40, 64}
 
 _SEVERITY_VALUES = {s.value for s in Severity}
@@ -115,24 +123,83 @@ async def _find_recent_detection(
     return result.scalar_one_or_none()
 
 
+# (column, default-if-missing) -- must match each column's Column(...,
+# default=...) in db/models.py so a row that omits the key gets the same
+# value it would have gotten from the ORM's column default, not NULL.
+_CPM_COLUMN_DEFAULTS = (
+    ("cve_id", None), ("vendor", None), ("product", None), ("version_range", None),
+    ("cvss_score", None), ("actively_exploited", False),
+    ("source", "nvd"), ("confidence", 1.0), ("reasoning", None),
+)
+_CWE_COLUMN_DEFAULTS = (
+    ("cve_id", None), ("cwe_id", None),
+    ("source", "nvd"), ("confidence", 1.0), ("reasoning", None),
+)
+
+
+def _normalize_rows(rows: list[dict], column_defaults: tuple[tuple[str, object], ...]) -> list[dict]:
+    """Fill in every column for rows that omit it, using the same
+    default the ORM column would have applied.
+
+    NVD-sourced rows and LLM-inferred rows carry different key sets
+    (e.g. NVD rows never set confidence/reasoning). SQLAlchemy's
+    insert().values(list_of_dicts) compiles ONE statement per call and
+    requires every dict to share the exact same keys -- mixing key sets
+    within a single .values(chunk) call raises CompileError ("... is
+    explicitly rendered as a boundparameter ... a Python-side value or
+    SQL expression is required"). Normalizing before chunking guarantees
+    every dict in every chunk has an identical key set regardless of
+    which fetcher produced it or where a chunk boundary falls, while
+    preserving each column's normal default for rows that omit it.
+    """
+    return [
+        {col: row[col] if col in row else default for col, default in column_defaults}
+        for row in rows
+    ]
+
+
 async def upsert_cve_product_map(session: AsyncSession, rows: list[dict]) -> int:
     if not rows:
         return 0
 
-    stmt = pg_insert(CveProductMap).values(rows)
-    stmt = stmt.on_conflict_do_nothing(constraint="uq_cpm_row")
-    result = await session.execute(stmt)
-    return result.rowcount or 0
+    rows = _normalize_rows(rows, _CPM_COLUMN_DEFAULTS)
+
+    if len(rows) > CHUNK_SIZE:
+        logger.info(
+            "Chunked %d cve_product_map rows into %d batches of %d",
+            len(rows), (len(rows) + CHUNK_SIZE - 1) // CHUNK_SIZE, CHUNK_SIZE,
+        )
+
+    total = 0
+    for i in range(0, len(rows), CHUNK_SIZE):
+        chunk = rows[i:i + CHUNK_SIZE]
+        stmt = pg_insert(CveProductMap).values(chunk)
+        stmt = stmt.on_conflict_do_nothing(constraint="uq_cpm_row")
+        result = await session.execute(stmt)
+        total += result.rowcount or 0
+    return total
 
 
 async def upsert_cve_cwe_map(session: AsyncSession, rows: list[dict]) -> int:
     if not rows:
         return 0
 
-    stmt = pg_insert(CveCweMap).values(rows)
-    stmt = stmt.on_conflict_do_nothing(constraint="uq_cwe_row")
-    result = await session.execute(stmt)
-    return result.rowcount or 0
+    rows = _normalize_rows(rows, _CWE_COLUMN_DEFAULTS)
+
+    if len(rows) > CHUNK_SIZE:
+        logger.info(
+            "Chunked %d cve_cwe_map rows into %d batches of %d",
+            len(rows), (len(rows) + CHUNK_SIZE - 1) // CHUNK_SIZE, CHUNK_SIZE,
+        )
+
+    total = 0
+    for i in range(0, len(rows), CHUNK_SIZE):
+        chunk = rows[i:i + CHUNK_SIZE]
+        stmt = pg_insert(CveCweMap).values(chunk)
+        stmt = stmt.on_conflict_do_nothing(constraint="uq_cwe_row")
+        result = await session.execute(stmt)
+        total += result.rowcount or 0
+    return total
 
 
 async def ingest_raw_iocs(
