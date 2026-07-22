@@ -838,3 +838,62 @@ class FeedRunHistory(Base):
         Index("ix_feedrun_name_started", "feed_name", "started_at"),
         Index("ix_feedrun_status_started", "status", "started_at"),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Document leak monitoring — GrayHatWarfare (slice 10-new)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ExposedDocumentStatus(str, enum.Enum):
+    ACTIVE = "active"
+    RESOLVED = "resolved"   # analyst confirmed takedown
+    STALE = "stale"
+
+
+class ExposedDocument(Base):
+    """Document exposed on public cloud storage (S3, DO Spaces, etc.).
+
+    Dedupe key: (bucket_url, file_path). Attribution: matched to
+    customer via keyword_matched -> CustomerAsset lookup.
+    """
+    __tablename__ = "exposed_documents"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+
+    bucket_url = Column(String(500), nullable=False)
+    file_path = Column(String(2000), nullable=False)
+    filename = Column(String(500), nullable=False)  # denormalized last segment
+    file_extension = Column(String(20), nullable=True)
+    file_size = Column(BigInteger, nullable=True)
+    last_modified = Column(DateTime(timezone=True), nullable=True)
+
+    keyword_matched = Column(String(200), nullable=False)
+    matched_asset_id = Column(BigInteger, ForeignKey("customer_assets.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+
+    # Pipeline stages
+    bucket_whitelisted = Column(Boolean, default=False)
+    rule_matched = Column(String(60), nullable=True)
+    rule_severity = Column(String(20), nullable=True)
+    llm_relevance_checked = Column(Boolean, default=False)
+    llm_relevance_score = Column(Boolean, nullable=True)
+    llm_reasoning = Column(Text, nullable=True)
+
+    first_seen_local = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    last_seen_local = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    # Plain String, not SAEnum -- see Campaign.status comment above for why.
+    status = Column(String(20), nullable=False, default=ExposedDocumentStatus.ACTIVE.value)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_by = Column(String(120), nullable=True)
+
+    grayhat_raw = Column(JSON, default=dict)
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("bucket_url", "file_path", name="uq_doc_bucket_path"),
+        Index("ix_doc_customer_status", "customer_id", "status"),
+        Index("ix_doc_keyword", "keyword_matched"),
+        Index("ix_doc_status_last_seen", "status", "last_seen_local"),
+    )

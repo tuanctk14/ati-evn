@@ -12,6 +12,7 @@ from ati_evn.db.models import (
     Customer,
     CustomerAsset,
     Detection,
+    ExposedDocument,
     Exposure,
     Finding,
     SigmaRule,
@@ -242,6 +243,43 @@ async def _rel_exposure(session, exposure_id: str) -> dict:
     }
 
 
+async def _rel_exposed_document(session, document_id: str) -> dict:
+    try:
+        did = int(document_id)
+    except ValueError:
+        return tool_error("document_id must be int")
+    doc = await session.get(ExposedDocument, did)
+    if not doc:
+        return tool_error(f"Document #{did} not found")
+
+    # Finding.metadata_ is a plain JSON column (not JSONB) — no SQL-level
+    # ->>/astext filter available, so load and check metadata_ in Python
+    # (same pattern as exposure_rules/finding_creator.py's dedup check).
+    rows = await session.execute(select(Finding))
+    findings = [
+        f for f in rows.scalars()
+        if (f.metadata_ or {}).get("document_id") == did
+    ][:CAP]
+
+    customer_label = None
+    if doc.customer_id:
+        c = await session.get(Customer, doc.customer_id)
+        if c:
+            customer_label = c.name
+
+    return {
+        "findings": [
+            {"id": f.id, "label":
+             f"{f.title[:50]} ({f.severity.value if hasattr(f.severity,'value') else str(f.severity)})"}
+            for f in findings
+        ],
+        "customers": [{"id": doc.customer_id, "label": customer_label}] if customer_label else [],
+        "bucket": doc.bucket_url,
+        "filename": doc.filename,
+        "keyword": doc.keyword_matched,
+    }
+
+
 async def _rel_campaign(session, campaign_id: str) -> dict:
     try:
         cid = int(campaign_id)
@@ -283,7 +321,7 @@ async def _rel_campaign(session, campaign_id: str) -> dict:
         "properties": {
             "entity_type": {"type": "string", "enum":
                             ["cve", "ioc", "finding", "asset", "customer",
-                             "technique", "campaign", "exposure"]},
+                             "technique", "campaign", "exposure", "exposed_document"]},
             "entity_id": {"type": "string", "description": "Identifier for the entity (ID or value)"},
         },
         "required": ["entity_type", "entity_id"],
@@ -312,10 +350,14 @@ async def relationships(entity_type: str, entity_id: str) -> dict:
             related = await _rel_exposure(session, entity_id)
             if isinstance(related, dict) and related.get("success") is False:
                 return related
+        elif entity_type == "exposed_document":
+            related = await _rel_exposed_document(session, entity_id)
+            if isinstance(related, dict) and related.get("success") is False:
+                return related
         else:
             return tool_error(
                 f"Unknown entity_type '{entity_type}'",
-                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign, exposure.",
+                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign, exposure, exposed_document.",
             )
 
     return {

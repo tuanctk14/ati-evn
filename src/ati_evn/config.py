@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     censys_max_hosts_per_scan: int = 100
     leakix_api_key: str = ""
     grayhatwarfare_api_key: str = ""
+    grayhat_max_files_per_keyword: int = 100
+    grayhat_weekly_scan_enabled: bool = True
 
     # ── Enrichment ───────────────────────────────────────────────────────────
     virustotal_api_key: str = ""

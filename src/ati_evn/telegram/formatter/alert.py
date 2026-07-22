@@ -68,13 +68,17 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
         cmd_lines.append(f"  /rule {finding.ioc_value.upper()}")
         cmd_lines.append(f"  /playbook {finding.id}")
 
+    is_doc_leak = "exposed_document" in (finding.sources or [])
     is_exposure = any(s.startswith("exposure_") for s in (finding.sources or []))
     is_ingested = "analyst_ingested" in (finding.sources or [])
     is_internal = "internal" in (finding.sources or [])
 
     prefix = ""
     tag = ""
-    if is_exposure:
+    if is_doc_leak:
+        prefix = "📄 "
+        tag = " [DOC LEAK]"
+    elif is_exposure:
         prefix = "📡 "
         tag = " [EXPOSURE]"
     elif is_ingested:
@@ -91,13 +95,27 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
         service = meta.get("service") or ""
         exposure_line = f"\nExposure: {ip}:{port} ({service})"
 
+    doc_line = ""
+    if is_doc_leak:
+        meta = finding.metadata_ or {}
+        bucket = meta.get("bucket_url") or ""
+        filename = meta.get("filename") or ""
+        keyword = meta.get("keyword_matched") or ""
+        doc_line = (
+            f"\nBucket: {bucket}"
+            f"\nFile: {truncate(filename, 100)}"
+            f"\nMatched keyword: {keyword}"
+            f"\n⚠️ Truy cập file qua curl/tool riêng — không click trực tiếp"
+        )
+
     ingest_line = f"\n📥 Ingested from: {truncate(ingestion_source, 100)}" if ingestion_source else ""
 
     return (
         f"{prefix}{emoji} {customer_name} — {finding.severity.value}{tag}\n"
         f"{cve_line} — {finding.title[:100]}\n"
         f"Asset: {asset_display}"
-        f"{exposure_line}\n"
+        f"{exposure_line}"
+        f"{doc_line}\n"
         f"Detected: {first_seen_local}\n"
         f"Finding #{finding.id} · Sources: {sources}"
         f"{attack_line}"

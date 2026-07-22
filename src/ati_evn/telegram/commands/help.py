@@ -79,6 +79,8 @@ EXTERNAL MONITORING:
   /scan_censys --ip=X | --cidr=X [--auto-discover=customer]
                 Quét external internet exposure qua Censys.
                 --asn hiện chưa khả dụng (free tier).
+  /scan_ghwarfare --keyword=X [--max=50]
+                Kiểm tra lộ lọt tài liệu (public bucket) qua GrayHatWarfare.
   Truy vấn exposure/finding phát hiện qua rule engine — dùng free-text agent
   (VD: "Có exposure SSH nào không?"), không có command riêng.
 
@@ -132,6 +134,7 @@ HELP_DETAIL = {
     "edit_ingest": "/edit_ingest <session_id> [--drop=1,3,5] [--drop-cves=2,4]\n\nXóa IOC/CVE khỏi extraction trước khi confirm. Index 1-based, theo preview hiện tại (reshuffled sau mỗi edit).\n\nVí dụ: /edit_ingest 3 --drop=1,3\n       /edit_ingest 3 --drop-cves=2",
     "scan_censys": "/scan_censys --ip=X | --cidr=X [--auto-discover=customer]\n\nQuét external exposure (service/port đang mở) qua Censys cho 1 IP hoặc 1 CIDR range (mỗi IP trong range được tra riêng, giới hạn số host/scan). --auto-discover tạo asset mới nếu IP chưa có trong inventory. --asn hiện chưa khả dụng — cần key có quyền search/query (organization-scoped), free tier chỉ tra được từng IP.\n\nVí dụ: /scan_censys --ip=203.113.128.5\n       /scan_censys --cidr=203.113.128.0/28 --auto-discover=NPT",
     "force_fetch": "/force_fetch [--feed=nvd|threatfox|malwarebazaar|urlhaus|feodo|all]\n\nManual trigger fetcher — bỏ qua schedule interval. Dùng khi cần cập nhật data ngay (debug hoặc trước /export report).\n\nDefault: all feeds.\n\nVí dụ: /force_fetch --feed=nvd\n       /force_fetch",
+    "scan_ghwarfare": "/scan_ghwarfare --keyword=X [--max=50]\n\nKiểm tra lộ lọt tài liệu (file công khai trên S3/DO Spaces/GCP...) qua GrayHatWarfare. Pipeline 3 bước: bucket whitelist → rule engine (YAML) → LLM classifier (chỉ chạy khi rule không chắc chắn). Free tier chỉ tìm được ~15% index, không sort, không full-path search.\n\nVí dụ: /scan_ghwarfare --keyword=EVN\n       /scan_ghwarfare --keyword=GENCO1 --max=100",
 }
 
 

@@ -78,6 +78,10 @@ FIX_MAP: dict[str, str] = {
     "/fetch": "/force_fetch",
     "/force_fetcher": "/force_fetch",
     "/refresh_feeds": "/force_fetch",
+    # GrayHatWarfare
+    "/grayhat": "/scan_ghwarfare",
+    "/scan_documents": "/scan_ghwarfare",
+    "/scan_bucket": "/scan_ghwarfare",
 }
 
 # All real Bot 2 commands, sourced from the router registry
@@ -95,7 +99,7 @@ WHITELIST: frozenset[str] = frozenset({
     "/reject_campaign", "/add_test_campaign",
     "/ingest", "/confirm_ingest", "/reject_ingest",
     "/edit_ingest", "/list_ingests",
-    "/scan_censys", "/force_fetch",
+    "/scan_censys", "/force_fetch", "/scan_ghwarfare",
 })
 
 # Match /command_name at a word boundary (line start or preceded by

@@ -1,0 +1,57 @@
+# Document leak rules
+# Match: filename pattern + extension
+# Severity assigned deterministically before LLM check
+
+rules:
+
+  - id: credentials_file_leaked
+    enabled: true
+    condition:
+      filename_pattern: "(password|credential|secret|\\.env|config\\.json|\\.pem|\\.key)"
+    severity: critical
+    title: "Credentials/config file leaked"
+    description: |
+      File appears to contain credentials or sensitive config.
+      IMMEDIATE ACTION: verify content, rotate all exposed secrets,
+      take down file, review commit history if in git.
+
+  - id: internal_doc_leaked
+    enabled: true
+    condition:
+      filename_pattern: "(internal|confidential|nội\\.bộ|noi\\.bo|restricted)"
+    severity: high
+    title: "Internal/confidential document leaked"
+    description: |
+      Filename marked internal/confidential. Verify sensitivity,
+      request takedown, investigate leak source.
+
+  - id: business_report_leaked
+    enabled: true
+    condition:
+      filename_pattern: "(báo\\.cáo|bao\\.cao|report|invoice|contract|hợp\\.đồng)"
+      extension_in: [pdf, docx, xlsx, doc, xls]
+    severity: high
+    title: "Business document leaked"
+    description: |
+      Business report/document in public bucket. Verify sensitivity
+      and request takedown if confidential.
+
+  - id: backup_file_leaked
+    enabled: true
+    condition:
+      filename_pattern: "(backup|dump|\\.sql|\\.bak|\\.tar\\.gz|\\.zip)"
+    severity: high
+    title: "Backup file leaked"
+    description: |
+      Database dump or backup archive exposed. Verify content --
+      may contain PII, credentials, business data.
+
+  - id: image_leaked
+    enabled: true
+    condition:
+      extension_in: [jpg, jpeg, png, gif, webp, svg]
+    severity: low
+    title: "Image file"
+    description: |
+      Public image. Usually low risk unless screenshot of internal
+      system or sensitive document. LLM verification recommended.
