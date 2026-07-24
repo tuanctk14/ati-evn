@@ -27,7 +27,10 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from ati_evn.db.models import CustomerAsset, ExposedDocument, Finding, FindingStatus, Severity
+from ati_evn.alerts.dedupe import compute_dedupe_key, find_existing_dispatch
+from ati_evn.alerts.dispatch_rule import should_dispatch
+from ati_evn.config import get_settings
+from ati_evn.db.models import AlertQueue, CustomerAsset, ExposedDocument, Finding, FindingStatus, Severity
 from ati_evn.db.session import async_session
 from ati_evn.document_rules.llm_classifier import check_relevance
 from ati_evn.document_rules.matcher import match_document_rule
@@ -84,11 +87,12 @@ async def _existing_finding_keys() -> set[str]:
 
 async def ingest_documents(files: list[dict]) -> dict:
     """Full pipeline: whitelist -> rule -> LLM -> upsert -> findings."""
+    settings = get_settings()
     stats = {
         "new": 0, "updated": 0,
         "whitelisted": 0, "rule_matched": 0,
         "llm_calls": 0, "llm_relevant": 0,
-        "findings_created": 0,
+        "findings_created": 0, "queued_for_alert": 0,
     }
     now = datetime.now(timezone.utc)
 
@@ -215,8 +219,32 @@ async def ingest_documents(files: list[dict]) -> dict:
                         },
                     )
                     session.add(finding)
+                    await session.flush()
                     existing_finding_keys.add(key)
                     stats["findings_created"] += 1
+
+                    # Push to alert_queue -- Bot 1 (telegram/bot_alert.py)
+                    # polls this table and never talks to this pipeline
+                    # directly (same contract as match/customer_router.py's
+                    # slice 5A dispatch step, and brand_abuse_ingest.py).
+                    ok, reason = should_dispatch(finding)
+                    if ok:
+                        dedupe_key = compute_dedupe_key(
+                            finding.customer_id, finding.ioc_value, doc_row.matched_asset_id,
+                        )
+                        existing_id = await find_existing_dispatch(
+                            session, dedupe_key, settings.alert_dedupe_window_minutes,
+                        )
+                        state = "deduped" if existing_id else "pending"
+                        session.add(AlertQueue(
+                            finding_id=finding.id,
+                            customer_id=finding.customer_id,
+                            state=state,
+                            dispatch_reason=reason,
+                            dedupe_key=dedupe_key,
+                            deduped_of_id=existing_id,
+                        ))
+                        stats["queued_for_alert"] += 1
 
         await session.commit()
 

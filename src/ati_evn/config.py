@@ -78,10 +78,18 @@ class Settings(BaseSettings):
     grayhatwarfare_api_key: str = ""
     grayhat_max_files_per_keyword: int = 100
     grayhat_weekly_scan_enabled: bool = True
+    urlscan_max_results_per_query: int = 50
+    urlscan_weekly_scan_enabled: bool = True
+    typosquat_max_distance: int = 2
 
     # ── Enrichment ───────────────────────────────────────────────────────────
     virustotal_api_key: str = ""
     abuseipdb_api_key: str = ""
+    abuseipdb_max_age_days: int = 90
+    abuseipdb_daily_quota: int = 1000
+    enrichment_scheduler_enabled: bool = True
+    enrichment_batch_size: int = 50
+    enrichment_cache_hours: int = 24
 
     # ── Fetcher scheduler (slice 9.5) ────────────────────────────────────────
     fetcher_scheduler_enabled: bool = True

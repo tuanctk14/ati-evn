@@ -32,5 +32,10 @@ from ati_evn.agent.tools import search_exposures             # noqa
 from ati_evn.agent.tools import get_exposure_detail          # noqa
 from ati_evn.agent.tools import search_exposed_documents     # noqa
 from ati_evn.agent.tools import get_document_leak_detail     # noqa
+from ati_evn.agent.tools import search_brand_abuse           # noqa
+from ati_evn.agent.tools import get_brand_abuse_detail       # noqa
+from ati_evn.agent.tools import get_ip_enrichment            # noqa
+from ati_evn.agent.tools import search_malicious_ips         # noqa
+from ati_evn.agent.tools import search_pulses                # noqa
 
 __all__ = ["Tool", "TOOL_REGISTRY", "tool_error"]

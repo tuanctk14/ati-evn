@@ -13,6 +13,8 @@ from ati_evn.agent.session.cleanup import cleanup_expired_sessions
 from ati_evn.campaigns.detector import run_detection_once as campaign_detect
 from ati_evn.config import get_settings
 from ati_evn.external.grayhat_weekly import run_weekly_grayhat_scan
+from ati_evn.external.urlscan_weekly import run_weekly_urlscan_scan
+from ati_evn.enrichment_v2.backfill import run_backfill_batch_multi
 from ati_evn.external.weekly_scan import run_weekly_censys_scan
 from ati_evn.fetchers.scheduler import register_feed_jobs, startup_catchup
 from ati_evn.ingestion.cleanup import cleanup_expired_ingestions
@@ -33,6 +35,8 @@ from ati_evn.telegram.commands.force_fetch import router as force_fetch_router
 from ati_evn.telegram.commands.reject_ingest import router as reject_ingest_router
 from ati_evn.telegram.commands.scan_censys import router as scan_censys_router
 from ati_evn.telegram.commands.scan_ghwarfare import router as scan_ghwarfare_router
+from ati_evn.telegram.commands.scan_urlscan import router as scan_urlscan_router
+from ati_evn.telegram.commands.enrich_ip import router as enrich_ip_router
 from ati_evn.telegram.commands.delete_customer import router as delete_customer_router
 from ati_evn.telegram.commands.delete_ioc import router as delete_ioc_router
 from ati_evn.telegram.commands.export import router as export_router
@@ -71,6 +75,8 @@ COMMAND_MENU = [
     BotCommand(command="list_ingests", description="Danh sách phiên nhập bài báo"),
     BotCommand(command="scan_censys", description="Quét external service qua Censys"),
     BotCommand(command="scan_ghwarfare", description="Kiểm tra lộ lọt tài liệu"),
+    BotCommand(command="scan_urlscan", description="Kiểm tra brand abuse qua urlscan.io"),
+    BotCommand(command="enrich_ip", description="AbuseIPDB enrichment cho IP"),
 ]
 
 
@@ -129,6 +135,8 @@ async def run_forever() -> int:
     dp.include_router(list_ingests_router)
     dp.include_router(scan_censys_router)
     dp.include_router(scan_ghwarfare_router)
+    dp.include_router(scan_urlscan_router)
+    dp.include_router(enrich_ip_router)
     dp.include_router(force_fetch_router)
 
     # Catch-all for anything not matched by an explicit command router
@@ -198,6 +206,20 @@ async def run_forever() -> int:
         minute=0,
         id="weekly_grayhat_scan",
     )
+    scheduler.add_job(
+        run_weekly_urlscan_scan,
+        "cron",
+        day_of_week="mon",
+        hour=5,
+        minute=0,
+        id="weekly_urlscan_scan",
+    )
+    scheduler.add_job(
+        run_backfill_batch_multi,
+        "interval",
+        minutes=15,
+        id="ip_enrichment_multi_backfill",
+    )
     fetcher_job_count = register_feed_jobs(scheduler)
     scheduler.start()
     logger.info("Session cleanup scheduled (every 5min)")
@@ -205,6 +227,11 @@ async def run_forever() -> int:
     logger.info("Ingestion cleanup scheduled (15min)")
     logger.info("Weekly Censys scan scheduled (Monday 02:00 UTC)")
     logger.info("Weekly GrayHatWarfare scan scheduled (Sunday 04:00 UTC)")
+    logger.info("Weekly urlscan brand abuse scan scheduled (Monday 05:00 UTC)")
+    logger.info(
+        "Multi-provider IP enrichment backfill scheduled "
+        "(every 15 min, 10 IPs x 5 providers = 50 API calls/tick)"
+    )
     logger.info("Fetcher scheduler: %d feed jobs registered", fetcher_job_count)
 
     # Startup catch-up runs as a background task — fetchers can take

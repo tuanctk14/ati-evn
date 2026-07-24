@@ -897,3 +897,171 @@ class ExposedDocument(Base):
         Index("ix_doc_keyword", "keyword_matched"),
         Index("ix_doc_status_last_seen", "status", "last_seen_local"),
     )
+
+
+class BrandAbuseStatus(str, enum.Enum):
+    ACTIVE = "active"
+    RESOLVED = "resolved"   # analyst confirmed takedown
+    STALE = "stale"
+
+
+class BrandAbuseSighting(Base):
+    """A urlscan.io scan result matching one of our brand/keyword assets.
+
+    Dedupe key: url (one row per distinct scanned URL). Attribution:
+    matched to customer via keyword_matched -> CustomerAsset lookup.
+    verdicts come from urlscan's per-scan Result API (not the search
+    listing, which never populates `verdicts` -- see urlscan_client.py).
+    """
+    __tablename__ = "brand_abuse_sightings"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+
+    scan_uuid = Column(String(64), nullable=False)
+    url = Column(Text, nullable=False)
+    domain = Column(String(255), nullable=False)
+    page_title = Column(String(500), nullable=True)
+
+    keyword_matched = Column(String(200), nullable=False)
+    matched_asset_id = Column(BigInteger, ForeignKey("customer_assets.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+
+    # Pipeline stages
+    rule_matched = Column(String(60), nullable=True)
+    rule_severity = Column(String(20), nullable=True)
+    llm_classified = Column(Boolean, default=False)
+    llm_relevant = Column(Boolean, nullable=True)
+    llm_reasoning = Column(Text, nullable=True)
+
+    # Denormalized verdict signals (from Result API), used by rules/display.
+    verdict_malicious = Column(Boolean, default=False)
+    verdict_score = Column(Integer, nullable=True)
+    engines_malicious_total = Column(Integer, nullable=True)
+    typosquat_distance = Column(Integer, nullable=True)
+
+    first_seen_local = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    last_seen_local = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    # Plain String, not SAEnum -- see Campaign.status comment above for why.
+    status = Column(String(20), nullable=False, default=BrandAbuseStatus.ACTIVE.value)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_by = Column(String(120), nullable=True)
+
+    urlscan_raw = Column(JSON, default=dict)
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("url", name="uq_brand_abuse_url"),
+        Index("ix_brand_abuse_customer_status", "customer_id", "status"),
+        Index("ix_brand_abuse_keyword", "keyword_matched"),
+        Index("ix_brand_abuse_status_last_seen", "status", "last_seen_local"),
+    )
+
+
+class IpEnrichmentProvider(str, enum.Enum):
+    ABUSEIPDB = "abuseipdb"
+    VIRUSTOTAL = "virustotal"    # slice 13
+    PULSEDIVE = "pulsedive"      # slice 13
+    OTX = "otx"                  # slice 13
+    LEAKIX = "leakix"            # slice 13
+
+
+class IpEnrichment(Base):
+    """Enrichment data for IP addresses from various providers.
+
+    Design: one row per (ip, provider). Follows ArgusWatch Enrichment
+    pattern for extensibility -- slice 13 adds VT/Pulsedive/OTX/LeakIX
+    as new rows without schema change.
+
+    Cache TTL: 24h from queried_at (re-enrich after that).
+    """
+    __tablename__ = "ip_enrichments"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    ip = Column(String(45), nullable=False)
+    provider = Column(String(30), nullable=False)  # matches IpEnrichmentProvider
+
+    # Normalized fields (extracted from provider-specific response)
+    risk_score = Column(Float, nullable=True)  # 0-100 normalized
+    country = Column(String(80), nullable=True)
+    isp = Column(String(200), nullable=True)
+    is_malicious = Column(Boolean, nullable=True)
+
+    # Raw provider data
+    data = Column(JSON, default=dict)
+    # AbuseIPDB: {abuse_confidence, total_reports, is_tor,
+    #             usage_type, hostnames, last_reported, domain}
+    # Slice 13 adds provider-specific fields (VT engines, OTX pulses,
+    # Pulsedive risk/threats, LeakIX services/leaks) in this same column.
+
+    # Slice 13A: normalized cross-provider verdict (see enrichment_v2/adapters).
+    verdict = Column(String(20), nullable=True)  # benign|suspicious|malicious|unknown
+    verdict_confidence = Column(Float, nullable=True)  # 0-1, adapter's confidence in its own verdict
+
+    queried_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    error_message = Column(Text, nullable=True)  # if query failed
+
+    __table_args__ = (
+        UniqueConstraint("ip", "provider", name="uq_ip_enrichment_ip_provider"),
+        Index("ix_ipenrich_ip", "ip"),
+        Index("ix_ipenrich_provider_queried", "provider", "queried_at"),
+        Index("ix_ipenrich_malicious", "is_malicious", "risk_score"),
+        Index("ix_ipenrich_verdict", "verdict"),
+    )
+
+
+class IpAggregatedScore(Base):
+    """Materialized aggregate view of multi-provider enrichment.
+
+    One row per IP. Recomputed when providers update (see
+    enrichment_v2/aggregator.py -- provider-agnostic, config-driven).
+    """
+    __tablename__ = "ip_aggregated_scores"
+
+    ip = Column(String(45), primary_key=True)
+
+    # Score fields
+    aggregate_risk_score = Column(Float, nullable=False)
+    # Weighted sum, normalized by responded provider weights
+    max_provider_score = Column(Float, nullable=False)
+    # Highest single-provider normalized_score
+
+    # Consensus among responded providers
+    confidence_score = Column(Float, nullable=False)
+    # = positive_provider_count / responded_provider_count
+    positive_provider_count = Column(Integer, default=0)
+    # count(verdict == "malicious")
+    supporting_provider_count = Column(Integer, default=0)
+    # count(verdict IN ("suspicious", "malicious"))
+
+    # Data completeness
+    coverage_score = Column(Float, nullable=False)
+    # = responded_provider_count / enabled_provider_count
+    responded_provider_count = Column(Integer, default=0)
+    # Provider rows with either data or explicit error (not pending)
+    enabled_provider_count = Column(Integer, default=0)
+    # Provider count in config (usually 5)
+
+    # Details
+    provider_mask = Column(String(100), nullable=True)
+    # "virustotal|abuseipdb|otx" -- providers marking malicious
+    provider_verdicts = Column(JSON, default=dict)
+    # {"virustotal": "malicious", "abuseipdb": "benign", ...}
+
+    # Interpretation layer, separate from aggregate_risk_score: answers
+    # "do providers agree?" rather than "how dangerous is this IP?".
+    # A low weighted-average score can still hide a real malicious/benign
+    # split across providers -- consensus_status surfaces that split
+    # instead of silently averaging it away. See compute_consensus_status().
+    consensus_status = Column(String(30), nullable=True)
+    # "consensus" | "partial_consensus" | "disputed"
+
+    last_calculated_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        Index("ix_agg_risk_score", "aggregate_risk_score"),
+        Index("ix_agg_confidence", "confidence_score"),
+        Index("ix_agg_coverage", "coverage_score"),
+        Index("ix_agg_last_calc", "last_calculated_at"),
+    )

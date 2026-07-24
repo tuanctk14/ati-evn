@@ -81,8 +81,18 @@ EXTERNAL MONITORING:
                 --asn hiện chưa khả dụng (free tier).
   /scan_ghwarfare --keyword=X [--max=50]
                 Kiểm tra lộ lọt tài liệu (public bucket) qua GrayHatWarfare.
+  /scan_urlscan --keyword=X [--domain=Y] [--max=50]
+                Kiểm tra brand abuse/impersonation qua urlscan.io.
   Truy vấn exposure/finding phát hiện qua rule engine — dùng free-text agent
   (VD: "Có exposure SSH nào không?"), không có command riêng.
+
+ENRICHMENT (background, auto):
+  /enrich_ip <ip> [--force] [--full]
+                Fast: AbuseIPDB + VirusTotal. --full: + OTX/Pulsedive/LeakIX.
+                Trả về aggregate_risk_score + confidence + coverage.
+
+  Auto-backfill: every 15 min, 10 IPs x 5 providers per tick.
+  Cache TTL: per-provider (24h hoặc 12h, xem enrichment_config.yaml).
 
 FETCHER (auto-scheduled):
   /force_fetch [--feed=nvd|threatfox|malwarebazaar|urlhaus|feodo|all]
@@ -135,6 +145,13 @@ HELP_DETAIL = {
     "scan_censys": "/scan_censys --ip=X | --cidr=X [--auto-discover=customer]\n\nQuét external exposure (service/port đang mở) qua Censys cho 1 IP hoặc 1 CIDR range (mỗi IP trong range được tra riêng, giới hạn số host/scan). --auto-discover tạo asset mới nếu IP chưa có trong inventory. --asn hiện chưa khả dụng — cần key có quyền search/query (organization-scoped), free tier chỉ tra được từng IP.\n\nVí dụ: /scan_censys --ip=203.113.128.5\n       /scan_censys --cidr=203.113.128.0/28 --auto-discover=NPT",
     "force_fetch": "/force_fetch [--feed=nvd|threatfox|malwarebazaar|urlhaus|feodo|all]\n\nManual trigger fetcher — bỏ qua schedule interval. Dùng khi cần cập nhật data ngay (debug hoặc trước /export report).\n\nDefault: all feeds.\n\nVí dụ: /force_fetch --feed=nvd\n       /force_fetch",
     "scan_ghwarfare": "/scan_ghwarfare --keyword=X [--max=50]\n\nKiểm tra lộ lọt tài liệu (file công khai trên S3/DO Spaces/GCP...) qua GrayHatWarfare. Pipeline 3 bước: bucket whitelist → rule engine (YAML) → LLM classifier (chỉ chạy khi rule không chắc chắn). Free tier chỉ tìm được ~15% index, không sort, không full-path search.\n\nVí dụ: /scan_ghwarfare --keyword=EVN\n       /scan_ghwarfare --keyword=GENCO1 --max=100",
+    "scan_urlscan": "/scan_urlscan --keyword=X [--domain=Y] [--max=50]\n\nKiểm tra brand abuse/impersonation qua urlscan.io. Pipeline 3 bước: typosquat check (Levenshtein vs domain EVN thật) → rule engine (YAML: malicious verdict, nhiều engine flag, brand impersonation) → LLM classifier (chỉ chạy khi không match rule HIGH/CRITICAL). Mỗi kết quả tìm kiếm được enrich thêm verdict thật qua Result API.\n\nVí dụ: /scan_urlscan --keyword=\"Vietnam Electricity\"\n       /scan_urlscan --keyword=EVN --domain=evn.com.vn --max=100",
+    "enrich_ip": "/enrich_ip <ip> [--force] [--full]\n\n"
+        "Fast (2 provider): AbuseIPDB + VirusTotal — ~5s\n"
+        "Full (5 provider): + OTX + Pulsedive + LeakIX — ~15-30s\n\n"
+        "Background scheduler tự động enrich full 5 provider mỗi 15 phút.\n"
+        "Kết quả có aggregate_risk_score + confidence + coverage. Không tạo Finding mới — đây là lớp enrichment/metadata, không phải discovery layer.\n\n"
+        "Ví dụ: /enrich_ip 45.146.164.110\n       /enrich_ip 45.146.164.110 --full\n       /enrich_ip 45.146.164.110 --force",
 }
 
 

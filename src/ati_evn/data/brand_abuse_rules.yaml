@@ -1,0 +1,39 @@
+# Brand abuse rules (urlscan.io sightings)
+# Severity assigned deterministically before LLM check.
+# NOTE: typosquat_detected is NOT here -- it's a dynamic Levenshtein
+# check against real EVN domains, computed in brand_rules/typosquat.py
+# and folded into the same combination logic as these YAML rules.
+
+rules:
+
+  - id: malicious_verdict
+    enabled: true
+    condition:
+      verdict_malicious: true
+    severity: critical
+    title: "urlscan flagged URL as malicious"
+    description: |
+      urlscan.io's overall verdict marked this URL malicious.
+      IMMEDIATE ACTION: verify content, consider takedown request.
+
+  - id: high_engine_score
+    enabled: true
+    condition:
+      engines_malicious_total_gte: 3
+    severity: high
+    title: "Multiple scan engines flagged URL malicious"
+    description: |
+      3+ scan engines flagged this URL malicious in urlscan's Result
+      API. Verify content and consider takedown.
+
+  - id: brand_impersonation_title
+    enabled: true
+    condition:
+      title_matches_brand: true
+      domain_not_evn: true
+    severity: medium
+    title: "Page title impersonates brand on non-EVN domain"
+    description: |
+      Page title matches an EVN brand/keyword but the domain is not
+      an EVN-owned domain. Possible phishing/impersonation site --
+      verify manually.

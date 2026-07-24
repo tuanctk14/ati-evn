@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.db.models import (
+    BrandAbuseSighting,
     Campaign,
     CampaignFinding,
     Customer,
@@ -15,6 +16,7 @@ from ati_evn.db.models import (
     ExposedDocument,
     Exposure,
     Finding,
+    IpEnrichment,
     SigmaRule,
 )
 from ati_evn.db.query_utils import customer_name_or_code_match, only_live_asset, only_live_customer
@@ -122,6 +124,23 @@ async def _rel_finding(session, finding_id: str) -> dict:
         {"id": t.get("id"), "label": get_technique_name(t.get("id"))}
         for t in (ctx.get("techniques") or [])[:CAP] if t.get("id")
     ]
+
+    if finding.ioc_type in ("ipv4", "ipv6"):
+        enrich_rows = await session.execute(
+            select(IpEnrichment).where(IpEnrichment.ip == finding.ioc_value)
+        )
+        enrichments = list(enrich_rows.scalars())
+        if enrichments:
+            related["ip_enrichment"] = [
+                {
+                    "provider": e.provider,
+                    "risk_score": e.risk_score,
+                    "is_malicious": e.is_malicious,
+                    "country": e.country,
+                }
+                for e in enrichments
+            ]
+
     return related
 
 
@@ -280,6 +299,43 @@ async def _rel_exposed_document(session, document_id: str) -> dict:
     }
 
 
+async def _rel_brand_abuse(session, sighting_id: str) -> dict:
+    try:
+        sid = int(sighting_id)
+    except ValueError:
+        return tool_error("sighting_id must be int")
+    sighting = await session.get(BrandAbuseSighting, sid)
+    if not sighting:
+        return tool_error(f"Sighting #{sid} not found")
+
+    # Finding.metadata_ is a plain JSON column (not JSONB) — no SQL-level
+    # ->>/astext filter available, so load and check metadata_ in Python
+    # (same pattern as exposure_rules/finding_creator.py's dedup check).
+    rows = await session.execute(select(Finding))
+    findings = [
+        f for f in rows.scalars()
+        if (f.metadata_ or {}).get("brand_abuse_id") == sid
+    ][:CAP]
+
+    customer_label = None
+    if sighting.customer_id:
+        c = await session.get(Customer, sighting.customer_id)
+        if c:
+            customer_label = c.name
+
+    return {
+        "findings": [
+            {"id": f.id, "label":
+             f"{f.title[:50]} ({f.severity.value if hasattr(f.severity,'value') else str(f.severity)})"}
+            for f in findings
+        ],
+        "customers": [{"id": sighting.customer_id, "label": customer_label}] if customer_label else [],
+        "domain": sighting.domain,
+        "url": sighting.url,
+        "keyword": sighting.keyword_matched,
+    }
+
+
 async def _rel_campaign(session, campaign_id: str) -> dict:
     try:
         cid = int(campaign_id)
@@ -321,7 +377,8 @@ async def _rel_campaign(session, campaign_id: str) -> dict:
         "properties": {
             "entity_type": {"type": "string", "enum":
                             ["cve", "ioc", "finding", "asset", "customer",
-                             "technique", "campaign", "exposure", "exposed_document"]},
+                             "technique", "campaign", "exposure", "exposed_document",
+                             "brand_abuse"]},
             "entity_id": {"type": "string", "description": "Identifier for the entity (ID or value)"},
         },
         "required": ["entity_type", "entity_id"],
@@ -354,10 +411,14 @@ async def relationships(entity_type: str, entity_id: str) -> dict:
             related = await _rel_exposed_document(session, entity_id)
             if isinstance(related, dict) and related.get("success") is False:
                 return related
+        elif entity_type == "brand_abuse":
+            related = await _rel_brand_abuse(session, entity_id)
+            if isinstance(related, dict) and related.get("success") is False:
+                return related
         else:
             return tool_error(
                 f"Unknown entity_type '{entity_type}'",
-                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign, exposure, exposed_document.",
+                hint="Use one of: cve, ioc, finding, asset, customer, technique, campaign, exposure, exposed_document, brand_abuse.",
             )
 
     return {

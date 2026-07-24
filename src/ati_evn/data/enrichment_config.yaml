@@ -1,0 +1,57 @@
+# Multi-source enrichment configuration
+# Weights sum to 1.0; thresholds are provider-specific units.
+# AggregateService (slice 13B) reads this without knowing provider names.
+
+enrichment:
+  # Weights for aggregate risk_score computation (slice 13B)
+  weights:
+    virustotal: 0.35
+    abuseipdb: 0.30
+    otx: 0.15
+    pulsedive: 0.10
+    leakix: 0.10
+
+  # Cache TTL per provider (hours)
+  ttl_hours:
+    virustotal: 24
+    abuseipdb: 24
+    otx: 24
+    pulsedive: 12
+    leakix: 12
+
+  # Provider execution tiers (slice 13B uses this)
+  foreground_providers: [abuseipdb, virustotal]
+  background_providers: [otx, pulsedive, leakix]
+
+  # Provider-specific verdict thresholds (adapter uses these)
+  providers:
+    virustotal:
+      # Verdict = f(malicious engine count)
+      malicious_engines: 5
+      suspicious_engines: 1
+
+    abuseipdb:
+      # Verdict = f(abuseConfidenceScore 0-100)
+      malicious_score: 50
+      suspicious_score: 25
+
+    otx:
+      # Verdict = f(pulse_count)
+      malicious_pulses: 3
+      suspicious_pulses: 1
+
+    pulsedive:
+      # Verdict = f(risk level string)
+      # Risk levels: none, low, medium, high, critical
+      malicious_level: medium
+      suspicious_level: low
+
+    leakix:
+      # Verdict = f(event count + event types)
+      malicious_event_types:
+        - "credential-leak"
+        - "database-open"
+        - "admin-panel-open"
+        - "backup-exposed"
+      # Any exposure = suspicious (banner/config visible)
+      suspicious_on_any_event: true

@@ -69,6 +69,7 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
         cmd_lines.append(f"  /playbook {finding.id}")
 
     is_doc_leak = "exposed_document" in (finding.sources or [])
+    is_brand_abuse = "brand_abuse" in (finding.sources or [])
     is_exposure = any(s.startswith("exposure_") for s in (finding.sources or []))
     is_ingested = "analyst_ingested" in (finding.sources or [])
     is_internal = "internal" in (finding.sources or [])
@@ -78,6 +79,9 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
     if is_doc_leak:
         prefix = "📄 "
         tag = " [DOC LEAK]"
+    elif is_brand_abuse:
+        prefix = "🎭 "
+        tag = " [BRAND ABUSE]"
     elif is_exposure:
         prefix = "📡 "
         tag = " [EXPOSURE]"
@@ -108,6 +112,22 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
             f"\n⚠️ Truy cập file qua curl/tool riêng — không click trực tiếp"
         )
 
+    brand_line = ""
+    if is_brand_abuse:
+        meta = finding.metadata_ or {}
+        domain = meta.get("domain") or ""
+        title = meta.get("page_title") or ""
+        keyword = meta.get("keyword_matched") or ""
+        typosquat_dist = meta.get("typosquat_distance")
+        brand_line = (
+            f"\nDomain: {domain}"
+            f"\nPage title: {truncate(title, 100)}"
+            f"\nMatched keyword: {keyword}"
+        )
+        if typosquat_dist is not None:
+            brand_line += f"\nTyposquat distance: {typosquat_dist}"
+        brand_line += "\n⚠️ Không truy cập trực tiếp URL — kiểm tra qua sandbox/tool riêng"
+
     ingest_line = f"\n📥 Ingested from: {truncate(ingestion_source, 100)}" if ingestion_source else ""
 
     return (
@@ -115,7 +135,8 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
         f"{cve_line} — {finding.title[:100]}\n"
         f"Asset: {asset_display}"
         f"{exposure_line}"
-        f"{doc_line}\n"
+        f"{doc_line}"
+        f"{brand_line}\n"
         f"Detected: {first_seen_local}\n"
         f"Finding #{finding.id} · Sources: {sources}"
         f"{attack_line}"
