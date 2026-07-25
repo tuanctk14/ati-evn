@@ -94,6 +94,14 @@ ENRICHMENT (background, auto):
   Auto-backfill: every 15 min, 10 IPs x 5 providers per tick.
   Cache TTL: per-provider (24h hoặc 12h, xem enrichment_config.yaml).
 
+REPORT:
+  /generate_report [--window=7d] [--from=YYYY-MM-DD --to=YYYY-MM-DD]
+                   [--format=html|pdf|both] [--customer=X]
+  /list_reports [--limit=15] [--type=global|customer] [--customer=X]
+  /download_report <id> [--format=html|pdf|both]
+
+  Weekly global report auto-scheduled: Monday 06:00 UTC.
+
 FETCHER (auto-scheduled):
   /force_fetch [--feed=nvd|threatfox|malwarebazaar|urlhaus|feodo|all]
 
@@ -152,6 +160,22 @@ HELP_DETAIL = {
         "Background scheduler tự động enrich full 5 provider mỗi 15 phút.\n"
         "Kết quả có aggregate_risk_score + confidence + coverage. Không tạo Finding mới — đây là lớp enrichment/metadata, không phải discovery layer.\n\n"
         "Ví dụ: /enrich_ip 45.146.164.110\n       /enrich_ip 45.146.164.110 --full\n       /enrich_ip 45.146.164.110 --force",
+    "generate_report": "/generate_report [--window=7d] [--from=YYYY-MM-DD --to=YYYY-MM-DD] [--format=html|pdf|both] [--customer=X]\n\n"
+        "Tạo báo cáo CTI (CyRadar-style): findings theo severity/source/customer, "
+        "CVE, campaign, exposure (Censys), document leak (GrayHatWarfare), brand abuse (urlscan), malicious IP "
+        "(multi-provider aggregate), asset coverage — kèm Executive Summary 3 đoạn do LLM viết. "
+        "--customer=X thu hẹp scope về 1 customer cụ thể (narrative + số liệu riêng, tên file customer_{short_code}.html); "
+        "không có --customer thì tạo report toàn cảnh (global). Output HTML (canonical) "
+        "+ PDF (wkhtmltopdf), lưu tại reports/YYYY-MM-DD/, metadata lưu vào bảng reports, gửi kèm file qua Telegram. "
+        "Weekly global report tự động chạy Monday 06:00 UTC. Default: 7 ngày, cả 2 format.\n\n"
+        "Ví dụ: /generate_report\n       /generate_report --window=30d --format=html\n       "
+        "/generate_report --customer=NPC --window=30d",
+    "list_reports": "/list_reports [--limit=15] [--type=global|customer] [--customer=X]\n\n"
+        "Danh sách report đã tạo (global + customer), sắp xếp mới nhất trước. Filter theo type hoặc customer.\n\n"
+        "Ví dụ: /list_reports\n       /list_reports --type=customer --limit=5\n       /list_reports --customer=NPC",
+    "download_report": "/download_report <id> [--format=html|pdf|both]\n\n"
+        "Tải lại file HTML/PDF của 1 report đã tạo trước đó, theo report ID (xem qua /list_reports).\n\n"
+        "Ví dụ: /download_report 3\n       /download_report 3 --format=pdf",
 }
 
 

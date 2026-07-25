@@ -94,6 +94,10 @@ FIX_MAP: dict[str, str] = {
     "/abuseipdb": "/enrich_ip",
     "/enrich": "/enrich_ip",
     "/lookup": "/enrich_ip",
+    "/report": "/generate_report",
+    "/gen_report": "/generate_report",
+    "/reports": "/list_reports",
+    "/download": "/download_report",
 }
 
 # All real Bot 2 commands, sourced from the router registry
@@ -112,6 +116,7 @@ WHITELIST: frozenset[str] = frozenset({
     "/ingest", "/confirm_ingest", "/reject_ingest",
     "/edit_ingest", "/list_ingests",
     "/scan_censys", "/force_fetch", "/scan_ghwarfare", "/scan_urlscan", "/enrich_ip",
+    "/generate_report", "/list_reports", "/download_report",
 })
 
 # Match /command_name at a word boundary (line start or preceded by

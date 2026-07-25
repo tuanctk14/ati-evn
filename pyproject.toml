@@ -62,6 +62,12 @@ dependencies = [
     # Export weekly_report PDF (slice 5B.2) — optional; export.py degrades
     # to markdown output if reportlab isn't installed.
     "reportlab>=4.0",
+
+    # CyRadar-style global report (slice 8A) — HTML canonical + PDF via
+    # wkhtmltopdf. Requires the wkhtmltopdf binary on PATH (or
+    # WKHTMLTOPDF_PATH set) — see src/ati_evn/reports/renderer.py.
+    "jinja2>=3.1.0",
+    "pdfkit>=1.0.0",
     # pysigma-backend-qradar intentionally NOT pinned here: the only
     # available release (0.3.3) requires pysigma<0.10 + packaging<23,
     # which conflicts with this project's packaging>=24.0 pin (used by

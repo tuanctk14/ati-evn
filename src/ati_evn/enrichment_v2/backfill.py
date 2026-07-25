@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from ati_evn.config import get_settings
 from ati_evn.db.models import Exposure, Finding, IpEnrichment
+from ati_evn.db.query_utils_test import is_test_finding, is_test_ip
 from ati_evn.db.session import async_session
 from ati_evn.enrichment_v2.aggregator import compute_and_store
 from ati_evn.enrichment_v2.config import get_background_providers, get_foreground_providers, get_ttl_hours
@@ -45,12 +46,25 @@ async def _discover_ips_to_enrich(limit: int) -> list[str]:
         recently_enriched = {r[0] for r in await session.execute(recent_stmt)}
 
         candidates: list[str] = []
-        finding_stmt = select(Finding.ioc_value).where(
+        # Load full Finding rows (not just ioc_value) so test_scenario
+        # findings (from /add_test_campaign) can be filtered out here --
+        # their IPs are also RFC 5737 TEST-NET-1, caught again below as
+        # a belt-and-suspenders check.
+        finding_stmt = select(Finding).where(
             Finding.ioc_type.in_(["ipv4", "ipv6"]),
-        ).distinct()
-        for r in await session.execute(finding_stmt):
-            ip = r[0]
-            if ip and ip not in recently_enriched:
+        )
+        for f in await session.execute(finding_stmt):
+            f = f[0]
+            ip = f.ioc_value
+            if not ip:
+                continue
+            if is_test_finding(f):
+                continue
+            if is_test_ip(ip):
+                continue
+            if ip in recently_enriched:
+                continue
+            if ip not in candidates:
                 candidates.append(ip)
                 if len(candidates) >= limit:
                     return candidates
@@ -58,7 +72,13 @@ async def _discover_ips_to_enrich(limit: int) -> list[str]:
         exp_stmt = select(Exposure.ip).where(Exposure.status == "active").distinct()
         for r in await session.execute(exp_stmt):
             ip = r[0]
-            if ip and ip not in recently_enriched and ip not in candidates:
+            if not ip:
+                continue
+            if is_test_ip(ip):
+                continue
+            if ip in recently_enriched:
+                continue
+            if ip not in candidates:
                 candidates.append(ip)
                 if len(candidates) >= limit:
                     break
@@ -121,12 +141,15 @@ async def _discover_ips_needing_backfill(limit: int) -> list[str]:
     async with async_session() as session:
         candidates: set[str] = set()
 
-        f_stmt = select(Finding.ioc_value).where(
+        # Load full Finding rows so test_scenario findings are excluded
+        # (same reasoning as _discover_ips_to_enrich above).
+        f_stmt = select(Finding).where(
             Finding.ioc_type.in_(["ipv4", "ipv6"]),
-        ).distinct()
-        for r in await session.execute(f_stmt):
-            if r[0]:
-                candidates.add(r[0])
+        )
+        for f in await session.execute(f_stmt):
+            f = f[0]
+            if f.ioc_value and not is_test_finding(f):
+                candidates.add(f.ioc_value)
 
         e_stmt = select(Exposure.ip).where(Exposure.status == "active").distinct()
         for r in await session.execute(e_stmt):
@@ -135,6 +158,8 @@ async def _discover_ips_needing_backfill(limit: int) -> list[str]:
 
     need_enrichment = []
     for ip in sorted(candidates):
+        if is_test_ip(ip):
+            continue
         if len(need_enrichment) >= limit:
             break
         if not await _all_providers_recent(ip, all_providers):

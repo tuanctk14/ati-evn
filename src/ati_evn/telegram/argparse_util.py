@@ -9,6 +9,7 @@ Example: /finding 12847
 from __future__ import annotations
 
 import shlex
+from datetime import datetime, timedelta, timezone
 
 
 def parse_args(text: str, command: str) -> dict:
@@ -37,3 +38,25 @@ def parse_args(text: str, command: str) -> dict:
         else:
             result["_positional"].append(tok)
     return result
+
+
+def parse_iso_date(s: str) -> datetime:
+    """Parse YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS to a UTC datetime."""
+    s = s.strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError as e:
+        raise ValueError(f"Invalid date '{s}', use YYYY-MM-DD") from e
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def parse_window(s: str) -> timedelta:
+    """Parse '7d', '24h', '30d' -> timedelta."""
+    s = s.strip().lower()
+    if s.endswith("d"):
+        return timedelta(days=int(s[:-1]))
+    if s.endswith("h"):
+        return timedelta(hours=int(s[:-1]))
+    raise ValueError(f"Invalid window '{s}', use e.g. '7d' or '24h'")

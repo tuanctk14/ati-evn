@@ -40,3 +40,10 @@ def get_foreground_providers() -> list[str]:
 
 def get_background_providers() -> list[str]:
     return load_config().get("background_providers") or []
+
+
+def get_scoring_policy(provider: str) -> dict:
+    """Return scoring policy dict for provider."""
+    cfg = load_config()
+    scoring = cfg.get("scoring") or {}
+    return scoring.get(provider) or {}

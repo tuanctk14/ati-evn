@@ -1,11 +1,9 @@
-"""AlienVault OTX per-IP adapter.
+"""AlienVault OTX per-IP adapter. ProviderSignal only, no scoring.
 
 Endpoint: /api/v1/indicators/IPv4/{ip}/general
 
-Verdict from pulse count:
-  >= malicious_pulses -> malicious
-  >= suspicious_pulses -> suspicious
-  0 -> benign
+Scoring/verdict determination lives in enrichment_v2/scoring.py
+(ScoringEngine), driven by enrichment_config.yaml.
 
 Note: earlier probe showed intermittent timeouts on some IPs. Use a
 generous timeout + graceful fallback (unknown, not error) on timeout.
@@ -17,8 +15,7 @@ import logging
 import httpx
 
 from ati_evn.config import get_settings
-from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderVerdict, Verdict
-from ati_evn.enrichment_v2.config import get_provider_config
+from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
 
 logger = logging.getLogger("ati_evn.enrichment_v2.adapters.otx")
 
@@ -28,7 +25,7 @@ URL_TEMPLATE = "https://otx.alienvault.com/api/v1/indicators/IPv4/{ip}/general"
 class OTXAdapter(BaseIpAdapter):
     provider_name = "otx"
 
-    async def fetch(self, ip: str) -> ProviderVerdict:
+    async def fetch(self, ip: str) -> ProviderSignal:
         settings = get_settings()
         if not settings.otx_api_key:
             return self._mk_error("OTX_API_KEY missing")
@@ -46,11 +43,9 @@ class OTXAdapter(BaseIpAdapter):
             data = resp.json()
         except httpx.TimeoutException:
             logger.info("OTX timeout for %s (known intermittent issue)", ip)
-            return ProviderVerdict(
+            return ProviderSignal(
                 provider=self.provider_name,
-                normalized_score=0.0,
-                verdict="unknown",
-                confidence=0.0,
+                signals={},
                 error="OTX API timeout",
             )
         except Exception as e:
@@ -76,24 +71,14 @@ class OTXAdapter(BaseIpAdapter):
                 "created": p.get("created"),
             })
 
-        verdict, confidence = self._map_verdict(pulse_count)
-
-        if pulse_count == 0:
-            norm_score = 0.0
-        elif pulse_count == 1:
-            norm_score = 25.0
-        elif pulse_count == 2:
-            norm_score = 50.0
-        elif pulse_count < 5:
-            norm_score = 65.0
-        else:
-            norm_score = min(90.0, 65.0 + pulse_count * 2)
-
-        return ProviderVerdict(
+        return ProviderSignal(
             provider=self.provider_name,
-            normalized_score=norm_score,
-            verdict=verdict,
-            confidence=confidence,
+            signals={
+                "pulse_count": pulse_count,
+                "pulses": pulse_summary,
+                "reputation": reputation,
+                "asn": data.get("asn"),
+            },
             country=data.get("country_code") or None,
             isp=data.get("asn") or None,
             raw_data={
@@ -105,19 +90,3 @@ class OTXAdapter(BaseIpAdapter):
                 "city": data.get("city"),
             },
         )
-
-    def _map_verdict(self, pulse_count: int) -> tuple[Verdict, float]:
-        cfg = get_provider_config("otx")
-        mal_threshold = cfg.get("malicious_pulses", 3)
-        susp_threshold = cfg.get("suspicious_pulses", 1)
-
-        if pulse_count >= mal_threshold:
-            verdict: Verdict = "malicious"
-            confidence = min(1.0, 0.6 + pulse_count * 0.05)
-        elif pulse_count >= susp_threshold:
-            verdict = "suspicious"
-            confidence = 0.5
-        else:
-            verdict = "benign"
-            confidence = 0.6
-        return verdict, confidence

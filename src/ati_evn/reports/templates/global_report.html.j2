@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>ATI-EVN Weekly Report — {{ meta.from_dt[:10] }} to {{ meta.to_dt[:10] }}</title>
+<style>
+  @page { size: A4; margin: 1.5cm; }
+  body {
+    font-family: 'Noto Sans', 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt; color: #222; line-height: 1.5;
+  }
+  h1 { color: #003366; border-bottom: 3px solid #003366;
+         padding-bottom: 8px; }
+  h2 { color: #003366; margin-top: 24px;
+         border-bottom: 1px solid #999; padding-bottom: 4px; }
+  h3 { color: #555; margin-top: 12px; }
+  .header-block {
+    background: #f0f4f8; padding: 12px; border-left: 4px solid #003366;
+    margin-bottom: 20px;
+  }
+  .header-block p { margin: 4px 0; }
+  .narrative {
+    background: #fffaf0; padding: 14px; border-left: 4px solid #e67e22;
+    margin: 12px 0; white-space: pre-wrap; font-size: 10.5pt;
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0;
+    font-size: 9.5pt;
+  }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left;
+             vertical-align: top; }
+  th { background: #e0e8ef; }
+  .sev-CRITICAL { color: #c0392b; font-weight: bold; }
+  .sev-HIGH { color: #e67e22; font-weight: bold; }
+  .sev-MEDIUM { color: #d4ac0d; }
+  .sev-LOW { color: #27ae60; }
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin: 10px 0;
+  }
+  .kpi {
+    text-align: center; padding: 10px; border: 1px solid #ddd;
+    background: #f8f9fa;
+  }
+  .kpi .num { font-size: 20pt; font-weight: bold; color: #003366; }
+  .kpi .label { font-size: 9pt; color: #666; }
+  .note-na {
+    background: #fdf2f2; padding: 10px; border-left: 3px solid #c0392b;
+    margin: 10px 0; font-size: 10pt;
+  }
+  .footer {
+    margin-top: 30px; padding-top: 10px; border-top: 1px solid #999;
+    font-size: 8pt; color: #999;
+  }
+  code { background: #f0f0f0; padding: 1px 4px; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>ATI-EVN — Cyber Threat Intelligence Report</h1>
+
+<div class="header-block">
+  <p><strong>Kỳ báo cáo:</strong>
+     {{ meta.from_dt[:10] }} → {{ meta.to_dt[:10] }}
+     ({{ meta.window_days }} ngày)</p>
+  <p><strong>Số customer giám sát:</strong> {{ meta.customer_count }}</p>
+  <p><strong>Tạo lúc:</strong> {{ meta.generated_at[:19] }} UTC</p>
+</div>
+
+<h2>Executive Summary</h2>
+<div class="narrative">{{ narrative }}</div>
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="num">{{ findings.total }}</div>
+    <div class="label">Findings mới</div>
+  </div>
+  <div class="kpi">
+    <div class="num">{{ findings.by_severity.CRITICAL | default(0) }}</div>
+    <div class="label">CRITICAL</div>
+  </div>
+  <div class="kpi">
+    <div class="num">{{ campaigns.total }}</div>
+    <div class="label">Chiến dịch</div>
+  </div>
+  <div class="kpi">
+    <div class="num">{{ malicious_ips.total }}</div>
+    <div class="label">IP risk ≥ 40</div>
+  </div>
+</div>
+
+{# ── Section 1: Findings breakdown ── #}
+<h2>1. Tổng quan Findings</h2>
+<h3>Phân bố theo severity</h3>
+<table>
+  <tr><th>Severity</th><th>Số lượng</th></tr>
+  {% for sev, cnt in findings.by_severity.items() %}
+  <tr><td class="sev-{{ sev }}">{{ sev }}</td><td>{{ cnt }}</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Top source</h3>
+<table>
+  <tr><th>Source</th><th>Findings</th></tr>
+  {% for s in findings.by_source %}
+  <tr><td><code>{{ s.source }}</code></td><td>{{ s.count }}</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Top customer bị ảnh hưởng</h3>
+<table>
+  <tr><th>Customer</th><th>Findings</th></tr>
+  {% for c in findings.by_customer %}
+  <tr><td>{{ c.name }}
+         {% if c.short_code %}<em>({{ c.short_code }})</em>{% endif %}
+      </td><td>{{ c.count }}</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Top 20 finding CRITICAL/HIGH mới</h3>
+<table>
+  <tr>
+    <th>ID</th><th>Sev</th><th>Title</th>
+    <th>Customer</th><th>Source</th>
+  </tr>
+  {% for f in findings.top_critical %}
+  <tr>
+    <td>{{ f.id }}</td>
+    <td class="sev-{{ f.severity }}">{{ f.severity }}</td>
+    <td>{{ f.title }}</td>
+    <td>{{ f.customer }}</td>
+    <td><code>{{ f.sources | join(",") }}</code></td>
+  </tr>
+  {% endfor %}
+</table>
+
+{# ── Section 2: Vulnerabilities ── #}
+<h2>2. Lỗ hổng bảo mật (Vulnerabilities)</h2>
+<p>Tổng số CVE-typed finding trong kỳ: <strong>{{ vulnerabilities.total }}</strong></p>
+<table>
+  <tr>
+    <th>CVE</th><th>Sev</th><th>Title</th>
+    <th>Customer</th><th>Asset</th>
+  </tr>
+  {% for v in vulnerabilities.findings %}
+  <tr>
+    <td><code>{{ v.cve }}</code></td>
+    <td class="sev-{{ v.severity }}">{{ v.severity }}</td>
+    <td>{{ v.title }}</td>
+    <td>{{ v.customer }}</td>
+    <td>{{ v.asset }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{# ── Section 3: Campaigns ── #}
+<h2>3. Chiến dịch tấn công (Campaigns)</h2>
+<p>Phát hiện: <strong>{{ campaigns.total }}</strong> chiến dịch mới trong kỳ.</p>
+{% if campaigns.list %}
+<table>
+  <tr>
+    <th>Tên</th><th>Status</th><th>Confidence</th>
+    <th>#Findings</th><th>Top techniques</th>
+  </tr>
+  {% for c in campaigns.list %}
+  <tr>
+    <td>{{ c.name }}</td>
+    <td>{{ c.status }}</td>
+    <td>{{ c.confidence }}</td>
+    <td>{{ c.finding_count }}</td>
+    <td>{{ c.top_techniques | join(", ") }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p><em>Không có chiến dịch mới trong kỳ này.</em></p>
+{% endif %}
+
+{# ── Section 4: Exposed Services ── #}
+<h2>4. Cổng dịch vụ mở (Exposed Services)</h2>
+<p>Trong kỳ: {{ exposures.in_window }} | Tổng active: {{ exposures.total_active }}</p>
+{% if exposures.list %}
+<table>
+  <tr><th>IP</th><th>Port</th><th>Service</th><th>Customer</th></tr>
+  {% for e in exposures.list %}
+  <tr>
+    <td>{{ e.ip }}</td><td>{{ e.port }}</td>
+    <td>{{ e.service }}</td><td>{{ e.customer }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p><em>Không có exposure mới trong kỳ này.</em></p>
+{% endif %}
+
+{# ── Section 5: Document Leaks ── #}
+<h2>5. Lộ lọt tài liệu (Document Leaks)</h2>
+<p>Trong kỳ: {{ document_leaks.in_window }} | Tổng active: {{ document_leaks.total_active }}</p>
+{% if document_leaks.list %}
+<table>
+  <tr>
+    <th>File</th><th>Bucket</th><th>Customer</th>
+    <th>Keyword</th><th>Rule</th>
+  </tr>
+  {% for d in document_leaks.list %}
+  <tr>
+    <td>{{ d.filename }}</td>
+    <td><code>{{ d.bucket_url }}</code></td>
+    <td>{{ d.customer }}</td>
+    <td>{{ d.keyword }}</td>
+    <td>{{ d.rule_matched or "-" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p><em>Không có document leak mới trong kỳ này.</em></p>
+{% endif %}
+
+{# ── Section 6: Brand Abuse ── #}
+<h2>6. Lạm dụng thương hiệu (Brand Abuse)</h2>
+<p>Trong kỳ: {{ brand_abuse.in_window }} | Tổng active: {{ brand_abuse.total_active }}</p>
+{% if brand_abuse.sightings %}
+<table>
+  <tr>
+    <th>Domain giả mạo</th><th>Title</th><th>Rule</th>
+    <th>Malicious</th><th>Engines</th><th>urlscan</th>
+  </tr>
+  {% for b in brand_abuse.sightings %}
+  <tr>
+    <td>{{ b.page_domain }}</td>
+    <td>{{ b.page_title }}</td>
+    <td>{{ b.rule_matched or "-" }}</td>
+    <td>{{ "Yes" if b.verdict_malicious else "No" }}</td>
+    <td>{{ b.engines_malicious }}</td>
+    <td><a href="{{ b.urlscan_result }}">Link</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p><em>Không có brand abuse sighting mới trong kỳ này.</em></p>
+{% endif %}
+
+{# ── Section 7: Malicious IPs (aggregate) ── #}
+<h2>7. IP nguy hiểm (Multi-source consensus)</h2>
+<p>Danh sách IP có aggregate risk score ≥ 40, sắp xếp giảm dần.</p>
+{% if malicious_ips.list %}
+<table>
+  <tr>
+    <th>IP</th><th>Risk</th><th>Confidence</th><th>Coverage</th>
+    <th>Consensus</th><th>Positive/Responded</th><th>Providers flagged</th>
+  </tr>
+  {% for i in malicious_ips.list %}
+  <tr>
+    <td><code>{{ i.ip }}</code></td>
+    <td>{{ i.aggregate_risk_score }}</td>
+    <td>{{ (i.confidence_score * 100) | int }}%</td>
+    <td>{{ (i.coverage_score * 100) | int }}%</td>
+    <td>{{ i.consensus_status or "-" }}</td>
+    <td>{{ i.positive_count }}/{{ i.responded_count }}</td>
+    <td>{{ i.provider_mask or "-" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p><em>Không có IP nào đạt ngưỡng risk ≥ 40 trong kỳ.</em></p>
+{% endif %}
+
+{# ── Section 8: Asset Coverage ── #}
+<h2>8. Tài sản giám sát (Asset Coverage)</h2>
+<p>Tổng số asset trong scope: <strong>{{ asset_coverage.total }}</strong></p>
+<table>
+  <tr><th>Asset type</th><th>Số lượng</th></tr>
+  {% for a in asset_coverage.by_type %}
+  <tr><td>{{ a.type }}</td><td>{{ a.count }}</td></tr>
+  {% endfor %}
+</table>
+
+{# ── N/A section: Credential Leaks ── #}
+<h2>9. Lộ lọt tài khoản (Credential Leaks) — Not Available</h2>
+<div class="note-na">
+  <strong>{{ credential_leaks.status }}</strong><br>
+  {{ credential_leaks.note }}
+</div>
+
+<div class="footer">
+  Generated by ATI-EVN — Agentic Threat Intelligence Platform for EVN.<br>
+  Report window: {{ meta.from_dt[:10] }} → {{ meta.to_dt[:10] }}.
+  Generated at {{ meta.generated_at[:19] }} UTC.
+</div>
+
+</body>
+</html>

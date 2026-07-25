@@ -55,3 +55,57 @@ enrichment:
         - "backup-exposed"
       # Any exposure = suspicious (banner/config visible)
       suspicious_on_any_event: true
+
+  # Scoring policy per provider (used by ScoringEngine.score_from_signal).
+  # Formulas: passthrough, weighted_count, bucket, level_map, composite,
+  # lookup_table. This is the ONLY place normalized_score math lives --
+  # adapters extract signals, ScoringEngine turns signals into scores.
+  scoring:
+    abuseipdb:
+      formula: passthrough
+      field: abuse_confidence
+
+    virustotal:
+      formula: lookup_table
+      field: malicious_engines
+      interpolate: false          # discrete count semantic
+      lookup:
+        0: 0
+        1: 20
+        2: 35
+        3: 50
+        4: 60
+        5: 75
+        10: 90
+        20: 100
+
+    otx:
+      formula: bucket
+      field: pulse_count
+      buckets:
+        - {max: 0, score: 0}
+        - {max: 1, score: 25}
+        - {max: 2, score: 50}
+        - {max: 5, score: 65}
+        - {max: 10, score: 75}
+        - {max: 999, score: 90}
+
+    pulsedive:
+      formula: level_map
+      field: risk_level
+      map:
+        none: 0
+        unknown: 0
+        low: 25
+        medium: 50
+        high: 75
+        critical: 100
+
+    leakix:
+      formula: composite
+      base_field: services_count
+      base_per_unit: 3
+      base_cap: 50
+      bonus_field: malicious_event_types_count
+      bonus_per_unit: 30
+      cap: 90

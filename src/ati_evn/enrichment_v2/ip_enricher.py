@@ -18,6 +18,7 @@ from ati_evn.db.session import async_session
 from ati_evn.enrichment_v2.adapters.registry import get_adapter
 from ati_evn.enrichment_v2.aggregator import compute_and_store
 from ati_evn.enrichment_v2.config import get_background_providers, get_foreground_providers, get_ttl_hours
+from ati_evn.enrichment_v2.scoring import score_from_signal
 
 logger = logging.getLogger("ati_evn.enrichment_v2.ip_enricher")
 
@@ -39,7 +40,13 @@ async def get_cached_enrichment(ip: str, provider: str) -> IpEnrichment | None:
 
 
 async def enrich_ip_provider(ip: str, provider: str, force: bool = False) -> tuple[IpEnrichment | None, str]:
-    """Enrich IP via specific provider using its adapter. Returns (row, status).
+    """Enrich IP via specific provider. Returns (row, status).
+
+    Flow: adapter fetches raw signals (ProviderSignal, no score) ->
+    ScoringEngine turns signals into a verdict + normalized_score
+    (ProviderVerdict) -> upsert IpEnrichment. Signals are preserved
+    inside data.signals so scores can be recomputed later without a
+    new API call if the scoring policy changes (see scripts/migrate_slice_13c.py).
 
     status: 'cached' | 'fresh' | 'error'
     """
@@ -49,7 +56,8 @@ async def enrich_ip_provider(ip: str, provider: str, force: bool = False) -> tup
             return cached, "cached"
 
     adapter = get_adapter(provider)
-    verdict = await adapter.fetch(ip)
+    signal = await adapter.fetch(ip)
+    verdict = score_from_signal(signal)
 
     now = datetime.now(timezone.utc)
     async with async_session() as session:
@@ -65,7 +73,7 @@ async def enrich_ip_provider(ip: str, provider: str, force: bool = False) -> tup
             "is_malicious": verdict.verdict == "malicious",
             "verdict": verdict.verdict,
             "verdict_confidence": verdict.confidence,
-            "data": verdict.raw_data,
+            "data": {**verdict.raw_data, "signals": verdict.signals},
             "queried_at": now,
             "error_message": verdict.error,
         }

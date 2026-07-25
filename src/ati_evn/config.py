@@ -140,6 +140,11 @@ class Settings(BaseSettings):
     user_agent: str = "ATI-EVN/0.1 (+security-research)"
     http_timeout_seconds: int = 30
 
+    # ── Report generation (slice 8A) ──────────────────────────────────────────
+    reports_output_dir: str = "reports"    # relative to project root
+    report_llm_max_tokens: int = 4096
+    wkhtmltopdf_path: str = ""             # auto-detect if empty
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

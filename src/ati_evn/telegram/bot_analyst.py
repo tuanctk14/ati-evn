@@ -37,6 +37,10 @@ from ati_evn.telegram.commands.scan_censys import router as scan_censys_router
 from ati_evn.telegram.commands.scan_ghwarfare import router as scan_ghwarfare_router
 from ati_evn.telegram.commands.scan_urlscan import router as scan_urlscan_router
 from ati_evn.telegram.commands.enrich_ip import router as enrich_ip_router
+from ati_evn.telegram.commands.generate_report import router as generate_report_router
+from ati_evn.telegram.commands.list_reports import router as list_reports_router
+from ati_evn.telegram.commands.download_report import router as download_report_router
+from ati_evn.reports.scheduler import run_weekly_global_report
 from ati_evn.telegram.commands.delete_customer import router as delete_customer_router
 from ati_evn.telegram.commands.delete_ioc import router as delete_ioc_router
 from ati_evn.telegram.commands.export import router as export_router
@@ -77,6 +81,9 @@ COMMAND_MENU = [
     BotCommand(command="scan_ghwarfare", description="Kiểm tra lộ lọt tài liệu"),
     BotCommand(command="scan_urlscan", description="Kiểm tra brand abuse qua urlscan.io"),
     BotCommand(command="enrich_ip", description="AbuseIPDB enrichment cho IP"),
+    BotCommand(command="generate_report", description="Tạo báo cáo CTI (HTML+PDF)"),
+    BotCommand(command="list_reports", description="Danh sách báo cáo đã tạo"),
+    BotCommand(command="download_report", description="Tải file báo cáo"),
 ]
 
 
@@ -137,6 +144,9 @@ async def run_forever() -> int:
     dp.include_router(scan_ghwarfare_router)
     dp.include_router(scan_urlscan_router)
     dp.include_router(enrich_ip_router)
+    dp.include_router(generate_report_router)
+    dp.include_router(list_reports_router)
+    dp.include_router(download_report_router)
     dp.include_router(force_fetch_router)
 
     # Catch-all for anything not matched by an explicit command router
@@ -220,6 +230,14 @@ async def run_forever() -> int:
         minutes=15,
         id="ip_enrichment_multi_backfill",
     )
+    scheduler.add_job(
+        run_weekly_global_report,
+        "cron",
+        day_of_week="mon",
+        hour=6,
+        minute=0,
+        id="weekly_global_report",
+    )
     fetcher_job_count = register_feed_jobs(scheduler)
     scheduler.start()
     logger.info("Session cleanup scheduled (every 5min)")
@@ -232,6 +250,7 @@ async def run_forever() -> int:
         "Multi-provider IP enrichment backfill scheduled "
         "(every 15 min, 10 IPs x 5 providers = 50 API calls/tick)"
     )
+    logger.info("Weekly global report scheduled (Monday 06:00 UTC)")
     logger.info("Fetcher scheduler: %d feed jobs registered", fetcher_job_count)
 
     # Startup catch-up runs as a background task — fetchers can take

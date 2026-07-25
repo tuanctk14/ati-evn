@@ -1065,3 +1065,41 @@ class IpAggregatedScore(Base):
         Index("ix_agg_coverage", "coverage_score"),
         Index("ix_agg_last_calc", "last_calculated_at"),
     )
+
+
+class ReportType(str, enum.Enum):
+    GLOBAL = "global"
+    CUSTOMER = "customer"
+
+
+class Report(Base):
+    """Report metadata for /list_reports + /download_report."""
+    __tablename__ = "reports"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    report_type = Column(String(20), nullable=False)  # global|customer
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    # NULL for global reports
+
+    window_from = Column(DateTime(timezone=True), nullable=False)
+    window_to = Column(DateTime(timezone=True), nullable=False)
+
+    html_path = Column(String(500), nullable=True)
+    pdf_path = Column(String(500), nullable=True)
+    html_size_bytes = Column(BigInteger, default=0)
+    pdf_size_bytes = Column(BigInteger, default=0)
+
+    findings_total = Column(Integer, default=0)
+    # denormalized for /list_reports display
+
+    generated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    generated_by = Column(String(80), nullable=True)
+    # "scheduler" | "analyst:{user_id}" | "test"
+    error_message = Column(Text, nullable=True)
+    # Non-null if generation partially failed
+
+    __table_args__ = (
+        Index("ix_reports_customer", "customer_id"),
+        Index("ix_reports_type_generated", "report_type", "generated_at"),
+        Index("ix_reports_window", "window_from", "window_to"),
+    )

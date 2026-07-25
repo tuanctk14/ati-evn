@@ -29,3 +29,7 @@ Thumbs.db
 # Cloned/generated data (recreated via scripts/, not source)
 /data/sigmahq/
 src/ati_evn/data/technique_embeddings.npz
+
+# Generated reports (slice 8A)
+/reports/*
+!/reports/.gitkeep

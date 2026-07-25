@@ -1,13 +1,18 @@
-"""LeakIX per-IP adapter.
+"""LeakIX per-IP adapter. ProviderSignal only, no scoring.
 
 Endpoint: /host/{ip} with api-key header.
 Returns: host with Services + Leaks arrays. Each entry has an
 'event_type' field.
 
-Verdict from event types:
-  Any event_type in malicious_event_types -> malicious
-  Any event exists at all                 -> suspicious (default)
-  No events                               -> benign
+Scoring/verdict determination lives in enrichment_v2/scoring.py
+(ScoringEngine), driven by enrichment_config.yaml.
+
+Note: the malicious-event-type list is read from providers[leakix] in
+config (same list the ScoringEngine uses for verdict determination),
+because it defines *what to count*, not *how to score*. Counting the
+number of malicious-typed events is field extraction, not scoring --
+the composite formula in scoring.py decides how that count affects
+the score.
 """
 from __future__ import annotations
 
@@ -16,7 +21,7 @@ import logging
 import httpx
 
 from ati_evn.config import get_settings
-from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderVerdict, Verdict
+from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
 from ati_evn.enrichment_v2.config import get_provider_config
 
 logger = logging.getLogger("ati_evn.enrichment_v2.adapters.leakix")
@@ -27,7 +32,7 @@ URL_TEMPLATE = "https://leakix.net/host/{ip}"
 class LeakIXAdapter(BaseIpAdapter):
     provider_name = "leakix"
 
-    async def fetch(self, ip: str) -> ProviderVerdict:
+    async def fetch(self, ip: str) -> ProviderSignal:
         settings = get_settings()
         if not settings.leakix_api_key:
             return self._mk_error("LEAKIX_API_KEY missing")
@@ -41,11 +46,9 @@ class LeakIXAdapter(BaseIpAdapter):
             if resp.status_code in (401, 403):
                 return self._mk_error(f"Auth failed ({resp.status_code})")
             if resp.status_code == 404:
-                return ProviderVerdict(
+                return ProviderSignal(
                     provider=self.provider_name,
-                    normalized_score=0.0,
-                    verdict="benign",
-                    confidence=0.5,
+                    signals={"services_count": 0, "leaks_count": 0, "malicious_event_types_count": 0},
                     raw_data={"no_data": True},
                 )
             if resp.status_code >= 400:
@@ -64,23 +67,16 @@ class LeakIXAdapter(BaseIpAdapter):
             if et:
                 event_types.add(et.lower())
 
-        verdict, confidence = self._map_verdict(event_types, len(all_events))
+        mal_types_count = self._count_malicious_events(event_types)
 
-        if not all_events:
-            norm_score = 0.0
-        else:
-            cfg = get_provider_config("leakix")
-            malicious_types = set(t.lower() for t in (cfg.get("malicious_event_types") or []))
-            if event_types & malicious_types:
-                norm_score = min(90.0, 60.0 + len(all_events) * 5)
-            else:
-                norm_score = min(50.0, 20.0 + len(all_events) * 3)
-
-        return ProviderVerdict(
+        return ProviderSignal(
             provider=self.provider_name,
-            normalized_score=norm_score,
-            verdict=verdict,
-            confidence=confidence,
+            signals={
+                "services_count": len(services),
+                "leaks_count": len(leaks),
+                "event_types": sorted(event_types)[:20],
+                "malicious_event_types_count": mal_types_count,
+            },
             country=(data.get("country") or "")[:80] or None,
             isp=None,
             raw_data={
@@ -106,14 +102,7 @@ class LeakIXAdapter(BaseIpAdapter):
             },
         )
 
-    def _map_verdict(self, event_types: set, event_count: int) -> tuple[Verdict, float]:
-        cfg = get_provider_config("leakix")
-        malicious_types = set(t.lower() for t in (cfg.get("malicious_event_types") or []))
-        susp_on_any = cfg.get("suspicious_on_any_event", True)
-
-        if event_types & malicious_types:
-            return "malicious", 0.8
-        elif event_count > 0 and susp_on_any:
-            return "suspicious", 0.6
-        else:
-            return "benign", 0.5
+    def _count_malicious_events(self, event_types: set) -> int:
+        cfg = get_provider_config(self.provider_name)
+        mal_set = set(t.lower() for t in (cfg.get("malicious_event_types") or []))
+        return len(event_types & mal_set)
