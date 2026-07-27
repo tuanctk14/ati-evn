@@ -50,6 +50,8 @@ async def search_ioc(value: str) -> dict:
         )
         finding_ids = [r[0] for r in finding_rows.all()]
 
+        internal_detections = [d for d in detections if d.source == "internal" and not d.deleted_at]
+
         return {
             "ioc_type": ioc_type,
             "ioc_value": value_norm,
@@ -59,4 +61,6 @@ async def search_ioc(value: str) -> dict:
             "severity": severity,
             "related_finding_ids": finding_ids,
             "related_finding_count": len(finding_ids),
+            "detection_ids": [d.id for d in internal_detections],
+            "detection_id": internal_detections[0].id if internal_detections else None,
         }

@@ -1,0 +1,94 @@
+"""Trigger urlscan.io brand abuse scan for keyword via agent -- non-destructive."""
+from __future__ import annotations
+
+from sqlalchemy import select
+
+from ati_evn.agent.tools._action_base import register_action_tool
+from ati_evn.agent.tools._base import tool_error
+from ati_evn.db.models import Customer
+from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.session import async_session
+from ati_evn.external.brand_abuse_ingest import ingest_brand_abuse
+from ati_evn.external.urlscan_client import UrlscanAPIError, UrlscanConfigError, search_brand
+
+
+@register_action_tool(
+    name="scan_brand_abuse",
+    destructive=False,
+    description=(
+        "Scan urlscan.io for brand abuse (phishing, typosquat, impersonation) "
+        "matching keyword. Optionally provide primary_domain for typosquat "
+        "detection. Runs 3-stage pipeline: rule engine -> typosquat -> LLM."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "keyword": {"type": "string"},
+            "primary_domain": {
+                "type": "string",
+                "description": "Domain for typosquat reference (e.g. evn.com.vn)",
+            },
+            "customer": {
+                "type": "string",
+                "description": "Resolve keyword + primary_domain from customer name/code",
+            },
+            "max_results": {"type": "integer", "default": 30, "description": "Cap results (1-100)"},
+        },
+        "required": [],
+    },
+)
+async def scan_brand_abuse(
+    keyword: str | None = None,
+    primary_domain: str | None = None,
+    customer: str | None = None,
+    max_results: int = 30,
+) -> dict:
+    max_results = min(max(max_results, 1), 100)
+
+    if customer and not keyword:
+        async with async_session() as session:
+            row = await session.execute(
+                select(Customer).where(
+                    customer_name_or_code_match(customer),
+                    Customer.deleted_at.is_(None),
+                ).limit(1)
+            )
+            c = row.scalar_one_or_none()
+            if not c:
+                return tool_error(f"Customer '{customer}' not found")
+            keyword = c.name
+            primary_domain = primary_domain or c.primary_domain
+
+    if not keyword:
+        return tool_error("Must provide keyword or customer")
+
+    try:
+        sightings = await search_brand(keyword, primary_domain, max_results=max_results)
+    except UrlscanConfigError as e:
+        return tool_error(f"Config: {e}")
+    except UrlscanAPIError as e:
+        return tool_error(f"API: {str(e)[:200]}")
+    except Exception as e:
+        return tool_error(f"Scan failed: {str(e)[:200]}")
+
+    if not sightings:
+        return {
+            "keyword": keyword,
+            "sightings_found": 0,
+            "findings_created": 0,
+            "note": "No sightings for this keyword.",
+        }
+
+    stats = await ingest_brand_abuse(sightings)
+    return {
+        "keyword": keyword,
+        "primary_domain": primary_domain,
+        "sightings_found": len(sightings),
+        "sightings_new": stats.get("new", 0),
+        "sightings_updated": stats.get("updated", 0),
+        "typosquat_matched": stats.get("typosquat_matched", 0),
+        "rule_matched": stats.get("rule_matched", 0),
+        "llm_calls": stats.get("llm_calls", 0),
+        "findings_created": stats.get("findings_created", 0),
+        "queued_for_alert": stats.get("queued_for_alert", 0),
+    }

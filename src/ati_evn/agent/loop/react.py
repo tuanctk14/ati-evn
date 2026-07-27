@@ -36,8 +36,15 @@ Available tools:
 {tools_list}
 
 Rules:
-- READ-ONLY. No action tools. If user asks to close/ack/etc, redirect
-  to the corresponding /command.
+- Some tools are DESTRUCTIVE (their description contains
+  "[DESTRUCTIVE ...]"). For those: call once WITHOUT confirmed=True,
+  it returns PENDING_CONFIRMATION with a summary -- show that summary
+  to the analyst and wait for explicit confirmation ("xac nhan", "yes")
+  before calling the same tool again with confirmed=True. NEVER pass
+  confirmed=True on the first call. Non-destructive tools (no such
+  marker, e.g. enrich_ip, list_reports, download_report) auto-execute.
+- If a tool exists for the analyst's request, call it -- do not
+  redirect to a /command instead of calling an available tool.
 - Cap at 8 tool calls.
 - Preserve English tech terms (CVE-IDs, T-numbers, product names).
 - Do NOT invent numbers or IDs.
@@ -58,8 +65,14 @@ async def run_react(
     trace = AgentRunTrace(method="react", fallback_reason=fallback_reason)
     overall_start = time.monotonic()
 
+    def _param_names(t) -> str:
+        props = (t.parameters or {}).get("properties") or {}
+        required = set((t.parameters or {}).get("required") or [])
+        names = [f"{p}*" if p in required else p for p in props]
+        return f" (params: {', '.join(names)})" if names else ""
+
     tools_list = "\n".join(
-        f"- {t.name}: {t.description[:120]}"
+        f"- {t.name}{_param_names(t)}: {t.description[:120]}"
         for t in TOOL_REGISTRY.values()
     )
     system = REACT_SYSTEM.format(tools_list=tools_list)
@@ -127,7 +140,9 @@ async def run_react(
             continue
 
         call_start = time.monotonic()
-        tool_result = await TOOL_REGISTRY[tool_name].handler(**fn_args)
+        tool_result = await TOOL_REGISTRY[tool_name].handler(
+            **fn_args, _session_id=session_state.user_id,
+        )
         call_duration = int((time.monotonic() - call_start) * 1000)
 
         # Update session

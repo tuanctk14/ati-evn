@@ -1103,3 +1103,38 @@ class Report(Base):
         Index("ix_reports_type_generated", "report_type", "generated_at"),
         Index("ix_reports_window", "window_from", "window_to"),
     )
+
+
+class AgentActionStatus(str, enum.Enum):
+    PENDING_CONFIRMATION = "pending_confirmation"
+    EXECUTED = "executed"
+    FAILED = "failed"
+    CONFIRMATION_TIMEOUT = "confirmation_timeout"
+
+
+class AgentActionLog(Base):
+    """Audit trail for agent action tools (slice 14A).
+
+    One row per tool call, including the pending_confirmation call that
+    precedes a destructive tool's actual execution -- the pair (pending
+    row + executed row, same tool_name/session_id, close in time) is how
+    /list_action_log or a DB query verifies no destructive tool skipped
+    confirmation.
+    """
+    __tablename__ = "agent_action_log"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    session_id = Column(String(80), nullable=True)
+    analyst_user_id = Column(BigInteger, nullable=True)
+    tool_name = Column(String(80), nullable=False)
+    input_args = Column(JSON, default=dict)
+    output_result = Column(JSON, default=dict)
+    status = Column(String(30), nullable=False)
+    error_message = Column(Text, nullable=True)
+    executed_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_action_log_tool_time", "tool_name", "executed_at"),
+        Index("ix_action_log_status", "status"),
+        Index("ix_action_log_session", "session_id"),
+    )

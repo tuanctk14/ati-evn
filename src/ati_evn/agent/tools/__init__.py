@@ -38,4 +38,32 @@ from ati_evn.agent.tools import get_ip_enrichment            # noqa
 from ati_evn.agent.tools import search_malicious_ips         # noqa
 from ati_evn.agent.tools import search_pulses                # noqa
 
+# Action tools (slice 14A) -- destructive/mutating, confirmation + audit log
+from ati_evn.agent.tools import acknowledge_alert            # noqa
+from ati_evn.agent.tools import action_enrich_ip              # noqa
+from ati_evn.agent.tools import add_customer                  # noqa
+from ati_evn.agent.tools import add_customer_asset            # noqa
+from ati_evn.agent.tools import remove_customer_asset         # noqa
+from ati_evn.agent.tools import update_customer                # noqa
+from ati_evn.agent.tools import add_ioc                        # noqa
+from ati_evn.agent.tools import update_ioc                      # noqa
+from ati_evn.agent.tools import delete_ioc                      # noqa
+from ati_evn.agent.tools import create_finding                  # noqa
+from ati_evn.agent.tools import update_finding_status           # noqa
+from ati_evn.agent.tools import rescan_finding                   # noqa
+from ati_evn.agent.tools import export_findings                  # noqa
+from ati_evn.agent.tools import list_reports                      # noqa
+from ati_evn.agent.tools import download_report                   # noqa
+from ati_evn.agent.tools import trigger_report_generation          # noqa
+
+# Phase 5 action tools (slice 14A) -- scan/campaign/ingestion
+from ati_evn.agent.tools import scan_document_leak            # noqa
+from ati_evn.agent.tools import scan_brand_abuse               # noqa
+from ati_evn.agent.tools import scan_censys                     # noqa
+from ati_evn.agent.tools import force_fetch_feed                 # noqa
+from ati_evn.agent.tools import create_campaign                   # noqa
+from ati_evn.agent.tools import confirm_campaign                   # noqa
+from ati_evn.agent.tools import reject_campaign                     # noqa
+from ati_evn.agent.tools import ingest_article                       # noqa
+
 __all__ = ["Tool", "TOOL_REGISTRY", "tool_error"]

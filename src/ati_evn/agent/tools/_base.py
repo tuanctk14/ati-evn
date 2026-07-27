@@ -23,11 +23,21 @@ def register_tool(
     name: str,
     description: str,
     parameters: dict,
+    *,
+    accepts_session_id: bool = False,
 ) -> Callable:
-    """Decorator to register an async function as a tool."""
+    """Decorator to register an async function as a tool.
+
+    accepts_session_id: set True only by register_action_tool -- its
+    wrapper expects a _session_id kwarg (used for the pending-confirmation
+    registry) and pops it before delegating to the underlying tool fn.
+    Plain query tools never see it.
+    """
     def decorator(fn):
         @functools.wraps(fn)
         async def wrapper(**kwargs) -> dict:
+            if not accepts_session_id:
+                kwargs.pop("_session_id", None)
             try:
                 result = await fn(**kwargs)
                 if not isinstance(result, dict):

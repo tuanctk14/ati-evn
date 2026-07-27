@@ -128,7 +128,9 @@ async def run_function_calling(
                 )
 
             call_start = time.monotonic()
-            tool_result = await TOOL_REGISTRY[fn_name].handler(**fn_args)
+            tool_result = await TOOL_REGISTRY[fn_name].handler(
+                **fn_args, _session_id=session_state.user_id,
+            )
             call_duration = int((time.monotonic() - call_start) * 1000)
 
             _update_session_from_tool(session_state, fn_name, fn_args, tool_result)
