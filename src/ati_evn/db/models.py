@@ -1138,3 +1138,36 @@ class AgentActionLog(Base):
         Index("ix_action_log_status", "status"),
         Index("ix_action_log_session", "session_id"),
     )
+
+
+class CveEnrichmentCache(Base):
+    """Cache for KEV + EPSS supplementary CVE data (slice 14C).
+
+    On-demand fetched during report generation, TTL 24h.
+    """
+    __tablename__ = "cve_enrichment_cache"
+
+    cve_id = Column(String(30), primary_key=True)  # e.g. "CVE-2024-23897"
+
+    # KEV (CISA Known Exploited Vulnerabilities)
+    is_kev = Column(Boolean, default=False)
+    kev_date_added = Column(String(20), nullable=True)  # YYYY-MM-DD
+    kev_vendor = Column(String(200), nullable=True)
+    kev_product = Column(String(200), nullable=True)
+    kev_short_description = Column(Text, nullable=True)
+    kev_required_action = Column(Text, nullable=True)
+    kev_due_date = Column(String(20), nullable=True)
+
+    # EPSS (Exploit Prediction Scoring System)
+    epss_score = Column(Float, nullable=True)  # 0-1
+    epss_percentile = Column(Float, nullable=True)  # 0-100
+    epss_date = Column(String(20), nullable=True)
+
+    fetched_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    fetch_error = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_cve_enrich_kev", "is_kev"),
+        Index("ix_cve_enrich_epss", "epss_score"),
+        Index("ix_cve_enrich_fetched", "fetched_at"),
+    )

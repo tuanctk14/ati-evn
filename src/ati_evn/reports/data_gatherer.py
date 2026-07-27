@@ -28,6 +28,7 @@ from sqlalchemy import desc, func, select
 from ati_evn.db.models import (
     BrandAbuseSighting,
     Campaign,
+    CveEnrichmentCache,
     Customer,
     CustomerAsset,
     ExposedDocument,
@@ -39,8 +40,61 @@ from ati_evn.db.models import (
 from ati_evn.db.query_utils import only_live_customer
 from ati_evn.db.query_utils_test import is_test_finding
 from ati_evn.db.session import async_session
+from ati_evn.enrichment_v2.epss_client import enrich_epss
+from ati_evn.enrichment_v2.kev_client import refresh_kev_catalog
+from ati_evn.reports.asset_risk import compute_asset_risk_ranking
 
 logger = logging.getLogger("ati_evn.reports.data_gatherer")
+
+
+async def _enrich_cve_findings(cve_findings: list[dict]) -> dict:
+    """Attach KEV + EPSS enrichment to a list of CVE finding dicts
+    in-place, sort by priority (KEV first, then EPSS desc, then
+    severity), and return a summary dict for the report header.
+    """
+    await refresh_kev_catalog()
+
+    cve_ids = list({c["cve"] for c in cve_findings if c.get("cve")})
+    await enrich_epss(cve_ids)
+
+    enrichments: dict[str, dict] = {}
+    if cve_ids:
+        async with async_session() as session:
+            stmt = select(CveEnrichmentCache).where(CveEnrichmentCache.cve_id.in_(cve_ids))
+            for row in (await session.execute(stmt)).scalars():
+                enrichments[row.cve_id] = {
+                    "is_kev": row.is_kev,
+                    "kev_vendor": row.kev_vendor,
+                    "kev_product": row.kev_product,
+                    "kev_short_description": row.kev_short_description,
+                    "kev_required_action": row.kev_required_action,
+                    "kev_due_date": row.kev_due_date,
+                    "epss_score": row.epss_score,
+                    "epss_percentile": row.epss_percentile,
+                }
+
+    severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    for c in cve_findings:
+        enrich = enrichments.get(c["cve"], {})
+        c["is_kev"] = enrich.get("is_kev", False)
+        c["epss_score"] = enrich.get("epss_score")
+        c["epss_percentile"] = enrich.get("epss_percentile")
+        c["kev_vendor"] = enrich.get("kev_vendor")
+        c["kev_product"] = enrich.get("kev_product")
+        c["kev_required_action"] = enrich.get("kev_required_action")
+        c["nvd_url"] = f"https://nvd.nist.gov/vuln/detail/{c['cve']}"
+
+    cve_findings.sort(key=lambda c: (
+        not c.get("is_kev", False),
+        -(c.get("epss_score") or 0),
+        severity_rank.get(c.get("severity"), 9),
+    ))
+
+    return {
+        "total_cves": len(cve_ids),
+        "kev_count": sum(1 for c in cve_findings if c.get("is_kev")),
+        "high_epss_count": sum(1 for c in cve_findings if (c.get("epss_score") or 0) >= 0.7),
+    }
 
 
 async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
@@ -203,6 +257,19 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
             select(func.count(Exposure.id)).where(Exposure.status == "active")
         )).scalar() or 0
 
+        # ── Section 4b: Service aggregate (group active exposures by service) ──
+        svc_stmt = select(
+            Exposure.service_name,
+            func.count(Exposure.id).label("cnt"),
+            func.count(func.distinct(Exposure.customer_id)).label("cust_cnt"),
+        ).where(
+            Exposure.status == "active",
+        ).group_by(Exposure.service_name).order_by(desc("cnt")).limit(10)
+        service_aggregate = [
+            {"service": r.service_name or "unknown", "count": r.cnt, "customer_count": r.cust_cnt}
+            for r in await session.execute(svc_stmt)
+        ]
+
         # ── Section 5: Document Leaks (GrayHatWarfare) ──
         doc_leaks_r = await session.execute(
             select(ExposedDocument).where(
@@ -299,6 +366,9 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
 
         total_assets = sum(a["count"] for a in assets_by_type)
 
+    cve_enrichment_summary = await _enrich_cve_findings(cve_findings)
+    asset_risk_ranking = await compute_asset_risk_ranking(from_dt, to_dt, customer_id=None, limit=20)
+
     return {
         "meta": {
             "from_dt": from_dt.isoformat(),
@@ -350,6 +420,9 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
             "total": total_assets,
             "by_type": assets_by_type,
         },
+        "asset_risk_ranking": asset_risk_ranking,
+        "service_aggregate": service_aggregate,
+        "cve_enrichment_summary": cve_enrichment_summary,
     }
 
 
@@ -464,6 +537,19 @@ async def gather_customer_report(customer_id: int, from_dt: datetime, to_dt: dat
             )
         )).scalar() or 0
 
+        # ── Service aggregate (scoped to this customer's exposures) ──
+        svc_stmt = select(
+            Exposure.service_name,
+            func.count(Exposure.id).label("cnt"),
+        ).where(
+            Exposure.customer_id == customer_id,
+            Exposure.status == "active",
+        ).group_by(Exposure.service_name).order_by(desc("cnt")).limit(10)
+        service_aggregate = [
+            {"service": r.service_name or "unknown", "count": r.cnt}
+            for r in await session.execute(svc_stmt)
+        ]
+
         # ── Document leaks ──
         d_stmt = select(ExposedDocument).where(
             ExposedDocument.customer_id == customer_id,
@@ -543,6 +629,11 @@ async def gather_customer_report(customer_id: int, from_dt: datetime, to_dt: dat
         ]
         total_assets = sum(a["count"] for a in assets_by_type)
 
+    cve_enrichment_summary = await _enrich_cve_findings(cve_findings)
+    asset_risk_ranking = await compute_asset_risk_ranking(
+        from_dt, to_dt, customer_id=customer_id, limit=20,
+    )
+
     return {
         "meta": {
             "from_dt": from_dt.isoformat(),
@@ -596,4 +687,7 @@ async def gather_customer_report(customer_id: int, from_dt: datetime, to_dt: dat
             "total": total_assets,
             "by_type": assets_by_type,
         },
+        "asset_risk_ranking": asset_risk_ranking,
+        "service_aggregate": service_aggregate,
+        "cve_enrichment_summary": cve_enrichment_summary,
     }

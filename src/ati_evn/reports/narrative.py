@@ -35,6 +35,71 @@ def _postprocess_narrative(text: str) -> str:
 
     return _PARAGRAPH_LABEL_RE.sub("", text).strip()
 
+
+REMEDIATION_SYSTEM = """Bạn là SOC lead của EVN. Nhận danh sách CVE
+finding tuần này, trả về Top-Priority Remediations dưới dạng bullet list
+tiếng Việt (giữ thuật ngữ tiếng Anh).
+
+Cấu trúc bullet:
+  • [CVE-ID] Vendor/Product — Action ngắn gọn 1 câu (patch/mitigate/isolate).
+    - Lý do: (KEV=Yes/EPSS-high/CVSS-critical/asset-critical)
+
+Ưu tiên chọn:
+  1. KEV=True (đang bị exploit thật)
+  2. EPSS >= 0.7 (predict exploit imminent)
+  3. CRITICAL severity + customer bị ảnh hưởng cao
+  4. HIGH severity + asset production
+
+Tối đa 8 bullet. Nếu <8 CVE khả dụng thì list hết.
+KHÔNG dùng markdown heading. KHÔNG giải thích dài dòng.
+"""
+
+
+async def generate_aggregated_remediation(cve_findings: list[dict]) -> str:
+    """Generate top-priority remediation list from CVE findings."""
+    if not cve_findings:
+        return "Không có CVE finding trong kỳ báo cáo — không cần remediation ưu tiên."
+
+    settings = get_settings()
+    client = LLMClient(settings)
+
+    prioritized = sorted(cve_findings, key=lambda c: (
+        not c.get("is_kev"),
+        -(c.get("epss_score") or 0),
+    ))[:15]
+
+    context = [
+        {
+            "cve": c["cve"],
+            "severity": c["severity"],
+            "customer": c.get("customer"),
+            "asset": c.get("asset"),
+            "is_kev": c.get("is_kev", False),
+            "epss_score": c.get("epss_score"),
+            "kev_vendor": c.get("kev_vendor"),
+            "kev_product": c.get("kev_product"),
+            "kev_required_action": (c.get("kev_required_action") or "")[:200],
+        }
+        for c in prioritized
+    ]
+
+    prompt = (
+        f"CVE findings ({len(context)} items):\n"
+        f"{context}\n\n"
+        "Viết Top-Priority Remediations theo template quy định."
+    )
+
+    try:
+        text = await client.chat_text(
+            system=REMEDIATION_SYSTEM, user=prompt,
+            max_tokens=settings.report_llm_max_tokens,
+            temperature=0.2,
+        )
+    except Exception as e:
+        logger.exception("Remediation LLM failed")
+        return f"[LLM remediation không khả dụng: {e}]"
+    return text.strip()
+
 SYSTEM_PROMPT = """Bạn là SOC lead analyst của EVN (Tập đoàn Điện lực
 Việt Nam) viết Executive Summary cho báo cáo Cyber Threat Intelligence
 tuần này. Viết TIẾNG VIỆT, giữ nguyên thuật ngữ tiếng Anh cho các khái
@@ -55,6 +120,14 @@ mô tả cụ thể (nêu tên IOC, CVE, domain, IP thật).
 theo dữ liệu vừa thấy. Ví dụ: "Patch CVE-2024-XXXX cho ManageEngine
 đang chạy tại NPC", "Request takedown evngov.cc qua urlscan",
 "Rotate credentials nếu có match trong document leak".
+
+Trong Đoạn 2 (Key threats), nếu có KEV CVE (kev_cve_alerts không rỗng),
+NÊU RÕ "KEV đang bị exploit ngoài đời thực" cho mối đe dọa đó — đây là
+ưu tiên cao nhất.
+
+Trong Đoạn 3 (Recommendations), nếu có top_5_assets_by_risk, NÊU tên
+asset cụ thể có risk_score cao nhất + action patch. Ví dụ: "Ưu tiên
+patch cluster evn-web-01 (risk 892, 2 CRITICAL)."
 
 KHÔNG dùng markdown heading (##, **). Dùng "Đoạn 1:", "Đoạn 2:",
 "Đoạn 3:" ở đầu mỗi đoạn để phân biệt.
@@ -98,6 +171,17 @@ async def generate_narrative(report_data: dict) -> str:
             {"ip": i["ip"], "score": i["aggregate_risk_score"], "verdicts": i["verdicts"]}
             for i in (malicious_ips.get("list") or [])[:5]
         ],
+        "top_5_assets_by_risk": [
+            {
+                "asset": a["asset_value"], "customer": a["customer"],
+                "risk_score": a["risk_score"], "critical": a["critical"], "high": a["high"],
+            }
+            for a in (report_data.get("asset_risk_ranking") or [])[:5]
+        ],
+        "kev_cve_alerts": [
+            c["cve"] for c in (report_data.get("vulnerabilities", {}).get("findings") or [])
+            if c.get("is_kev")
+        ][:5],
     }
 
     prompt = (
@@ -145,6 +229,13 @@ domain Z, rotate credentials sau doc leak, ...).
 Nếu customer không có finding nào trong kỳ ("all clear"), viết ngắn
 gọn xác nhận và khuyến nghị giữ nguyên baseline monitoring.
 
+Trong Đoạn 2 (Key threats), nếu có KEV CVE (kev_cve_alerts không rỗng),
+NÊU RÕ "KEV đang bị exploit ngoài đời thực" cho mối đe dọa đó — đây là
+ưu tiên cao nhất.
+
+Trong Đoạn 3 (Recommendations), nếu có top_5_assets_by_risk, NÊU tên
+asset cụ thể có risk_score cao nhất + action patch.
+
 KHÔNG dùng markdown heading. Dùng "Đoạn 1:", "Đoạn 2:", "Đoạn 3:"
 ở đầu mỗi đoạn.
 """
@@ -189,6 +280,17 @@ async def generate_customer_narrative(report_data: dict) -> str:
             for s in brand["sightings"][:3]
         ],
         "malicious_ips_count": malicious_ips["total"],
+        "top_5_assets_by_risk": [
+            {
+                "asset": a["asset_value"],
+                "risk_score": a["risk_score"], "critical": a["critical"], "high": a["high"],
+            }
+            for a in (report_data.get("asset_risk_ranking") or [])[:5]
+        ],
+        "kev_cve_alerts": [
+            c["cve"] for c in (report_data.get("vulnerabilities", {}).get("findings") or [])
+            if c.get("is_kev")
+        ][:5],
     }
 
     prompt = (

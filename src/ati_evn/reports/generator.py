@@ -7,7 +7,11 @@ from datetime import datetime, timezone
 from ati_evn.db.models import Report
 from ati_evn.db.session import async_session
 from ati_evn.reports.data_gatherer import gather_customer_report, gather_global_report
-from ati_evn.reports.narrative import generate_customer_narrative, generate_narrative
+from ati_evn.reports.narrative import (
+    generate_aggregated_remediation,
+    generate_customer_narrative,
+    generate_narrative,
+)
 from ati_evn.reports.renderer import generate_customer_report_files, generate_report_files
 
 logger = logging.getLogger("ati_evn.reports.generator")
@@ -62,6 +66,10 @@ async def generate_global_report(
     narrative = await generate_narrative(data)
     logger.info("Narrative generated: %d chars", len(narrative))
 
+    data["aggregated_remediation"] = await generate_aggregated_remediation(
+        data["vulnerabilities"]["findings"]
+    )
+
     files = await generate_report_files(data, narrative, formats)
     logger.info("Files: %s", files)
 
@@ -93,6 +101,10 @@ async def generate_customer_report(
 
     narrative = await generate_customer_narrative(data)
     logger.info("Customer narrative generated: %d chars", len(narrative))
+
+    data["aggregated_remediation"] = await generate_aggregated_remediation(
+        data["vulnerabilities"]["findings"]
+    )
 
     files = await generate_customer_report_files(data, narrative, short_code, formats)
     logger.info("Files: %s", files)
