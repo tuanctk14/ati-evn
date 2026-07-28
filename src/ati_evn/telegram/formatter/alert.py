@@ -146,6 +146,77 @@ def format_alert_single(finding, customer_name, asset_display, attack_summary,
     )
 
 
+_TI_BADGE = {
+    "brand_abuse": ("🎭", " [BRAND ABUSE]"),
+    "exposed_document": ("📄", " [DOC LEAK]"),
+    "exposure": ("📡", " [EXPOSURE]"),
+    "ipv4": ("🔎", " [IOC]"),
+    "ipv6": ("🔎", " [IOC]"),
+    "domain": ("🔎", " [IOC]"),
+    "url": ("🔎", " [IOC]"),
+    "sha256": ("🔎", " [IOC]"),
+    "sha1": ("🔎", " [IOC]"),
+    "md5": ("🔎", " [IOC]"),
+}
+
+
+def format_indicator_alert(ti, customer_name: str) -> str:
+    """Format a ThreatIndicator (slice 15A) -- non-CVE signal -- alert
+    message. Analyst can only acknowledge/note these, never close/
+    reopen/mark-FP the way a CVE Finding can.
+    """
+    prefix, tag = _TI_BADGE.get(ti.indicator_type, ("⚠️", " [INDICATOR]"))
+    emoji = SEVERITY_EMOJI.get(ti.severity, "•")
+    sources = ", ".join(ti.sources or []) or ti.source
+    first_seen_local = ti.first_seen.strftime("%d/%m/%Y %H:%M")
+    meta = ti.metadata_ or {}
+
+    value_line = f"{ti.indicator_type.upper()} {ti.indicator_value[:60]}"
+
+    detail_line = ""
+    if ti.indicator_type == "exposure":
+        ip = meta.get("ip") or ""
+        port = meta.get("port") or ""
+        service = meta.get("service") or ""
+        detail_line = f"\nExposure: {ip}:{port} ({service})"
+    elif ti.indicator_type == "exposed_document":
+        bucket = meta.get("bucket_url") or ""
+        filename = meta.get("filename") or ""
+        keyword = meta.get("keyword_matched") or ""
+        detail_line = (
+            f"\nBucket: {bucket}"
+            f"\nFile: {truncate(filename, 100)}"
+            f"\nMatched keyword: {keyword}"
+            f"\n⚠️ Truy cập file qua curl/tool riêng — không click trực tiếp"
+        )
+    elif ti.indicator_type == "brand_abuse":
+        domain = meta.get("domain") or ""
+        title = meta.get("page_title") or ""
+        keyword = meta.get("keyword_matched") or ""
+        typosquat_dist = meta.get("typosquat_distance")
+        detail_line = (
+            f"\nDomain: {domain}"
+            f"\nPage title: {truncate(title, 100)}"
+            f"\nMatched keyword: {keyword}"
+        )
+        if typosquat_dist is not None:
+            detail_line += f"\nTyposquat distance: {typosquat_dist}"
+        detail_line += "\n⚠️ Không truy cập trực tiếp URL — kiểm tra qua sandbox/tool riêng"
+
+    return (
+        f"{prefix} {emoji} {customer_name} — {ti.severity.value}{tag}\n"
+        f"{value_line} — {ti.title[:100]}\n"
+        f"Asset: {ti.matched_asset_value or '-'}"
+        f"{detail_line}\n"
+        f"Detected: {first_seen_local}\n"
+        f"Indicator #{ti.id} · Sources: {sources}\n\n"
+        f"ℹ️ Threat Indicator — chỉ theo dõi/note, không có close/reopen/FP như CVE finding.\n"
+        f"Xem chi tiết trong {_analyst_bot_mention()}:\n"
+        f"  /indicator {ti.id}\n"
+        f"  /acknowledge_indicator {ti.id}"
+    )
+
+
 def format_alert_batch(batch, customer_name, findings_summary) -> str:
     """Format a batched digest message.
 

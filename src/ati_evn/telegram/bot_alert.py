@@ -24,9 +24,13 @@ from sqlalchemy import or_, select
 
 from ati_evn.alerts.batcher import check_and_batch
 from ati_evn.config import get_settings
-from ati_evn.db.models import AlertBatch, AlertQueue, Customer, Detection, Finding
+from ati_evn.db.models import AlertBatch, AlertQueue, Customer, Detection, Finding, ThreatIndicator
 from ati_evn.db.session import async_session
-from ati_evn.telegram.formatter.alert import format_alert_batch, format_alert_single
+from ati_evn.telegram.formatter.alert import (
+    format_alert_batch,
+    format_alert_single,
+    format_indicator_alert,
+)
 
 logger = logging.getLogger("ati_evn.bot_alert")
 
@@ -34,6 +38,14 @@ POLL_INTERVAL_SECONDS = 5
 
 
 async def _dispatch_single(bot: Bot, chat_id: str, alert: AlertQueue, session) -> bool:
+    # Polymorphic (slice 15A): exactly one of finding_id / threat_indicator_id
+    # is set (enforced by a DB CHECK constraint).
+    if alert.threat_indicator_id:
+        return await _dispatch_single_ti(bot, chat_id, alert, session)
+    return await _dispatch_single_finding(bot, chat_id, alert, session)
+
+
+async def _dispatch_single_finding(bot: Bot, chat_id: str, alert: AlertQueue, session) -> bool:
     finding = await session.get(Finding, alert.finding_id)
     if not finding:
         logger.warning("Finding %d missing for alert %d", alert.finding_id, alert.id)
@@ -80,6 +92,23 @@ async def _dispatch_single(bot: Bot, chat_id: str, alert: AlertQueue, session) -
     return True
 
 
+async def _dispatch_single_ti(bot: Bot, chat_id: str, alert: AlertQueue, session) -> bool:
+    ti = await session.get(ThreatIndicator, alert.threat_indicator_id)
+    if not ti:
+        logger.warning("ThreatIndicator %d missing for alert %d", alert.threat_indicator_id, alert.id)
+        return False
+
+    customer = await session.get(Customer, alert.customer_id)
+    customer_name = customer.name if customer else f"Customer#{alert.customer_id}"
+
+    message = format_indicator_alert(ti, customer_name)
+    msg = await bot.send_message(chat_id, message, disable_web_page_preview=True)
+    alert.telegram_message_id = msg.message_id
+    alert.state = "dispatched"
+    alert.dispatched_at = datetime.now(timezone.utc)
+    return True
+
+
 async def _dispatch_batch(bot: Bot, chat_id: str, batch: AlertBatch, session) -> bool:
     customer = await session.get(Customer, batch.customer_id)
     customer_name = customer.name if customer else f"Customer#{batch.customer_id}"
@@ -87,15 +116,26 @@ async def _dispatch_batch(bot: Bot, chat_id: str, batch: AlertBatch, session) ->
     alerts = list((await session.execute(stmt)).scalars())
     summary = []
     for a in alerts:
-        f = await session.get(Finding, a.finding_id)
-        if not f:
-            continue
-        summary.append({
-            "severity": f.severity.value,
-            "ioc_value": (f.ioc_value.upper() if f.ioc_type == "cve_id" else f.ioc_value[:50]),
-            "asset_display": f.matched_asset or "-",
-            "finding_id": f.id,
-        })
+        if a.finding_id:
+            f = await session.get(Finding, a.finding_id)
+            if not f:
+                continue
+            summary.append({
+                "severity": f.severity.value,
+                "ioc_value": (f.ioc_value.upper() if f.ioc_type == "cve_id" else f.ioc_value[:50]),
+                "asset_display": f.matched_asset or "-",
+                "finding_id": f.id,
+            })
+        else:
+            ti = await session.get(ThreatIndicator, a.threat_indicator_id)
+            if not ti:
+                continue
+            summary.append({
+                "severity": ti.severity.value,
+                "ioc_value": ti.indicator_value[:50],
+                "asset_display": ti.matched_asset_value or "-",
+                "finding_id": ti.id,
+            })
     message = format_alert_batch(batch, customer_name, summary)
     msg = await bot.send_message(chat_id, message, disable_web_page_preview=True)
     batch.telegram_message_id = msg.message_id

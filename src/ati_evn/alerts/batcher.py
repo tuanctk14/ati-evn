@@ -14,7 +14,7 @@ from datetime import timedelta
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ati_evn.db.models import AlertBatch, AlertQueue, Finding, _utcnow
+from ati_evn.db.models import AlertBatch, AlertQueue, Finding, ThreatIndicator, _utcnow
 
 
 async def check_and_batch(
@@ -35,11 +35,15 @@ async def check_and_batch(
     if len(pending) < trigger_count:
         return None
 
-    # Aggregate severity counts
+    # Aggregate severity counts -- polymorphic: alert.finding_id XOR
+    # alert.threat_indicator_id is set (slice 15A).
     sev_counts: dict[str, int] = {}
     for alert in pending:
-        f = await session.get(Finding, alert.finding_id)
-        sev = f.severity.value if f else "UNKNOWN"
+        if alert.finding_id:
+            entity = await session.get(Finding, alert.finding_id)
+        else:
+            entity = await session.get(ThreatIndicator, alert.threat_indicator_id)
+        sev = entity.severity.value if entity else "UNKNOWN"
         sev_counts[sev] = sev_counts.get(sev, 0) + 1
 
     batch = AlertBatch(

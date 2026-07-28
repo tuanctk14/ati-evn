@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -296,11 +297,18 @@ class Finding(Base):
 
 
 class Alert(Base):
-    """One row per dispatch attempt. Holds Telegram message_id for inline-button callbacks."""
+    """One row per dispatch attempt. Holds Telegram message_id for inline-button callbacks.
+
+    Polymorphic (slice 15A): exactly one of finding_id / threat_indicator_id
+    is set -- see AlertQueue's docstring for the Finding/ThreatIndicator split.
+    """
     __tablename__ = "alerts"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    finding_id = Column(BigInteger, ForeignKey("findings.id", ondelete="CASCADE"), nullable=False)
+    finding_id = Column(BigInteger, ForeignKey("findings.id", ondelete="CASCADE"), nullable=True)
+    threat_indicator_id = Column(
+        BigInteger, ForeignKey("threat_indicators.id", ondelete="CASCADE"), nullable=True,
+    )
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
 
     dispatched_at = Column(DateTime(timezone=True), default=_utcnow)
@@ -323,6 +331,12 @@ class Alert(Base):
     __table_args__ = (
         Index("ix_alert_state", "state"),
         Index("ix_alert_tg_msg", "telegram_message_id"),
+        Index("ix_alert_ti", "threat_indicator_id"),
+        CheckConstraint(
+            "(finding_id IS NOT NULL AND threat_indicator_id IS NULL) OR "
+            "(finding_id IS NULL AND threat_indicator_id IS NOT NULL)",
+            name="ck_alerts_polymorphic",
+        ),
     )
 
 
@@ -470,11 +484,20 @@ class SigmaRule(Base):
 class AlertQueue(Base):
     """Pending alert dispatches. Bot 1 (telegram/bot_alert.py) worker pulls
     from here — customer_router only ever pushes rows, never sends
-    Telegram messages itself."""
+    Telegram messages itself.
+
+    Polymorphic (slice 15A): exactly one of finding_id / threat_indicator_id
+    is set, enforced by the CHECK constraint below -- Finding rows are
+    CVE-matched-to-an-asset alerts, ThreatIndicator rows are everything
+    else (raw IOC/brand_abuse/exposed_document/exposure signals).
+    """
     __tablename__ = "alert_queue"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    finding_id = Column(BigInteger, ForeignKey("findings.id", ondelete="CASCADE"), nullable=False)
+    finding_id = Column(BigInteger, ForeignKey("findings.id", ondelete="CASCADE"), nullable=True)
+    threat_indicator_id = Column(
+        BigInteger, ForeignKey("threat_indicators.id", ondelete="CASCADE"), nullable=True,
+    )
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
 
     state = Column(String(20), default="pending", nullable=False)
@@ -506,6 +529,12 @@ class AlertQueue(Base):
         Index("ix_alertq_state_next", "state", "next_retry_at"),
         Index("ix_alertq_dedupe", "dedupe_key", "created_at"),
         Index("ix_alertq_customer_created", "customer_id", "created_at"),
+        Index("ix_alertq_ti", "threat_indicator_id"),
+        CheckConstraint(
+            "(finding_id IS NOT NULL AND threat_indicator_id IS NULL) OR "
+            "(finding_id IS NULL AND threat_indicator_id IS NOT NULL)",
+            name="ck_alert_queue_polymorphic",
+        ),
     )
 
 
@@ -1170,4 +1199,66 @@ class CveEnrichmentCache(Base):
         Index("ix_cve_enrich_kev", "is_kev"),
         Index("ix_cve_enrich_epss", "epss_score"),
         Index("ix_cve_enrich_fetched", "fetched_at"),
+    )
+
+
+class ThreatIndicator(Base):
+    """Ephemeral threat signal (slice 15A) -- everything that isn't a
+    CVE-matched-to-an-asset Finding: raw IOC sightings (ipv4/domain/url/
+    hash), brand abuse, document leaks, exposure rule matches.
+
+    Analyst can view, acknowledge, and add notes -- there is no close/
+    reopen/false-positive lifecycle here (unlike Finding), because these
+    are read-only signals an analyst can't "patch and close" the way a
+    CVE-on-an-asset can. TTL-managed: expires_at is computed per source
+    type at insert time (see db/threat_indicator_ttl.py).
+    """
+    __tablename__ = "threat_indicators"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+
+    indicator_type = Column(String(30), nullable=False)
+    indicator_value = Column(String(2000), nullable=False)
+
+    # Optional back-reference to the raw source-specific row this was
+    # derived from (BrandAbuseSighting / ExposedDocument / Exposure).
+    source_entity_type = Column(String(40), nullable=True)
+    source_entity_id = Column(BigInteger, nullable=True)
+
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    matched_asset_id = Column(BigInteger, ForeignKey("customer_assets.id"), nullable=True)
+    matched_asset_value = Column(String(300), nullable=True)  # denormalized for display
+
+    source = Column(String(60), nullable=False)
+    sources = Column(JSON, default=list)
+    source_count = Column(Integer, default=1)
+    title = Column(String(500), nullable=False)
+    detection_reason = Column(Text, nullable=True)
+
+    severity = Column(SAEnum(Severity), nullable=False)
+    # Plain String (not SAEnum) -- matches AlertQueue.state's pattern.
+    status = Column(String(20), nullable=False, default="active")
+    # active -> acknowledged | stale (auto, past expires_at) | archived (manual)
+
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    acknowledged_by = Column(String(120), nullable=True)
+    acknowledgement_note = Column(Text, nullable=True)
+    notes = Column(JSON, default=list)  # [{timestamp, author, text}, ...]
+
+    first_seen = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    last_seen = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    metadata_ = Column("metadata", JSON, default=dict)
+
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_ti_customer_status", "customer_id", "status"),
+        Index("ix_ti_type_value", "indicator_type", "indicator_value"),
+        Index("ix_ti_source", "source"),
+        Index("ix_ti_expires", "expires_at"),
+        Index("ix_ti_first_seen", "first_seen"),
+        Index("ix_ti_source_entity", "source_entity_type", "source_entity_id"),
     )
