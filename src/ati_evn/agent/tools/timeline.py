@@ -7,7 +7,7 @@ from sqlalchemy import or_, select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.db.models import AlertQueue, CommandLog, Customer, CustomerAsset, Finding
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import cve_only_filter, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 EVENT_CAP = 50
@@ -42,7 +42,9 @@ async def timeline(customer: str, since_days: int = 30) -> dict:
         events: list[dict] = []
 
         finding_rows = await session.execute(
-            select(Finding).where(Finding.customer_id == cust.id, Finding.first_seen >= cutoff)
+            select(Finding).where(
+                cve_only_filter(), Finding.customer_id == cust.id, Finding.first_seen >= cutoff,
+            )
         )
         for f in finding_rows.scalars():
             events.append({

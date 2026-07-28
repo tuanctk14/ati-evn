@@ -55,6 +55,12 @@ from ati_evn.telegram.commands.rule import router as rule_router
 from ati_evn.telegram.commands.update_asset import router as update_asset_router
 from ati_evn.telegram.commands.update_customer import router as update_customer_router
 from ati_evn.telegram.commands.update_ioc import router as update_ioc_router
+from ati_evn.telegram.commands.list_indicators import router as list_indicators_router
+from ati_evn.telegram.commands.indicator import router as indicator_router
+from ati_evn.telegram.commands.acknowledge_indicator import router as acknowledge_indicator_router
+from ati_evn.telegram.commands.note_indicator import router as note_indicator_router
+from ati_evn.telegram.commands.search_indicators import router as search_indicators_router
+from ati_evn.telegram.commands.export_indicators import router as export_indicators_router
 from ati_evn.telegram.commands.agent_handler import handle_free_text
 
 logger = logging.getLogger("ati_evn.bot_analyst")
@@ -148,6 +154,12 @@ async def run_forever() -> int:
     dp.include_router(list_reports_router)
     dp.include_router(download_report_router)
     dp.include_router(force_fetch_router)
+    dp.include_router(list_indicators_router)
+    dp.include_router(indicator_router)
+    dp.include_router(acknowledge_indicator_router)
+    dp.include_router(note_indicator_router)
+    dp.include_router(search_indicators_router)
+    dp.include_router(export_indicators_router)
 
     # Catch-all for anything not matched by an explicit command router
     # above. MUST live in its own router included LAST — aiogram's

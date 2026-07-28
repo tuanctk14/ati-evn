@@ -105,6 +105,19 @@ REPORT:
 FETCHER (auto-scheduled):
   /force_fetch [--feed=nvd|threatfox|malwarebazaar|urlhaus|feodo|all]
 
+THREAT INDICATORS (non-CVE signals: IOC/brand abuse/doc leak/exposure):
+  /list_indicators [--type=T] [--customer=X] [--severity=S] [--status=active] [--limit=N]
+  /search_indicators --keyword=X [--source=Y] [--since_days=N] [--limit=N]
+  /indicator <id>
+  /acknowledge_indicator <id> [--note=<text>]
+  /note_indicator <id> <text of note>
+  /export_indicators [--type=T] [--customer=X] [--severity=S] [--since_days=N]
+
+  ThreatIndicator has no close/reopen/false-positive lifecycle (unlike
+  Finding) -- only acknowledge + note, since these are read-only
+  signals an analyst can't "patch and close" the way a CVE-on-an-asset
+  Finding can.
+
 Free-text query:
   Gõ câu hỏi tự nhiên → agent xử lý.
   Action bắt buộc dùng command.

@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 
 from ati_evn.agent.tools._base import register_tool
 from ati_evn.db.models import Customer, Finding
-from ati_evn.db.query_utils import customer_name_or_code_match, only_live_customer
+from ati_evn.db.query_utils import cve_only_filter, customer_name_or_code_match, only_live_customer
 from ati_evn.db.session import async_session
 
 HARD_CAP = 20
@@ -46,7 +46,7 @@ async def search_findings(
     async with async_session() as session:
         stmt = select(Finding, Customer.name).join(
             Customer, Customer.id == Finding.customer_id,
-        ).where(only_live_customer())
+        ).where(only_live_customer(), cve_only_filter())
 
         if customer:
             stmt = stmt.where(customer_name_or_code_match(customer))

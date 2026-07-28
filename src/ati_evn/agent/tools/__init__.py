@@ -66,4 +66,11 @@ from ati_evn.agent.tools import confirm_campaign                   # noqa
 from ati_evn.agent.tools import reject_campaign                     # noqa
 from ati_evn.agent.tools import ingest_article                       # noqa
 
+# ThreatIndicator tools (slice 15B) -- non-CVE signals split from Finding
+from ati_evn.agent.tools import search_indicators             # noqa
+from ati_evn.agent.tools import get_indicator_detail            # noqa
+from ati_evn.agent.tools import acknowledge_indicator             # noqa
+from ati_evn.agent.tools import add_indicator_note                  # noqa
+from ati_evn.agent.tools import export_indicators                    # noqa
+
 __all__ = ["Tool", "TOOL_REGISTRY", "tool_error"]

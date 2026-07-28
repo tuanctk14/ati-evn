@@ -18,7 +18,12 @@ from ati_evn.db.models import (
     Finding,
     FindingStatus,
 )
-from ati_evn.db.query_utils import customer_name_or_code_match, only_live_asset, only_live_customer
+from ati_evn.db.query_utils import (
+    cve_only_filter,
+    customer_name_or_code_match,
+    only_live_asset,
+    only_live_customer,
+)
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
 from ati_evn.telegram.audit import log_command
@@ -185,6 +190,7 @@ async def cmd_asset(message: Message):
 
         finding_count_result = await session.execute(
             select(func.count()).select_from(Finding).where(
+                cve_only_filter(),
                 Finding.customer_id == asset.customer_id,
                 Finding.matched_asset == asset.asset_value,
                 Finding.status == FindingStatus.OPEN,
@@ -236,6 +242,7 @@ async def cmd_customer(message: Message):
         cutoff_30d = datetime.now(timezone.utc) - timedelta(days=30)
         finding_rows = await session.execute(
             select(Finding.severity, func.count()).where(
+                cve_only_filter(),
                 Finding.customer_id == customer.id,
                 Finding.first_seen >= cutoff_30d,
             ).group_by(Finding.severity)
@@ -275,16 +282,18 @@ async def cmd_customer(message: Message):
 async def cmd_stats(message: Message):
     async with async_session() as session:
         findings_total = (await session.execute(
-            select(func.count()).select_from(Finding)
+            select(func.count()).select_from(Finding).where(cve_only_filter())
         )).scalar_one()
 
         status_rows = await session.execute(
-            select(Finding.status, func.count()).group_by(Finding.status)
+            select(Finding.status, func.count()).where(cve_only_filter())
+            .group_by(Finding.status)
         )
         findings_by_status = {s.value: c for s, c in status_rows.all()}
 
         sev_rows = await session.execute(
-            select(Finding.severity, func.count()).group_by(Finding.severity)
+            select(Finding.severity, func.count()).where(cve_only_filter())
+            .group_by(Finding.severity)
         )
         findings_by_severity = {s.value: c for s, c in sev_rows.all()}
 
@@ -309,7 +318,9 @@ async def cmd_stats(message: Message):
         top_customer_rows = await session.execute(
             select(Customer.name, func.count()).join(
                 Finding, Finding.customer_id == Customer.id,
-            ).where(Finding.status == FindingStatus.OPEN, only_live_customer())
+            ).where(
+                cve_only_filter(), Finding.status == FindingStatus.OPEN, only_live_customer(),
+            )
             .group_by(Customer.name).order_by(func.count().desc()).limit(5)
         )
         top_customers = [(n, c) for n, c in top_customer_rows.all()]
@@ -368,7 +379,9 @@ async def _render_list_open(
     async with async_session() as session:
         stmt = select(Finding, Customer.name).join(
             Customer, Customer.id == Finding.customer_id,
-        ).where(Finding.status == FindingStatus.OPEN, only_live_customer())
+        ).where(
+            cve_only_filter(), Finding.status == FindingStatus.OPEN, only_live_customer(),
+        )
 
         if severity:
             stmt = stmt.where(Finding.severity == severity.upper())

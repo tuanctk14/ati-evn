@@ -16,6 +16,7 @@ from sqlalchemy import select
 from ati_evn.agent.tools._action_base import pending_confirmation, register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Customer, Finding, Severity
+from ati_evn.db.query_utils import cve_only_filter
 from ati_evn.db.query_utils_test import is_test_finding
 from ati_evn.db.session import async_session
 
@@ -58,7 +59,9 @@ async def export_findings(
     limit = min(max(limit, 1), 5000)
 
     async with async_session() as session:
-        stmt = select(Finding).where(Finding.first_seen >= cutoff).order_by(
+        stmt = select(Finding).where(
+            cve_only_filter(), Finding.first_seen >= cutoff,
+        ).order_by(
             Finding.severity, Finding.first_seen.desc(),
         )
 

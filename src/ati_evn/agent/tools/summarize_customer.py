@@ -10,7 +10,7 @@ from sqlalchemy import func, select, text
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.config import get_settings
 from ati_evn.db.models import AlertQueue, Customer, CustomerAsset, Finding, FindingStatus
-from ati_evn.db.query_utils import customer_name_or_code_match, only_live_asset
+from ati_evn.db.query_utils import cve_only_filter, customer_name_or_code_match, only_live_asset
 from ati_evn.db.session import async_session
 from ati_evn.llm.client import LLMClient
 
@@ -56,7 +56,7 @@ async def summarize_customer(customer: str, since_days: int = 7) -> dict:
 
         sev_rows = await session.execute(
             select(Finding.severity, func.count()).where(
-                Finding.customer_id == cust.id, Finding.first_seen >= cutoff,
+                cve_only_filter(), Finding.customer_id == cust.id, Finding.first_seen >= cutoff,
             ).group_by(Finding.severity)
         )
         sev_counts = {s.value: c for s, c in sev_rows.all()}
@@ -71,6 +71,7 @@ async def summarize_customer(customer: str, since_days: int = 7) -> dict:
 
         recent_rows = await session.execute(
             select(Finding).where(
+                cve_only_filter(),
                 Finding.customer_id == cust.id,
                 Finding.severity.in_(["CRITICAL", "HIGH"]),
                 Finding.first_seen >= cutoff,

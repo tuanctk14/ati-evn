@@ -1,16 +1,19 @@
-"""Create Findings from exposures via rule matches.
+"""Create Findings/ThreatIndicators from exposures via rule + vuln matches.
 
 For each Exposure:
   1. Match rule engine (service + configuration) -> 0-N rule matches
-  2. Match vuln (product+version) -> 0-N CVE matches
-  3. For each match: create Finding (dedupe by (exposure_id, rule_id_or_cve))
+     -> ThreatIndicator (slice 15B: read-only exposure signal, not a
+     CVE-on-an-asset the analyst can patch and close).
+  2. Match vuln (product+version) -> 0-N CVE matches -> Finding (still
+     Finding: a real CVE matched to a customer asset, full lifecycle).
+  3. For each match: dedupe by (exposure_id, rule_id_or_cve).
 
-Dedup note: Finding.metadata_ is a plain JSON column (not JSONB), so it
-doesn't support Postgres's `->>` / astext SQL-level filter reliably via
-SQLAlchemy. Existing dedup logic in this codebase (enrichment/orchestrator.py,
-add_ioc.py) always loads rows and inspects metadata_ in Python instead —
-_finding_exists follows the same pattern here rather than querying by key
-at the SQL level.
+Dedup note: Finding.metadata_/ThreatIndicator.metadata_ are plain JSON
+columns (not JSONB), so they don't support Postgres's `->>` / astext
+SQL-level filter reliably via SQLAlchemy. Existing dedup logic in this
+codebase (enrichment/orchestrator.py, add_ioc.py) always loads rows and
+inspects metadata_ in Python instead -- this follows the same pattern
+rather than querying by key at the SQL level.
 """
 from __future__ import annotations
 
@@ -19,8 +22,9 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from ati_evn.db.models import Exposure, Finding, FindingStatus, Severity
+from ati_evn.db.models import Exposure, Finding, FindingStatus, Severity, ThreatIndicator
 from ati_evn.db.session import async_session
+from ati_evn.db.threat_indicator_ttl import compute_expires_at
 from ati_evn.exposure_rules.matcher import match_rules
 from ati_evn.exposure_rules.vuln_matcher import batch_match_cves
 
@@ -34,7 +38,7 @@ SEVERITY_MAP = {
 }
 
 
-def _rule_finding_key(exposure_id: int, rule_id: str) -> str:
+def _rule_ti_key(exposure_id: int, rule_id: str) -> str:
     return f"exposure:{exposure_id}:rule:{rule_id}"
 
 
@@ -61,13 +65,27 @@ async def process_exposures(exposure_ids: list[int]) -> dict:
     stats["vuln_llm_calls"] = len(vuln_matches)
 
     # Pre-load existing dedup keys for ALL exposures up front, in one pass,
-    # before any Finding is added to the session. Doing this per-exposure
-    # inside the loop below (as originally written) triggers SQLAlchemy
-    # autoflush on the SELECT, which tries to flush prior iterations'
-    # not-yet-committed Findings early -- surfacing constraint violations
-    # (e.g. orphan exposures' NULL customer_id, see the skip below) at the
-    # wrong point and mid-transaction.
+    # before any Finding/ThreatIndicator is added to the session. Doing
+    # this per-exposure inside the loop below (as originally written)
+    # triggers SQLAlchemy autoflush on the SELECT, which tries to flush
+    # prior iterations' not-yet-committed rows early -- surfacing
+    # constraint violations (e.g. orphan exposures' NULL customer_id, see
+    # the skip below) at the wrong point and mid-transaction.
+    #
+    # Two separate dedup key sets (slice 15B): rule matches now live in
+    # ThreatIndicator (exposure_ti_key), CVE vuln matches still live in
+    # Finding (exposure_finding_key).
     async with async_session() as session:
+        existing_ti_keys_by_exposure: dict[int, set[str]] = {e.id: set() for e in exposures}
+        ti_rows = await session.execute(select(ThreatIndicator.metadata_))
+        for (meta,) in ti_rows:
+            if not meta:
+                continue
+            eid = meta.get("exposure_id")
+            key = meta.get("exposure_ti_key")
+            if eid in existing_ti_keys_by_exposure and key:
+                existing_ti_keys_by_exposure[eid].add(key)
+
         existing_keys_by_exposure: dict[int, set[str]] = {e.id: set() for e in exposures}
         rows = await session.execute(select(Finding.metadata_))
         for (meta,) in rows:
@@ -95,36 +113,41 @@ async def process_exposures(exposure_ids: list[int]) -> dict:
                 )
                 continue
 
+            existing_ti_keys = existing_ti_keys_by_exposure[exp.id]
             existing_keys = existing_keys_by_exposure[exp.id]
 
             rule_matches = match_rules(exp)
             for rule in rule_matches:
-                key = _rule_finding_key(exp.id, rule["id"])
-                if key in existing_keys:
+                key = _rule_ti_key(exp.id, rule["id"])
+                if key in existing_ti_keys:
                     stats["skipped_dedup"] += 1
                     continue
 
                 severity = SEVERITY_MAP.get(rule["severity"], Severity.MEDIUM)
-                ioc_value = f"{exp.ip}:{exp.port}"
+                indicator_value = f"{exp.ip}:{exp.port}"
 
-                finding = Finding(
+                ti = ThreatIndicator(
+                    indicator_type="exposure",
+                    indicator_value=indicator_value,
+                    source_entity_type="exposure",
+                    source_entity_id=exp.id,
                     customer_id=exp.customer_id,
-                    ioc_type="exposure",
-                    ioc_value=ioc_value,
+                    matched_asset_value=(f"asset#{exp.asset_id}" if exp.asset_id else "orphan"),
+                    source="censys",
+                    sources=[f"exposure_{rule['type']}_rule"],
+                    source_count=1,
                     title=rule["title"],
-                    severity=severity,
-                    status=FindingStatus.OPEN,
-                    matched_asset=(f"asset#{exp.asset_id}" if exp.asset_id else "orphan"),
                     detection_reason=(
                         f"Exposure rule '{rule['id']}': service={exp.service_name}, "
                         f"port={exp.port}"
                     ),
-                    sources=[f"exposure_{rule['type']}_rule"],
-                    source_count=1,
+                    severity=severity,
+                    status="active",
                     first_seen=exp.first_seen_local,
                     last_seen=exp.last_seen_local,
+                    expires_at=compute_expires_at("exposure", exp.first_seen_local),
                     metadata_={
-                        "exposure_finding_key": key,
+                        "exposure_ti_key": key,
                         "exposure_id": exp.id,
                         "rule_id": rule["id"],
                         "rule_type": rule["type"],
@@ -134,8 +157,8 @@ async def process_exposures(exposure_ids: list[int]) -> dict:
                         "product": exp.product, "version": exp.version,
                     },
                 )
-                session.add(finding)
-                existing_keys.add(key)
+                session.add(ti)
+                existing_ti_keys.add(key)
                 if rule["type"] == "service":
                     stats["service_findings"] += 1
                 else:

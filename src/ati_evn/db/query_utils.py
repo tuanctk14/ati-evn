@@ -1,7 +1,7 @@
 """Small helpers for filter-common expressions."""
 from sqlalchemy import or_
 
-from ati_evn.db.models import Customer, CustomerAsset, Detection
+from ati_evn.db.models import Customer, CustomerAsset, Detection, Finding
 
 
 def only_live_customer():
@@ -30,3 +30,21 @@ def only_live_asset():
 
 def only_live_detection():
     return Detection.deleted_at.is_(None)
+
+
+def cve_only_filter():
+    """Standard filter for "current findings" queries (slice 15B).
+
+    After the Finding/ThreatIndicator split, Finding rows are either:
+      1. CVE findings (ioc_type='cve_id') -- active, full lifecycle
+      2. Legacy non-CVE findings (ioc_type!='cve_id') -- migrated to
+         ThreatIndicator, kept only for historical trace via
+         metadata['migrated_to_ti_id']; still tagged ioc_type for
+         that reason, but should never surface in "what's open" views.
+
+    Apply this to every Finding query that represents "current
+    findings the analyst should look at" -- NOT to the migration
+    script itself (which needs to see non-CVE rows) or anything that
+    intentionally wants the historical/legacy view.
+    """
+    return Finding.ioc_type == "cve_id"

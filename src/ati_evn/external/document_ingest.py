@@ -6,19 +6,23 @@
            stages aren't confident enough)
 
 Combination logic:
-  rule match + LLM relevant     -> Finding at rule severity
+  rule match + LLM relevant     -> ThreatIndicator at rule severity
   rule match + LLM NOT relevant -> skip (false positive)
-  no rule match + LLM relevant  -> Finding at MEDIUM
+  no rule match + LLM relevant  -> ThreatIndicator at MEDIUM
   no rule match + LLM NOT relevant -> skip
 
 Rule high/critical + bucket whitelisted -> skip LLM entirely
 (deterministic pass, saves a call).
 
-Dedup note: Finding.metadata_ is a plain JSON column (not JSONB), so a
-SQL-level `->>`/astext filter isn't reliable via SQLAlchemy -- this
-follows the same pre-load-then-filter-in-Python pattern established in
-exposure_rules/finding_creator.py (slice 9B) rather than repeating that
-bug here.
+Slice 15B: this pipeline creates ThreatIndicator rows (not Finding) --
+document leaks are a read-only signal an analyst can acknowledge/note,
+not a CVE-on-an-asset they can patch and close.
+
+Dedup note: ThreatIndicator.metadata_ is a plain JSON column (not
+JSONB), so a SQL-level `->>`/astext filter isn't reliable via
+SQLAlchemy -- this follows the same pre-load-then-filter-in-Python
+pattern established in exposure_rules/finding_creator.py (slice 9B)
+rather than repeating that bug here.
 """
 from __future__ import annotations
 
@@ -28,10 +32,11 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from ati_evn.alerts.dedupe import compute_dedupe_key, find_existing_dispatch
-from ati_evn.alerts.dispatch_rule import should_dispatch
+from ati_evn.alerts.dispatch_rule import should_dispatch_ti
 from ati_evn.config import get_settings
-from ati_evn.db.models import AlertQueue, CustomerAsset, ExposedDocument, Finding, FindingStatus, Severity
+from ati_evn.db.models import AlertQueue, CustomerAsset, ExposedDocument, Severity, ThreatIndicator
 from ati_evn.db.session import async_session
+from ati_evn.db.threat_indicator_ttl import compute_expires_at
 from ati_evn.document_rules.llm_classifier import check_relevance
 from ati_evn.document_rules.matcher import match_document_rule
 from ati_evn.document_rules.whitelist import bucket_matches_whitelist
@@ -73,15 +78,15 @@ def _needs_llm(rule_matched: dict | None, whitelist_pass: bool) -> bool:
     return True
 
 
-async def _existing_finding_keys() -> set[str]:
-    """Load all document_finding_key values already recorded, by
-    scanning Finding.metadata_ in Python (see module docstring)."""
+async def _existing_ti_keys() -> set[str]:
+    """Load all document_ti_key values already recorded, by scanning
+    ThreatIndicator.metadata_ in Python (see module docstring)."""
     async with async_session() as session:
-        rows = await session.execute(select(Finding.metadata_))
+        rows = await session.execute(select(ThreatIndicator.metadata_))
         keys: set[str] = set()
         for (meta,) in rows:
-            if meta and meta.get("document_finding_key"):
-                keys.add(meta["document_finding_key"])
+            if meta and meta.get("document_ti_key"):
+                keys.add(meta["document_ti_key"])
         return keys
 
 
@@ -96,7 +101,7 @@ async def ingest_documents(files: list[dict]) -> dict:
     }
     now = datetime.now(timezone.utc)
 
-    existing_finding_keys = await _existing_finding_keys()
+    existing_ti_keys = await _existing_ti_keys()
 
     async with async_session() as session:
         for doc in files:
@@ -181,32 +186,36 @@ async def ingest_documents(files: list[dict]) -> dict:
 
             if should_create_finding and doc_row.customer_id:
                 key = f"doc:{doc_row.id}"
-                if key not in existing_finding_keys:
+                if key not in existing_ti_keys:
                     title = rule["title"] if rule else "Public exposure of potentially EVN-related document"
                     description = (
                         rule["description"] if rule
                         else "Document appears related to EVN based on LLM assessment."
                     )
-                    finding = Finding(
+                    ti = ThreatIndicator(
+                        indicator_type="exposed_document",
+                        indicator_value=f"{doc_row.bucket_url}/{doc_row.file_path}"[:2000],
+                        source_entity_type="exposed_document",
+                        source_entity_id=doc_row.id,
                         customer_id=doc_row.customer_id,
-                        ioc_type="exposed_document",
-                        ioc_value=f"{doc_row.bucket_url}/{doc_row.file_path}"[:500],
+                        matched_asset_value=f"keyword:{doc_row.keyword_matched}",
+                        source="grayhatwarfare",
+                        sources=["exposed_document"],
+                        source_count=1,
                         title=f"{title}: {doc_row.filename}",
-                        severity=severity,
-                        status=FindingStatus.OPEN,
-                        matched_asset=f"keyword:{doc_row.keyword_matched}",
                         detection_reason=(
                             f"Document leak -- bucket={doc_row.bucket_url}, "
                             f"file={doc_row.file_path}, "
                             f"rule={doc_row.rule_matched or 'none'}, "
                             f"LLM relevant={doc_row.llm_relevance_score}"
                         ),
-                        sources=["exposed_document"],
-                        source_count=1,
+                        severity=severity,
+                        status="active",
                         first_seen=doc_row.first_seen_local,
                         last_seen=doc_row.last_seen_local,
+                        expires_at=compute_expires_at("exposed_document", doc_row.first_seen_local),
                         metadata_={
-                            "document_finding_key": key,
+                            "document_ti_key": key,
                             "document_id": doc_row.id,
                             "bucket_url": doc_row.bucket_url,
                             "file_path": doc_row.file_path,
@@ -218,27 +227,27 @@ async def ingest_documents(files: list[dict]) -> dict:
                             "llm_reasoning": doc_row.llm_reasoning,
                         },
                     )
-                    session.add(finding)
+                    session.add(ti)
                     await session.flush()
-                    existing_finding_keys.add(key)
+                    existing_ti_keys.add(key)
                     stats["findings_created"] += 1
 
                     # Push to alert_queue -- Bot 1 (telegram/bot_alert.py)
                     # polls this table and never talks to this pipeline
                     # directly (same contract as match/customer_router.py's
                     # slice 5A dispatch step, and brand_abuse_ingest.py).
-                    ok, reason = should_dispatch(finding)
+                    ok, reason = should_dispatch_ti(ti)
                     if ok:
                         dedupe_key = compute_dedupe_key(
-                            finding.customer_id, finding.ioc_value, doc_row.matched_asset_id,
+                            ti.customer_id, ti.indicator_value, doc_row.matched_asset_id,
                         )
                         existing_id = await find_existing_dispatch(
                             session, dedupe_key, settings.alert_dedupe_window_minutes,
                         )
                         state = "deduped" if existing_id else "pending"
                         session.add(AlertQueue(
-                            finding_id=finding.id,
-                            customer_id=finding.customer_id,
+                            threat_indicator_id=ti.id,
+                            customer_id=ti.customer_id,
                             state=state,
                             dispatch_reason=reason,
                             dedupe_key=dedupe_key,

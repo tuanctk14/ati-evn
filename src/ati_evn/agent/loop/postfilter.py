@@ -117,6 +117,8 @@ WHITELIST: frozenset[str] = frozenset({
     "/edit_ingest", "/list_ingests",
     "/scan_censys", "/force_fetch", "/scan_ghwarfare", "/scan_urlscan", "/enrich_ip",
     "/generate_report", "/list_reports", "/download_report",
+    "/list_indicators", "/search_indicators", "/indicator",
+    "/acknowledge_indicator", "/note_indicator", "/export_indicators",
 })
 
 # Match /command_name at a word boundary (line start or preceded by

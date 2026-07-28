@@ -38,7 +38,7 @@ from ati_evn.db.models import (
     IpAggregatedScore,
     Severity,
 )
-from ati_evn.db.query_utils import only_live_customer
+from ati_evn.db.query_utils import cve_only_filter, only_live_customer
 from ati_evn.db.query_utils_test import is_test_finding
 from ati_evn.db.session import async_session
 from ati_evn.enrichment_v2.epss_client import enrich_epss
@@ -138,6 +138,7 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
         # so ad-hoc test runs never contaminate a real report's numbers.
         in_window_findings_r = await session.execute(
             select(Finding).where(
+                cve_only_filter(),
                 Finding.first_seen >= from_dt,
                 Finding.first_seen < to_dt,
             )
@@ -465,6 +466,7 @@ async def gather_customer_report(customer_id: int, from_dt: datetime, to_dt: dat
 
         # ── Findings for this customer ──
         f_stmt = select(Finding).where(
+            cve_only_filter(),
             Finding.customer_id == customer_id,
             Finding.first_seen >= from_dt,
             Finding.first_seen < to_dt,

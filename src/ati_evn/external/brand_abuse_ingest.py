@@ -8,19 +8,23 @@
            match, or matched at LOW severity)
 
 Combination logic (mirrors document_ingest.py):
-  rule/typosquat match + LLM relevant     -> Finding at matched severity
+  rule/typosquat match + LLM relevant     -> ThreatIndicator at matched severity
   rule/typosquat match + LLM NOT relevant -> skip (false positive)
-  no match + LLM relevant                 -> Finding at MEDIUM
+  no match + LLM relevant                 -> ThreatIndicator at MEDIUM
   no match + LLM NOT relevant             -> skip
 
 Rule matched at HIGH/CRITICAL -> skip LLM entirely (deterministic pass).
 Typosquat detection alone (HIGH) also skips LLM, same reasoning.
 
-Dedup note: Finding.metadata_ is a plain JSON column (not JSONB), so a
-SQL-level `->>`/astext filter isn't reliable via SQLAlchemy -- this
-follows the same pre-load-then-filter-in-Python pattern established in
-document_ingest.py / exposure_rules/finding_creator.py rather than
-repeating that bug here.
+Slice 15B: this pipeline creates ThreatIndicator rows (not Finding) --
+brand abuse is a read-only signal an analyst can acknowledge/note, not
+a CVE-on-an-asset they can patch and close.
+
+Dedup note: ThreatIndicator.metadata_ is a plain JSON column (not
+JSONB), so a SQL-level `->>`/astext filter isn't reliable via
+SQLAlchemy -- this follows the same pre-load-then-filter-in-Python
+pattern established in document_ingest.py / exposure_rules/finding_creator.py
+rather than repeating that bug here.
 """
 from __future__ import annotations
 
@@ -30,7 +34,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from ati_evn.alerts.dedupe import compute_dedupe_key, find_existing_dispatch
-from ati_evn.alerts.dispatch_rule import should_dispatch
+from ati_evn.alerts.dispatch_rule import should_dispatch_ti
 from ati_evn.brand_rules.llm_classifier import check_relevance
 from ati_evn.brand_rules.matcher import match_brand_rule
 from ati_evn.brand_rules.typosquat import is_typosquat
@@ -40,11 +44,11 @@ from ati_evn.db.models import (
     BrandAbuseSighting,
     Customer,
     CustomerAsset,
-    Finding,
-    FindingStatus,
     Severity,
+    ThreatIndicator,
 )
 from ati_evn.db.session import async_session
+from ati_evn.db.threat_indicator_ttl import compute_expires_at
 
 logger = logging.getLogger("ati_evn.external.brand_abuse_ingest")
 
@@ -96,15 +100,15 @@ def _needs_llm(rule_matched: dict | None) -> bool:
     return rule_matched.get("severity") not in ("high", "critical")
 
 
-async def _existing_finding_keys() -> set[str]:
-    """Load all brand_abuse_finding_key values already recorded, by
-    scanning Finding.metadata_ in Python (see module docstring)."""
+async def _existing_ti_keys() -> set[str]:
+    """Load all brand_abuse_ti_key values already recorded, by scanning
+    ThreatIndicator.metadata_ in Python (see module docstring)."""
     async with async_session() as session:
-        rows = await session.execute(select(Finding.metadata_))
+        rows = await session.execute(select(ThreatIndicator.metadata_))
         keys: set[str] = set()
         for (meta,) in rows:
-            if meta and meta.get("brand_abuse_finding_key"):
-                keys.add(meta["brand_abuse_finding_key"])
+            if meta and meta.get("brand_abuse_ti_key"):
+                keys.add(meta["brand_abuse_ti_key"])
         return keys
 
 
@@ -119,7 +123,7 @@ async def ingest_brand_abuse(sightings: list[dict]) -> dict:
     }
     now = datetime.now(timezone.utc)
 
-    existing_finding_keys = await _existing_finding_keys()
+    existing_ti_keys = await _existing_ti_keys()
 
     async with async_session() as session:
         evn_domains = await _evn_domains(session)
@@ -213,32 +217,36 @@ async def ingest_brand_abuse(sightings: list[dict]) -> dict:
 
             if should_create_finding and sight_row.customer_id:
                 key = f"brand_abuse:{sight_row.id}"
-                if key not in existing_finding_keys:
+                if key not in existing_ti_keys:
                     title = rule["title"] if rule else "Possible EVN brand abuse detected"
                     description = (
                         rule["description"] if rule
                         else "URL appears related to EVN brand based on LLM assessment."
                     )
-                    finding = Finding(
+                    ti = ThreatIndicator(
+                        indicator_type="brand_abuse",
+                        indicator_value=sight_row.url[:2000],
+                        source_entity_type="brand_abuse_sighting",
+                        source_entity_id=sight_row.id,
                         customer_id=sight_row.customer_id,
-                        ioc_type="brand_abuse",
-                        ioc_value=sight_row.url[:500],
+                        matched_asset_value=f"keyword:{sight_row.keyword_matched}",
+                        source="urlscan",
+                        sources=["brand_abuse"],
+                        source_count=1,
                         title=f"{title}: {sight_row.domain}",
-                        severity=severity,
-                        status=FindingStatus.OPEN,
-                        matched_asset=f"keyword:{sight_row.keyword_matched}",
                         detection_reason=(
                             f"Brand abuse -- url={sight_row.url}, "
                             f"rule={sight_row.rule_matched or 'none'}, "
                             f"typosquat_dist={sight_row.typosquat_distance}, "
                             f"LLM relevant={sight_row.llm_relevant}"
                         ),
-                        sources=["brand_abuse"],
-                        source_count=1,
+                        severity=severity,
+                        status="active",
                         first_seen=sight_row.first_seen_local,
                         last_seen=sight_row.last_seen_local,
+                        expires_at=compute_expires_at("brand_abuse", sight_row.first_seen_local),
                         metadata_={
-                            "brand_abuse_finding_key": key,
+                            "brand_abuse_ti_key": key,
                             "brand_abuse_id": sight_row.id,
                             "url": sight_row.url,
                             "domain": sight_row.domain,
@@ -251,27 +259,27 @@ async def ingest_brand_abuse(sightings: list[dict]) -> dict:
                             "llm_reasoning": sight_row.llm_reasoning,
                         },
                     )
-                    session.add(finding)
+                    session.add(ti)
                     await session.flush()
-                    existing_finding_keys.add(key)
+                    existing_ti_keys.add(key)
                     stats["findings_created"] += 1
 
                     # Push to alert_queue -- Bot 1 (telegram/bot_alert.py)
                     # polls this table and never talks to this pipeline
                     # directly (same contract as match/customer_router.py's
                     # slice 5A dispatch step).
-                    ok, reason = should_dispatch(finding)
+                    ok, reason = should_dispatch_ti(ti)
                     if ok:
                         dedupe_key = compute_dedupe_key(
-                            finding.customer_id, finding.ioc_value, sight_row.matched_asset_id,
+                            ti.customer_id, ti.indicator_value, sight_row.matched_asset_id,
                         )
                         existing_id = await find_existing_dispatch(
                             session, dedupe_key, settings.alert_dedupe_window_minutes,
                         )
                         state = "deduped" if existing_id else "pending"
                         session.add(AlertQueue(
-                            finding_id=finding.id,
-                            customer_id=finding.customer_id,
+                            threat_indicator_id=ti.id,
+                            customer_id=ti.customer_id,
                             state=state,
                             dispatch_reason=reason,
                             dedupe_key=dedupe_key,
