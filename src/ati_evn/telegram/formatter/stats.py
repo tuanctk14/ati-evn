@@ -6,35 +6,35 @@ def format_stats(counters, top_customers, top_techniques, dispatch_stats) -> str
     lines = [
         "📊 ATI-EVN — Tổng quan hệ thống",
         "",
-        f"Findings: {counters.get('findings_total', 0)} total",
+        f"Findings: {counters.get('findings_total', 0)}",
     ]
 
     by_status = counters.get("findings_by_status") or {}
     if by_status:
-        lines.append("  Theo status: " + ", ".join(
-            f"{k}={v}" for k, v in sorted(by_status.items(), key=lambda x: -x[1])
-        ))
+        lines.append("  Theo status:")
+        for k, v in sorted(by_status.items(), key=lambda x: -x[1]):
+            lines.append(f"    • {k}: {v}")
 
     by_severity = counters.get("findings_by_severity") or {}
     if by_severity:
-        lines.append("  Theo severity: " + ", ".join(
-            f"{k}={v}" for k, v in sorted(by_severity.items(), key=lambda x: -x[1])
-        ))
+        lines.append("  Theo severity:")
+        for k, v in sorted(by_severity.items(), key=lambda x: -x[1]):
+            lines.append(f"    • {k}: {v}")
 
     lines.append("")
-    lines.append(f"Detections: {counters.get('detections_total', 0)} total")
+    lines.append(f"Dữ liệu thu thập từ feed (raw): {counters.get('detections_total', 0)}")
     by_source = counters.get("detections_by_source") or []
     if by_source:
-        lines.append("  Top sources: " + ", ".join(f"{s}={c}" for s, c in by_source[:5]))
+        lines.append("  Top nguồn:")
+        for s, c in by_source[:5]:
+            lines.append(f"    • {s}: {c}")
 
     lines.append("")
-    lines.append("Alerts (24h qua):")
-    lines.append(
-        f"  Sent={dispatch_stats.get('dispatched', 0)} "
-        f"Deduped={dispatch_stats.get('deduped', 0)} "
-        f"Batched={dispatch_stats.get('batched', 0)} "
-        f"Failed={dispatch_stats.get('failed', 0)}"
-    )
+    lines.append("Alert đã gửi analyst (24h qua):")
+    lines.append(f"    • Sent: {dispatch_stats.get('dispatched', 0)}")
+    lines.append(f"    • Deduped: {dispatch_stats.get('deduped', 0)}")
+    lines.append(f"    • Batched: {dispatch_stats.get('batched', 0)}")
+    lines.append(f"    • Failed: {dispatch_stats.get('failed', 0)}")
 
     if top_customers:
         lines.append("")
@@ -44,9 +44,9 @@ def format_stats(counters, top_customers, top_techniques, dispatch_stats) -> str
 
     if top_techniques:
         lines.append("")
-        lines.append("Top 5 ATT&CK techniques (7 ngày qua):")
+        lines.append("Top 5 ATT&CK technique trong Finding (7 ngày qua):")
         for tech_id, count in top_techniques[:5]:
-            lines.append(f"  • {tech_id}: {count} lần")
+            lines.append(f"  • {tech_id}: {count} finding")
 
     vendors = counters.get("top_vendors") or []
     if vendors:
@@ -58,6 +58,6 @@ def format_stats(counters, top_customers, top_techniques, dispatch_stats) -> str
     latest_ingest = counters.get("latest_ingest")
     if latest_ingest:
         lines.append("")
-        lines.append(f"Ingest gần nhất: {latest_ingest}")
+        lines.append(f"Fetch gần nhất: {latest_ingest}")
 
     return "\n".join(lines)

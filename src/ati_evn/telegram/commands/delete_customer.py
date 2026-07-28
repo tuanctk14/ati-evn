@@ -16,6 +16,7 @@ from aiogram.types import Message
 from sqlalchemy import select
 
 from ati_evn.db.models import Customer, CustomerAsset
+from ati_evn.db.query_utils import customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
 from ati_evn.telegram.audit import log_command
@@ -40,7 +41,7 @@ async def cmd_delete_customer(message: Message):
         if query_str.isdigit():
             c = await session.get(Customer, int(query_str))
         if c is None:
-            result = await session.execute(select(Customer).where(Customer.name == query_str))
+            result = await session.execute(select(Customer).where(customer_name_or_code_match(query_str)))
             c = result.scalar_one_or_none()
         if not c:
             await message.answer(f"Không tìm thấy customer: {query_str}")

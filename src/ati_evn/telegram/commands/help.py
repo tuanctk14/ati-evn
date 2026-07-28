@@ -105,7 +105,7 @@ REPORT:
 FETCHER (auto-scheduled):
   /force_fetch [--feed=nvd|threatfox|malwarebazaar|urlhaus|feodo|all]
 
-Free-text query (slice 5B.3):
+Free-text query:
   Gõ câu hỏi tự nhiên → agent xử lý.
   Action bắt buộc dùng command.
 """

@@ -3,9 +3,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import math
+
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy import func, or_, select, text
 
 from ati_evn.db.models import (
@@ -25,7 +27,7 @@ from ati_evn.telegram.formatter.customer import format_customer_detail
 from ati_evn.telegram.formatter.cve import format_cve_detail
 from ati_evn.telegram.formatter.finding import format_finding_detail
 from ati_evn.telegram.formatter.ioc import format_ioc_detail
-from ati_evn.telegram.formatter.list import format_finding_list
+from ati_evn.telegram.formatter.list import format_finding_list, list_open_pagination_keyboard
 from ati_evn.telegram.formatter.stats import format_stats
 
 router = Router()
@@ -358,21 +360,11 @@ async def cmd_stats(message: Message):
 
 # ── /list_open [--severity=] [--customer=] [--limit=] [--page=] ────────────
 
-@router.message(Command("list_open"))
-@log_command("list_open")
-async def cmd_list_open(message: Message):
-    args = parse_args(message.text or "", "list_open")
-    severity = args.get("severity")
-    customer_filter = args.get("customer")
-    try:
-        per_page = int(args.get("limit", 10))
-    except ValueError:
-        per_page = 10
-    try:
-        page = max(1, int(args.get("page", 1)))
-    except ValueError:
-        page = 1
-
+async def _render_list_open(
+    severity: str | None, customer_filter: str | None, page: int, per_page: int,
+) -> tuple[str, object]:
+    """Shared query+render for both the /list_open command and its
+    Prev/Next callback buttons -- returns (text, keyboard_or_none)."""
     async with async_session() as session:
         stmt = select(Finding, Customer.name).join(
             Customer, Customer.id == Finding.customer_id,
@@ -392,8 +384,41 @@ async def cmd_list_open(message: Message):
 
         rows = (await session.execute(stmt)).all()
 
-        text_out = format_finding_list(rows, total, page, per_page)
-        await message.answer(text_out, disable_web_page_preview=True)
+    text_out = format_finding_list(rows, total, page, per_page)
+    total_pages = max(1, math.ceil(total / per_page))
+    keyboard = list_open_pagination_keyboard(page, total_pages, severity, customer_filter)
+    return text_out, keyboard
+
+
+@router.message(Command("list_open"))
+@log_command("list_open")
+async def cmd_list_open(message: Message):
+    args = parse_args(message.text or "", "list_open")
+    severity = args.get("severity")
+    customer_filter = args.get("customer")
+    try:
+        per_page = int(args.get("limit", 10))
+    except ValueError:
+        per_page = 10
+    try:
+        page = max(1, int(args.get("page", 1)))
+    except ValueError:
+        page = 1
+
+    text_out, keyboard = await _render_list_open(severity, customer_filter, page, per_page)
+    await message.answer(text_out, disable_web_page_preview=True, reply_markup=keyboard)
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("lo:"))
+async def cb_list_open_page(callback: CallbackQuery):
+    _, page_str, sev_tok, cust_tok = callback.data.split(":", 3)
+    page = int(page_str)
+    severity = None if sev_tok == "-" else sev_tok
+    customer_filter = None if cust_tok == "-" else cust_tok
+
+    text_out, keyboard = await _render_list_open(severity, customer_filter, page, 10)
+    await callback.message.edit_text(text_out, reply_markup=keyboard)
+    await callback.answer()
 
 
 # ── /list_alerts [--recent=] [--customer=] [--state=] ───────────────────────

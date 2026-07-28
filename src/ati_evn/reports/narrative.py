@@ -44,6 +44,10 @@ Cấu trúc bullet:
   • [CVE-ID] Vendor/Product — Action ngắn gọn 1 câu (patch/mitigate/isolate).
     - Lý do: (KEV=Yes/EPSS-high/CVSS-critical/asset-critical)
 
+Nếu trường "vendor" hoặc "product" là null/thiếu trong dữ liệu, BỎ HẲN
+phần "Vendor/Product" khỏi dòng đầu (không viết "Unknown/Unknown") --
+chỉ viết [CVE-ID] — Action.
+
 Ưu tiên chọn:
   1. KEV=True (đang bị exploit thật)
   2. EPSS >= 0.7 (predict exploit imminent)
@@ -76,8 +80,8 @@ async def generate_aggregated_remediation(cve_findings: list[dict]) -> str:
             "asset": c.get("asset"),
             "is_kev": c.get("is_kev", False),
             "epss_score": c.get("epss_score"),
-            "kev_vendor": c.get("kev_vendor"),
-            "kev_product": c.get("kev_product"),
+            "vendor": c.get("vendor"),
+            "product": c.get("product"),
             "kev_required_action": (c.get("kev_required_action") or "")[:200],
         }
         for c in prioritized

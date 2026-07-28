@@ -1,4 +1,6 @@
-"""/scan_urlscan --keyword=X [--domain=Y] [--max=50] — on-demand brand abuse scan."""
+"""/scan_urlscan --keyword=X [--domain=Y] [--max=50] — on-demand brand abuse scan.
+   /scan_urlscan --customer=X [--max=50] — resolve keyword/domain from customer record.
+"""
 from __future__ import annotations
 
 import logging
@@ -7,8 +9,12 @@ from aiogram import Router
 from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import Message
+from sqlalchemy import select
 
 from ati_evn.config import get_settings
+from ati_evn.db.models import Customer
+from ati_evn.db.query_utils import customer_name_or_code_match, only_live_customer
+from ati_evn.db.session import async_session
 from ati_evn.external.brand_abuse_ingest import ingest_brand_abuse
 from ati_evn.external.urlscan_client import UrlscanAPIError, UrlscanConfigError, search_brand
 from ati_evn.telegram.argparse_util import parse_args
@@ -24,11 +30,28 @@ async def cmd_scan_urlscan(message: Message):
     args = parse_args(message.text or "", "scan_urlscan")
     keyword = args.get("keyword")
     domain = args.get("domain")
+    customer_query = args.get("customer")
     settings = get_settings()
     max_results = int(args.get("max") or settings.urlscan_max_results_per_query)
+
+    if customer_query and not keyword:
+        async with async_session() as session:
+            row = await session.execute(
+                select(Customer).where(
+                    customer_name_or_code_match(customer_query), only_live_customer(),
+                ).limit(1)
+            )
+            customer = row.scalar_one_or_none()
+        if not customer:
+            await message.answer(f"Customer '{customer_query}' không tồn tại.")
+            return
+        keyword = customer.name
+        domain = domain or customer.primary_domain
+
     if not keyword:
         await message.answer(
             "Cú pháp: /scan_urlscan --keyword=X [--domain=Y] [--max=50]\n"
+            "       /scan_urlscan --customer=X [--max=50]\n"
             "Ví dụ: /scan_urlscan --keyword=\"Vietnam Electricity\""
         )
         return

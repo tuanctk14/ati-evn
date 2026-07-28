@@ -33,3 +33,6 @@ src/ati_evn/data/technique_embeddings.npz
 # Generated reports (slice 8A)
 /reports/*
 !/reports/.gitkeep
+
+# Bot runtime logs (start.bat writes here)
+/logs/

@@ -29,6 +29,7 @@ from ati_evn.db.models import (
     BrandAbuseSighting,
     Campaign,
     CveEnrichmentCache,
+    CveProductMap,
     Customer,
     CustomerAsset,
     ExposedDocument,
@@ -73,6 +74,22 @@ async def _enrich_cve_findings(cve_findings: list[dict]) -> dict:
                     "epss_percentile": row.epss_percentile,
                 }
 
+    # Vendor/product for the CVE detail block + remediation LLM context --
+    # kev_vendor/kev_product above are only populated for CVEs in the CISA
+    # KEV catalog (a small minority), so most CVEs need this fallback from
+    # cve_product_map (populated by NVD/KEV/Vulners fetchers) or they'd
+    # otherwise show as "Unknown/Unknown" in the LLM remediation output.
+    product_map: dict[str, tuple[str | None, str | None]] = {}
+    if cve_ids:
+        async with async_session() as session:
+            cve_ids_upper = [c.upper() for c in cve_ids]
+            stmt = select(CveProductMap.cve_id, CveProductMap.vendor, CveProductMap.product).where(
+                CveProductMap.cve_id.in_(cve_ids_upper),
+            ).order_by(CveProductMap.confidence.desc())
+            for cve_id, vendor, product in await session.execute(stmt):
+                if cve_id not in product_map:
+                    product_map[cve_id] = (vendor, product)
+
     severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
     for c in cve_findings:
         enrich = enrichments.get(c["cve"], {})
@@ -83,6 +100,10 @@ async def _enrich_cve_findings(cve_findings: list[dict]) -> dict:
         c["kev_product"] = enrich.get("kev_product")
         c["kev_required_action"] = enrich.get("kev_required_action")
         c["nvd_url"] = f"https://nvd.nist.gov/vuln/detail/{c['cve']}"
+
+        vendor, product = product_map.get(c["cve"], (None, None))
+        c["vendor"] = c["kev_vendor"] or vendor
+        c["product"] = c["kev_product"] or product
 
     cve_findings.sort(key=lambda c: (
         not c.get("is_kev", False),

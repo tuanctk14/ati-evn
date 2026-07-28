@@ -62,7 +62,7 @@ def format_preview(
         lines.append(f"👥 Attribution: {truncate(attribution, 200)}")
 
     lines.append(
-        f"\nActions (implement ở slice 7B):\n"
+        f"\nActions:\n"
         f"  ✅ /confirm_ingest {session_id}\n"
         f"  ❌ /reject_ingest {session_id} --reason=X\n"
         f"  ✏️ /edit_ingest {session_id} --drop=1,3,5 --drop-cves=2"

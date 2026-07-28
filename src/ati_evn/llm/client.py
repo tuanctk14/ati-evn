@@ -70,7 +70,8 @@ class LLMClient:
             try:
                 resp = await client.post(url, headers=headers, json=payload)
             except httpx.HTTPError as e:
-                raise LLMError(f"LLM transport error: {e}") from e
+                detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
+                raise LLMError(f"LLM transport error: {detail}") from e
 
         duration_ms = (time.perf_counter() - started) * 1000
 
@@ -135,7 +136,8 @@ class LLMClient:
             try:
                 resp = await client.post(url, headers=headers, json=payload)
             except httpx.HTTPError as e:
-                raise LLMError(f"LLM transport error: {e}") from e
+                detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
+                raise LLMError(f"LLM transport error: {detail}") from e
 
         duration_ms = (time.perf_counter() - started) * 1000
 
@@ -206,7 +208,8 @@ class LLMClient:
             try:
                 resp = await client.post(url, headers=headers, json=payload)
             except httpx.HTTPError as e:
-                raise LLMError(f"LLM transport error: {e}") from e
+                detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
+                raise LLMError(f"LLM transport error: {detail}") from e
 
         duration_ms = (time.perf_counter() - started) * 1000
 
