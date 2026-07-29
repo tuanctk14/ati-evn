@@ -37,8 +37,9 @@ from ati_evn.db.models import (
     Finding,
     IpAggregatedScore,
     Severity,
+    ThreatIndicator,
 )
-from ati_evn.db.query_utils import cve_only_filter, only_live_customer
+from ati_evn.db.query_utils import cve_only_filter, only_live_customer, ti_default_status_filter
 from ati_evn.db.query_utils_test import is_test_finding
 from ati_evn.db.session import async_session
 from ati_evn.enrichment_v2.epss_client import enrich_epss
@@ -115,6 +116,71 @@ async def _enrich_cve_findings(cve_findings: list[dict]) -> dict:
         "total_cves": len(cve_ids),
         "kev_count": sum(1 for c in cve_findings if c.get("is_kev")),
         "high_epss_count": sum(1 for c in cve_findings if (c.get("epss_score") or 0) >= 0.7),
+    }
+
+
+RAW_IOC_TYPES = ["ipv4", "ipv6", "domain", "url", "sha256", "sha1", "md5"]
+
+
+async def _gather_raw_indicators(
+    from_dt: datetime, to_dt: datetime, customer_id: int | None = None,
+) -> dict:
+    """Section 2B (slice 15C): raw IOC-type ThreatIndicators only --
+    brand_abuse/exposed_document/exposure indicator types are excluded
+    here since those are already covered by Sections 4/5/6 (Exposure/
+    ExposedDocument/BrandAbuseSighting entity tables); this section is
+    strictly the disjoint remainder (ipv4/ipv6/domain/url/hash), so
+    summing across sections never double-counts.
+    """
+    async with async_session() as session:
+        base_where = [
+            ThreatIndicator.indicator_type.in_(RAW_IOC_TYPES),
+            ThreatIndicator.first_seen >= from_dt,
+            ThreatIndicator.first_seen < to_dt,
+            ti_default_status_filter(),
+        ]
+        if customer_id:
+            base_where.append(ThreatIndicator.customer_id == customer_id)
+
+        type_stmt = select(
+            ThreatIndicator.indicator_type,
+            func.count(ThreatIndicator.id).label("cnt"),
+        ).where(*base_where).group_by(ThreatIndicator.indicator_type)
+
+        raw_ioc_by_type = {r.indicator_type: r.cnt for r in await session.execute(type_stmt)}
+        raw_ioc_total = sum(raw_ioc_by_type.values())
+
+        top_stmt = select(ThreatIndicator).where(
+            *base_where,
+            ThreatIndicator.severity.in_([Severity.CRITICAL, Severity.HIGH]),
+            ThreatIndicator.acknowledged_at.is_(None),
+        ).order_by(
+            ThreatIndicator.severity,
+            ThreatIndicator.first_seen.desc(),
+        ).limit(10)
+
+        raw_ioc_top = []
+        for ti in (await session.execute(top_stmt)).scalars():
+            cust = None
+            if ti.customer_id:
+                c = await session.get(Customer, ti.customer_id)
+                cust = c.name if c else None
+            raw_ioc_top.append({
+                "id": ti.id,
+                "type": ti.indicator_type,
+                "value": ti.indicator_value[:100],
+                "title": ti.title[:80],
+                "severity": ti.severity.value if hasattr(ti.severity, "value") else str(ti.severity),
+                "customer": cust,
+                "sources": ti.sources or [],
+                "first_seen": ti.first_seen.isoformat() if ti.first_seen else None,
+                "asset": ti.matched_asset_value,
+            })
+
+    return {
+        "total": raw_ioc_total,
+        "by_type": raw_ioc_by_type,
+        "top_unack": raw_ioc_top,
     }
 
 
@@ -390,6 +456,7 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
 
     cve_enrichment_summary = await _enrich_cve_findings(cve_findings)
     asset_risk_ranking = await compute_asset_risk_ranking(from_dt, to_dt, customer_id=None, limit=20)
+    raw_indicators = await _gather_raw_indicators(from_dt, to_dt, customer_id=None)
 
     return {
         "meta": {
@@ -445,6 +512,7 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
         "asset_risk_ranking": asset_risk_ranking,
         "service_aggregate": service_aggregate,
         "cve_enrichment_summary": cve_enrichment_summary,
+        "raw_indicators": raw_indicators,
     }
 
 
@@ -656,6 +724,7 @@ async def gather_customer_report(customer_id: int, from_dt: datetime, to_dt: dat
     asset_risk_ranking = await compute_asset_risk_ranking(
         from_dt, to_dt, customer_id=customer_id, limit=20,
     )
+    raw_indicators = await _gather_raw_indicators(from_dt, to_dt, customer_id=customer_id)
 
     return {
         "meta": {
@@ -713,4 +782,5 @@ async def gather_customer_report(customer_id: int, from_dt: datetime, to_dt: dat
         "asset_risk_ranking": asset_risk_ranking,
         "service_aggregate": service_aggregate,
         "cve_enrichment_summary": cve_enrichment_summary,
+        "raw_indicators": raw_indicators,
     }

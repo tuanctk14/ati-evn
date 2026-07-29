@@ -9,7 +9,7 @@ from aiogram.types import Message
 from sqlalchemy import desc, select
 
 from ati_evn.db.models import Customer, ThreatIndicator
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_name_or_code_match, ti_default_status_filter
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
 from ati_evn.telegram.audit import log_command
@@ -33,16 +33,19 @@ async def cmd_list_indicators(message: Message):
     indicator_type = args.get("type")
     customer_arg = args.get("customer")
     severity = args.get("severity")
-    status = (args.get("status") or "active").lower()
+    status_arg = (args.get("status") or "").lower()
     try:
         limit = min(max(int(args.get("limit") or 20), 1), 50)
     except ValueError:
         limit = 20
 
     async with async_session() as session:
-        stmt = select(ThreatIndicator).where(
-            ThreatIndicator.status == status,
-        ).order_by(desc(ThreatIndicator.first_seen)).limit(limit)
+        stmt = select(ThreatIndicator).order_by(desc(ThreatIndicator.first_seen)).limit(limit)
+
+        if status_arg:
+            stmt = stmt.where(ThreatIndicator.status == status_arg)
+        else:
+            stmt = stmt.where(ti_default_status_filter())
 
         if indicator_type:
             stmt = stmt.where(ThreatIndicator.indicator_type == indicator_type)
@@ -71,7 +74,8 @@ async def cmd_list_indicators(message: Message):
                 c = await session.get(Customer, ti.customer_id)
                 customer_names[ti.customer_id] = (c.short_code or c.name) if c else f"#{ti.customer_id}"
 
-    lines = [f"📋 Threat Indicators (status={status}, limit {limit}):", ""]
+    status_label = status_arg or "active+acknowledged"
+    lines = [f"📋 Threat Indicators (status={status_label}, limit {limit}):", ""]
     for ti in rows:
         badge = BADGE.get(ti.indicator_type, "⚠️")
         sev = ti.severity.value if hasattr(ti.severity, "value") else str(ti.severity)

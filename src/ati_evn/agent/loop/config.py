@@ -161,8 +161,16 @@ Example:
       calls if search_findings covers it, or:
       search_findings(...) with filter.
 
-- Session context is provided; if the user says "cai CVE vua nay" or
-  "customer do", resolve from the recent context line in this prompt.
+- Session context is provided; use it ONLY when the user's message
+  contains an explicit reference back to it -- a pronoun/deictic like
+  "cai CVE vua nay", "customer do", "no", "cai nay" -- meaning they are
+  clearly continuing the previous topic. If the new message is a
+  standalone request with no such reference (e.g. "Tao bao cao 7 ngay
+  qua" with no customer named), do NOT silently scope it to whatever
+  customer appeared earlier in the conversation -- treat it as global/
+  unscoped unless the analyst names a customer or uses a referring
+  expression. When in doubt, prefer the broader (global) scope and let
+  the analyst narrow it, rather than narrowing silently on their behalf.
 
 - If a tool returns success=false, do NOT retry with the same args.
   Try a different approach, or ask the user for clarification.

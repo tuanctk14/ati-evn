@@ -1,7 +1,7 @@
 """Small helpers for filter-common expressions."""
 from sqlalchemy import or_
 
-from ati_evn.db.models import Customer, CustomerAsset, Detection, Finding
+from ati_evn.db.models import Customer, CustomerAsset, Detection, Finding, ThreatIndicator
 
 
 def only_live_customer():
@@ -48,3 +48,14 @@ def cve_only_filter():
     intentionally wants the historical/legacy view.
     """
     return Finding.ioc_type == "cve_id"
+
+
+def ti_default_status_filter():
+    """Default ThreatIndicator status filter (slice 15C).
+
+    Excludes stale (past TTL, auto-marked by ti_ttl_worker.enforce_ttl)
+    and archived (stale > 30d) -- those are only surfaced when the
+    caller explicitly asks for that status. Active + acknowledged are
+    what "what's currently relevant" queries should show by default.
+    """
+    return ThreatIndicator.status.in_(["active", "acknowledged"])

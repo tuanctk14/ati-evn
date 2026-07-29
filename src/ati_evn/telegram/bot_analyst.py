@@ -10,6 +10,7 @@ from aiogram.types import BotCommand, Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from ati_evn.agent.session.cleanup import cleanup_expired_sessions
+from ati_evn.alerts.ti_ttl_worker import run_daily_ttl
 from ati_evn.campaigns.detector import run_detection_once as campaign_detect
 from ati_evn.config import get_settings
 from ati_evn.external.grayhat_weekly import run_weekly_grayhat_scan
@@ -250,6 +251,13 @@ async def run_forever() -> int:
         minute=0,
         id="weekly_global_report",
     )
+    scheduler.add_job(
+        run_daily_ttl,
+        "cron",
+        hour=4,
+        minute=0,
+        id="ti_ttl_daily",
+    )
     fetcher_job_count = register_feed_jobs(scheduler)
     scheduler.start()
     logger.info("Session cleanup scheduled (every 5min)")
@@ -263,6 +271,7 @@ async def run_forever() -> int:
         "(every 15 min, 10 IPs x 5 providers = 50 API calls/tick)"
     )
     logger.info("Weekly global report scheduled (Monday 06:00 UTC)")
+    logger.info("TI TTL enforcement scheduled (daily 04:00 UTC)")
     logger.info("Fetcher scheduler: %d feed jobs registered", fetcher_job_count)
 
     # Startup catch-up runs as a background task — fetchers can take

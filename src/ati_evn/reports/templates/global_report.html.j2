@@ -186,6 +186,42 @@
 <p><em>Không có CVE finding trong kỳ.</em></p>
 {% endif %}
 
+{# ── Section 2B: Raw Threat Indicators (ipv4/ipv6/domain/url/hash) ── #}
+<h2>2B. Raw Threat Indicators</h2>
+<p>Tổng số raw IOC (IP, domain, URL, hash) trong kỳ: <strong>{{ raw_indicators.total }}</strong></p>
+
+{% if raw_indicators.by_type %}
+<table>
+  <tr><th>Type</th><th>Count</th></tr>
+  {% for tp, cnt in raw_indicators.by_type.items() %}
+  <tr><td><code>{{ tp }}</code></td><td>{{ cnt }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if raw_indicators.top_unack %}
+<h3>Top raw IOC severity cao chưa acknowledge</h3>
+<table>
+  <tr>
+    <th>ID</th><th>Type</th><th>Sev</th><th>Value</th>
+    <th>Customer</th><th>Sources</th>
+  </tr>
+  {% for r in raw_indicators.top_unack %}
+  <tr>
+    <td>{{ r.id }}</td>
+    <td>{{ r.type }}</td>
+    <td class="sev-{{ r.severity }}">{{ r.severity }}</td>
+    <td><code>{{ r.value }}</code></td>
+    <td>{{ r.customer or "-" }}</td>
+    <td>{{ r.sources | join(", ") }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p><em>Analyst xem chi tiết: /indicator &lt;id&gt;. Acknowledge: /acknowledge_indicator &lt;id&gt;.</em></p>
+{% else %}
+<p><em>Không có raw IOC severity cao chưa acknowledge trong kỳ.</em></p>
+{% endif %}
+
 {# ── Section 3: Campaigns ── #}
 <h2>3. Chiến dịch tấn công (Campaigns)</h2>
 <p>Phát hiện: <strong>{{ campaigns.total }}</strong> chiến dịch mới trong kỳ.</p>

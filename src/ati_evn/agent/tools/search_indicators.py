@@ -8,7 +8,7 @@ from sqlalchemy import desc, select
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Customer, ThreatIndicator
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_name_or_code_match, ti_default_status_filter
 from ati_evn.db.session import async_session
 
 VALID_TYPES = [
@@ -35,7 +35,11 @@ VALID_TYPES = [
             "status": {
                 "type": "string",
                 "enum": ["active", "acknowledged", "stale", "archived"],
-                "default": "active",
+                "description": (
+                    "Omit for the default view (active + acknowledged, "
+                    "excludes stale/archived). Pass explicitly to see "
+                    "only one status, e.g. 'stale' for expired indicators."
+                ),
             },
             "keyword": {"type": "string", "description": "Match title or indicator_value"},
             "since_days": {"type": "integer", "default": 30},
@@ -48,7 +52,7 @@ async def search_indicators(
     indicator_type: str | None = None,
     customer: str | None = None,
     severity: str | None = None,
-    status: str = "active",
+    status: str | None = None,
     keyword: str | None = None,
     since_days: int = 30,
     limit: int = 20,
@@ -59,8 +63,12 @@ async def search_indicators(
     async with async_session() as session:
         stmt = select(ThreatIndicator).where(
             ThreatIndicator.first_seen >= cutoff,
-            ThreatIndicator.status == status,
         ).order_by(desc(ThreatIndicator.first_seen)).limit(limit)
+
+        if status:
+            stmt = stmt.where(ThreatIndicator.status == status)
+        else:
+            stmt = stmt.where(ti_default_status_filter())
 
         if indicator_type:
             stmt = stmt.where(ThreatIndicator.indicator_type == indicator_type)
