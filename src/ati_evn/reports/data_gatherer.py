@@ -207,6 +207,7 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
                 cve_only_filter(),
                 Finding.first_seen >= from_dt,
                 Finding.first_seen < to_dt,
+                Finding.customer_id.in_(select(Customer.id).where(only_live_customer())),
             )
         )
         in_window_findings = [
@@ -280,6 +281,7 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
                 Finding.ioc_type == "cve_id",
                 Finding.first_seen >= from_dt,
                 Finding.first_seen < to_dt,
+                Finding.customer_id.in_(select(Customer.id).where(only_live_customer())),
             ).order_by(Finding.severity, Finding.first_seen.desc()).limit(30)
         )
         cve_all = [

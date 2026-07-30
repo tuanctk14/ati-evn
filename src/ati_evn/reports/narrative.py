@@ -202,6 +202,7 @@ async def generate_narrative(report_data: dict) -> str:
             user=prompt,
             max_tokens=settings.report_llm_max_tokens,
             temperature=0.3,
+            timeout=60.0,
         )
     except Exception as e:
         logger.exception("Narrative LLM failed")
@@ -312,6 +313,7 @@ async def generate_customer_narrative(report_data: dict) -> str:
             user=prompt,
             max_tokens=settings.report_llm_max_tokens,
             temperature=0.3,
+            timeout=60.0,
         )
     except Exception as e:
         logger.exception("Customer narrative LLM failed")

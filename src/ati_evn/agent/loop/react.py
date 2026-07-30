@@ -59,6 +59,24 @@ ACTION_RE = re.compile(
     re.DOTALL,
 )
 FINAL_RE = re.compile(r"Final Answer:\s*(?P<answer>.+)", re.DOTALL)
+_THOUGHT_PREFIX_RE = re.compile(r"^\s*Thought:.*?(?:\n|$)", re.DOTALL)
+
+
+def _clean_malformed_response(raw: str) -> str:
+    """Fallback path when the model's output has neither a parseable
+    Final Answer nor a valid Action/Action Input pair (e.g. truncated
+    mid-thought, observed during LLM provider degradation). Previously
+    this raw text -- including a leading "Thought: ..." fragment --
+    was sent to the analyst verbatim, reading as an unfinished internal
+    monologue rather than an answer. Strip that prefix and fall back to
+    an explicit retry notice if nothing meaningful is left."""
+    cleaned = _THOUGHT_PREFIX_RE.sub("", raw).strip()
+    if not cleaned:
+        return (
+            "⚠️ Agent không tạo được câu trả lời hợp lệ. "
+            "Vui lòng thử lại hoặc dùng command trực tiếp."
+        )
+    return cleaned[:2000]
 
 
 async def run_react(
@@ -113,7 +131,7 @@ async def run_react(
         if total_tok > token_soft_cap:
             logger.warning("ReAct token cap reached at step %d — forcing stop", step)
             trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
-            return raw.strip()[:2000], trace
+            return _clean_malformed_response(raw), trace
 
         # Check for final answer first
         m_final = FINAL_RE.search(raw)
@@ -127,7 +145,7 @@ async def run_react(
             # Model didn't follow format — treat as final answer attempt
             logger.info("ReAct: no action found at step %d, treating as answer", step)
             trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
-            return raw.strip()[:2000], trace
+            return _clean_malformed_response(raw), trace
 
         tool_name = m_action.group("name")
         try:
