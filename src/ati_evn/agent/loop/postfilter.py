@@ -159,3 +159,60 @@ def postfilter_answer(text: str) -> tuple[str, dict]:
             "Post-filter: %d replaced, %d stripped", len(replaced), len(stripped)
         )
     return cleaned, stats
+
+
+# Telegram's legacy Markdown parse_mode has no concept of "#" headings,
+# "|---|" tables, "---" horizontal rules, or "**bold**" (only single-star
+# *bold* is supported) -- all render as literal punctuation clutter instead
+# of formatting. The system prompt tells the LLM not to produce them, but
+# this is a behavioral-discipline instruction an LLM won't reliably follow,
+# so enforce it here as a deterministic safety net (same rationale as the
+# command-hallucination postfilter above).
+_HEADING_RE = re.compile(r"^#{1,6}\s*(.+?)\s*$", re.MULTILINE)
+_HR_RE = re.compile(r"^\s*-{3,}\s*$", re.MULTILINE)
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_TABLE_SEP_RE = re.compile(r"^\s*\|[\s:|-]*\|\s*$")
+
+
+def _table_row_cells(line: str) -> list[str]:
+    stripped = line.strip().strip("|")
+    return [c.strip() for c in stripped.split("|")]
+
+
+def _convert_tables(text: str) -> str:
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        is_header = "|" in line and i + 1 < len(lines) and _TABLE_SEP_RE.match(lines[i + 1])
+        if not is_header:
+            out.append(line)
+            i += 1
+            continue
+
+        headers = _table_row_cells(line)
+        i += 2  # skip header + separator row
+        while i < len(lines) and "|" in lines[i] and lines[i].strip():
+            cells = _table_row_cells(lines[i])
+            parts = [
+                f"{h}: {c}" for h, c in zip(headers, cells) if c
+            ]
+            out.append("- " + " — ".join(parts))
+            i += 1
+    return "\n".join(out)
+
+
+def sanitize_telegram_markdown(text: str) -> str:
+    """Rewrite GitHub-flavored constructs Telegram legacy Markdown can't
+    render (headings, tables, horizontal rules, double-star bold) into
+    equivalents that actually render in Telegram's legacy Markdown mode."""
+    if not text:
+        return text
+    text = _convert_tables(text)
+    text = _HEADING_RE.sub(lambda m: f"*{m.group(1)}*", text)
+    text = _BOLD_RE.sub(lambda m: f"*{m.group(1)}*", text)
+    text = _HR_RE.sub("", text)
+    # collapse the blank-line runs left behind by a removed "---" line
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()

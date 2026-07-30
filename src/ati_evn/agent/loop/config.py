@@ -410,6 +410,17 @@ Final answer is Vietnamese natural language. Include:
    real whitelisted command that fits, say "go /help" instead of
    guessing one, and say nothing else.
 
+This answer is rendered in Telegram legacy Markdown, which does NOT
+support GitHub-style headings or tables:
+- NEVER use "#", "##", "###" headings -- use *bold text* on its own
+  line instead if you need a section label.
+- NEVER use a "|---|---|" markdown table -- use a bullet list instead,
+  one item per row, e.g. "- Finding #219 — CVE-2026-99999 — HIGH — open"
+  rather than a table with columns.
+- Bold with single asterisks (*text*), not double (**text**).
+- NEVER use a "---" horizontal-rule line to separate sections -- use a
+  blank line instead.
+
 Do NOT include the tool trace in your answer — the system appends it
 automatically.
 """

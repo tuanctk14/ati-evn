@@ -22,7 +22,7 @@ from aiogram.types import Message
 
 from ati_evn.agent.loop import run_agent
 from ati_evn.agent.loop.legacy_finding_postfilter import postfilter_legacy_finding_actions
-from ati_evn.agent.loop.postfilter import postfilter_answer
+from ati_evn.agent.loop.postfilter import postfilter_answer, sanitize_telegram_markdown
 from ati_evn.agent.session.state import load_or_create
 from ati_evn.config import get_settings
 from ati_evn.db.models import CommandLog
@@ -61,6 +61,7 @@ async def handle_free_text(message: Message) -> None:
         session._chat_id = message.chat.id
 
         answer, trace, trace_block = await run_agent(client, session, text)
+        answer = sanitize_telegram_markdown(answer)
         answer, filter_stats = postfilter_answer(answer)
         answer, legacy_stats = await postfilter_legacy_finding_actions(answer)
         if filter_stats["replaced"] or filter_stats["stripped"]:
