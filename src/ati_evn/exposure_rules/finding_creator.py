@@ -18,7 +18,6 @@ rather than querying by key at the SQL level.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 

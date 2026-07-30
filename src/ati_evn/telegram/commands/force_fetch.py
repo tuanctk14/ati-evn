@@ -46,6 +46,8 @@ async def cmd_force_fetch(message: Message):
             r = await run_feed_once(f, trigger_reason="manual_force_fetch")
             results[f] = r
         except Exception as e:
+            # per-feed isolation: one feed failing must not abort the rest of the batch;
+            # the error is surfaced to the analyst below via the summary reply
             results[f] = {"status": "error", "error": str(e)[:200]}
 
     await thinking.delete()

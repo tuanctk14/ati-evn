@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.db.models import CveEnrichmentCache
 from ati_evn.db.session import async_session
@@ -19,6 +20,17 @@ logger = logging.getLogger("ati_evn.enrichment_v2.kev_client")
 
 URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 REFRESH_TTL_HOURS = 24
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+async def _fetch_kev_catalog() -> httpx.Response:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        return await client.get(URL)
 
 
 async def _feed_needs_refresh() -> bool:
@@ -43,8 +55,7 @@ async def refresh_kev_catalog() -> dict:
         return {"skipped": True, "reason": "cache_fresh"}
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(URL)
+        resp = await _fetch_kev_catalog()
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:

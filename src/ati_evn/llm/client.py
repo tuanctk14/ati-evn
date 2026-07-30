@@ -9,10 +9,27 @@ import logging
 import time
 
 import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.config import Settings
 
 logger = logging.getLogger("ati_evn.llm.client")
+
+# Only 2 attempts / short backoff -- this sits inside the agent turn's overall
+# timeout budget (see agent/loop/runner.py TIMEOUT_SECONDS), so retrying here
+# must not itself risk blowing that budget on a slow/degraded provider.
+_LLM_RETRY = retry(
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(min=1, max=3),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+
+
+@_LLM_RETRY
+async def _post(url: str, headers: dict, payload: dict, timeout: float) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        return await client.post(url, headers=headers, json=payload)
 
 
 class LLMError(Exception):
@@ -66,12 +83,11 @@ class LLMClient:
         }
 
         started = time.perf_counter()
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                resp = await client.post(url, headers=headers, json=payload)
-            except httpx.HTTPError as e:
-                detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
-                raise LLMError(f"LLM transport error: {detail}") from e
+        try:
+            resp = await _post(url, headers, payload, timeout)
+        except httpx.HTTPError as e:
+            detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
+            raise LLMError(f"LLM transport error: {detail}") from e
 
         duration_ms = (time.perf_counter() - started) * 1000
 
@@ -132,12 +148,11 @@ class LLMClient:
         }
 
         started = time.perf_counter()
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                resp = await client.post(url, headers=headers, json=payload)
-            except httpx.HTTPError as e:
-                detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
-                raise LLMError(f"LLM transport error: {detail}") from e
+        try:
+            resp = await _post(url, headers, payload, timeout)
+        except httpx.HTTPError as e:
+            detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
+            raise LLMError(f"LLM transport error: {detail}") from e
 
         duration_ms = (time.perf_counter() - started) * 1000
 
@@ -204,12 +219,11 @@ class LLMClient:
             payload["tool_choice"] = tool_choice
 
         started = time.perf_counter()
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                resp = await client.post(url, headers=headers, json=payload)
-            except httpx.HTTPError as e:
-                detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
-                raise LLMError(f"LLM transport error: {detail}") from e
+        try:
+            resp = await _post(url, headers, payload, timeout)
+        except httpx.HTTPError as e:
+            detail = str(e) or f"{type(e).__name__} (no detail -- e.g. timeout after {timeout}s)"
+            raise LLMError(f"LLM transport error: {detail}") from e
 
         duration_ms = (time.perf_counter() - started) * 1000
 

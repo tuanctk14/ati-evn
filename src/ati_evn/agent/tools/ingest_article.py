@@ -9,6 +9,7 @@ PDF ingestion still requires the /ingest command directly.
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from ati_evn.agent.tools._action_base import pending_confirmation, register_action_tool
@@ -17,6 +18,8 @@ from ati_evn.db.models import IngestionSession
 from ati_evn.db.session import async_session
 from ati_evn.ingestion.extractor import extract_from_text
 from ati_evn.ingestion.fetcher import fetch_url
+
+logger = logging.getLogger("ati_evn.agent.tools.ingest_article")
 
 
 @register_action_tool(
@@ -59,6 +62,7 @@ async def ingest_article(
         else:
             return tool_error(f"Unsupported source_type: {source_type}")
     except Exception as e:
+        logger.warning("ingest_article fetch failed for %s: %s", source[:100], e)
         return tool_error(f"Fetch failed: {str(e)[:200]}")
 
     if not content or len(content) < 100:
@@ -67,6 +71,7 @@ async def ingest_article(
     try:
         extracted, model = await extract_from_text(content)
     except Exception as e:
+        logger.warning("ingest_article LLM extraction failed: %s", e)
         return tool_error(f"LLM extraction failed: {str(e)[:200]}")
 
     if "_error" in extracted:

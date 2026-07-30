@@ -11,6 +11,7 @@ from typing import BinaryIO
 
 import httpx
 import pypdf
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger("ati_evn.ingestion.fetcher")
 
@@ -22,15 +23,25 @@ UA = (
 )
 
 
-async def fetch_url(url: str) -> str:
-    """Fetch URL and return cleaned article text."""
-    headers = {"User-Agent": UA, "Accept": "text/html,application/xhtml+xml"}
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+async def _get(url: str, headers: dict) -> httpx.Response:
     async with httpx.AsyncClient(
         timeout=FETCH_TIMEOUT, follow_redirects=True,
     ) as client:
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        html = resp.text
+        return await client.get(url, headers=headers)
+
+
+async def fetch_url(url: str) -> str:
+    """Fetch URL and return cleaned article text."""
+    headers = {"User-Agent": UA, "Accept": "text/html,application/xhtml+xml"}
+    resp = await _get(url, headers)
+    resp.raise_for_status()
+    html = resp.text
 
     # Try trafilatura first for clean extraction
     try:

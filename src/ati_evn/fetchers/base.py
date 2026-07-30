@@ -13,8 +13,21 @@ from typing import Any, Optional
 
 import httpx
 from pydantic import BaseModel, Field
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.config import get_settings
+
+_RETRY_TRANSIENT = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+
+
+@_RETRY_TRANSIENT
+async def _retried_request(client: httpx.AsyncClient, method: str, url: str, **kwargs) -> httpx.Response:
+    return await client.request(method, url, **kwargs)
 
 
 class RawIOC(BaseModel):
@@ -81,3 +94,11 @@ class IOCFetcher(abc.ABC):
             headers=self._http_headers(extra_headers),
             follow_redirects=True,
         )
+
+    async def _get(self, client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Response:
+        """GET through `client`, retrying transient network errors (not HTTP status errors)."""
+        return await _retried_request(client, "GET", url, **kwargs)
+
+    async def _post(self, client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Response:
+        """POST through `client`, retrying transient network errors (not HTTP status errors)."""
+        return await _retried_request(client, "POST", url, **kwargs)

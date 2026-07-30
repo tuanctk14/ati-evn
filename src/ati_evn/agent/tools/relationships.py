@@ -24,7 +24,6 @@ from ati_evn.db.query_utils import (
     customer_match_order_by,
     customer_name_or_code_match,
     only_live_asset,
-    only_live_customer,
 )
 from ati_evn.db.session import async_session
 from ati_evn.enrichment.attack_catalog import get_technique_name

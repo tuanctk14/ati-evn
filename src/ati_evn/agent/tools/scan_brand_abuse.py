@@ -31,6 +31,7 @@ async def _run_scan(keyword: str, primary_domain: str | None, max_results: int) 
     except UrlscanAPIError as e:
         return tool_error(f"API: {str(e)[:200]}")
     except Exception as e:
+        logger.warning("scan_brand_abuse failed for keyword=%r: %s", keyword, e)
         return tool_error(f"Scan failed: {str(e)[:200]}")
 
     if not sightings:

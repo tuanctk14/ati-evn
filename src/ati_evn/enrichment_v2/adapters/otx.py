@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.config import get_settings
 from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
@@ -20,6 +21,17 @@ from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
 logger = logging.getLogger("ati_evn.enrichment_v2.adapters.otx")
 
 URL_TEMPLATE = "https://otx.alienvault.com/api/v1/indicators/IPv4/{ip}/general"
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+async def _get(url: str, headers: dict) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
+        return await client.get(url)
 
 
 class OTXAdapter(BaseIpAdapter):
@@ -34,8 +46,7 @@ class OTXAdapter(BaseIpAdapter):
         url = URL_TEMPLATE.format(ip=ip)
 
         try:
-            async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
-                resp = await client.get(url)
+            resp = await _get(url, headers)
             if resp.status_code == 401:
                 return self._mk_error("Auth failed (401)")
             if resp.status_code >= 400:
@@ -49,6 +60,7 @@ class OTXAdapter(BaseIpAdapter):
                 error="OTX API timeout",
             )
         except Exception as e:
+            logger.warning("OTX fetch failed for %s: %s", ip, e)
             return self._mk_error(f"{type(e).__name__}: {str(e)[:100]}")
 
         pulse_info = data.get("pulse_info") or {}

@@ -92,7 +92,7 @@ async def handle_free_text(message: Message) -> None:
         try:
             await thinking.delete()
         except Exception:
-            pass
+            pass  # best-effort cleanup of the "thinking" placeholder -- message may already be gone
 
     # Send answer (auto-split if too long)
     for chunk in _split_answer(answer, ANSWER_MAX_CHARS):

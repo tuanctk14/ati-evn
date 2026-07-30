@@ -56,6 +56,7 @@ async def cmd_download_report(message: Message):
                 )
                 sent += 1
             except Exception as e:
+                logger.warning("download_report HTML upload failed for report #%s: %s", report_id, e)
                 await message.answer(f"⚠️ HTML upload failed: {e}")
         else:
             await message.answer(f"⚠️ HTML file không tồn tại: {report.html_path}")
@@ -69,6 +70,7 @@ async def cmd_download_report(message: Message):
                 )
                 sent += 1
             except Exception as e:
+                logger.warning("download_report PDF upload failed for report #%s: %s", report_id, e)
                 await message.answer(f"⚠️ PDF upload failed: {e}")
         else:
             await message.answer(f"⚠️ PDF file không tồn tại: {report.pdf_path}")

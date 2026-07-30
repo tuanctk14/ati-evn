@@ -1,10 +1,14 @@
 """Trigger GrayHatWarfare scan for keyword via agent -- non-destructive."""
 from __future__ import annotations
 
+import logging
+
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.external.document_ingest import ingest_documents
 from ati_evn.external.grayhat_client import GrayhatAPIError, GrayhatConfigError, search_keyword
+
+logger = logging.getLogger("ati_evn.agent.tools.scan_document_leak")
 
 
 @register_action_tool(
@@ -34,6 +38,7 @@ async def scan_document_leak(keyword: str, max_files: int = 50) -> dict:
     except GrayhatAPIError as e:
         return tool_error(f"API: {str(e)[:200]}")
     except Exception as e:
+        logger.warning("scan_document_leak failed for keyword=%r: %s", keyword, e)
         return tool_error(f"Scan failed: {str(e)[:200]}")
 
     if not files:

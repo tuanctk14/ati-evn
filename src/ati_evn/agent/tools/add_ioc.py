@@ -6,6 +6,7 @@ Findings -> alert_queue -> Bot 1 dispatch.
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from ati_evn.agent.tools._action_base import pending_confirmation, register_action_tool
@@ -13,6 +14,8 @@ from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Detection, DetectionStatus, Severity
 from ati_evn.db.session import async_session
 from ati_evn.match.customer_router import route_detections
+
+logger = logging.getLogger("ati_evn.agent.tools.add_ioc")
 
 VALID_IOC_TYPES = {"ipv4", "ipv6", "domain", "url", "md5", "sha1", "sha256", "email", "cve_id"}
 
@@ -89,6 +92,7 @@ async def add_ioc(
         async with async_session() as session:
             stats = await route_detections(session, only_new=True)
     except Exception as e:
+        logger.warning("add_ioc matcher pass failed for detection #%d: %s", detection_id, e)
         return {
             "status": "created_matcher_failed",
             "detection_id": detection_id,

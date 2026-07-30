@@ -9,7 +9,7 @@ from sqlalchemy import func, select, text
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.config import get_settings
-from ati_evn.db.models import AlertQueue, Customer, CustomerAsset, Finding, FindingStatus
+from ati_evn.db.models import AlertQueue, Customer, CustomerAsset, Finding
 from ati_evn.db.query_utils import (
     customer_match_order_by,
     customer_name_or_code_match,

@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.config import get_settings
 from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
@@ -15,6 +16,17 @@ from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
 logger = logging.getLogger("ati_evn.enrichment_v2.adapters.abuseipdb")
 
 URL = "https://api.abuseipdb.com/api/v2/check"
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+async def _get(headers: dict, params: dict) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=10.0, headers=headers) as client:
+        return await client.get(URL, params=params)
 
 
 class AbuseIPDBAdapter(BaseIpAdapter):
@@ -28,8 +40,7 @@ class AbuseIPDBAdapter(BaseIpAdapter):
         headers = {"Key": settings.abuseipdb_api_key, "Accept": "application/json"}
         params = {"ipAddress": ip, "maxAgeInDays": 90}
         try:
-            async with httpx.AsyncClient(timeout=10.0, headers=headers) as client:
-                resp = await client.get(URL, params=params)
+            resp = await _get(headers, params)
             if resp.status_code == 429:
                 return self._mk_error("Rate limited (quota exceeded)")
             if resp.status_code == 401:
@@ -38,6 +49,7 @@ class AbuseIPDBAdapter(BaseIpAdapter):
                 return self._mk_error(f"HTTP {resp.status_code}")
             data = resp.json().get("data") or {}
         except Exception as e:
+            logger.warning("AbuseIPDB fetch failed for %s: %s", ip, e)
             return self._mk_error(f"{type(e).__name__}: {str(e)[:100]}")
 
         return ProviderSignal(

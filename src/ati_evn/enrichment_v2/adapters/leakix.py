@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.config import get_settings
 from ati_evn.enrichment_v2.adapters._base import BaseIpAdapter, ProviderSignal
@@ -27,6 +28,17 @@ from ati_evn.enrichment_v2.config import get_provider_config
 logger = logging.getLogger("ati_evn.enrichment_v2.adapters.leakix")
 
 URL_TEMPLATE = "https://leakix.net/host/{ip}"
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+async def _get(url: str, headers: dict) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
+        return await client.get(url)
 
 
 class LeakIXAdapter(BaseIpAdapter):
@@ -41,8 +53,7 @@ class LeakIXAdapter(BaseIpAdapter):
         url = URL_TEMPLATE.format(ip=ip)
 
         try:
-            async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
-                resp = await client.get(url)
+            resp = await _get(url, headers)
             if resp.status_code in (401, 403):
                 return self._mk_error(f"Auth failed ({resp.status_code})")
             if resp.status_code == 404:
@@ -55,6 +66,7 @@ class LeakIXAdapter(BaseIpAdapter):
                 return self._mk_error(f"HTTP {resp.status_code}")
             data = resp.json()
         except Exception as e:
+            logger.warning("LeakIX fetch failed for %s: %s", ip, e)
             return self._mk_error(f"{type(e).__name__}: {str(e)[:100]}")
 
         services = data.get("Services") or data.get("services") or []

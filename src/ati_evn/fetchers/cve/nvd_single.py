@@ -37,7 +37,7 @@ async def fetch_single_cve(cve_id: str) -> bool:
 
     try:
         async with await fetcher._http_client(extra_headers=headers) as client:
-            resp = await client.get(NVD_URL, params={"cveId": cve_id})
+            resp = await fetcher._get(client, NVD_URL, params={"cveId": cve_id})
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as e:

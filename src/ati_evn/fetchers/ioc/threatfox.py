@@ -105,7 +105,7 @@ class ThreatFoxFetcher(IOCFetcher):
 
         async with await self._http_client(extra_headers=headers) as client:
             try:
-                resp = await client.post(THREATFOX_URL, json=payload)
+                resp = await self._post(client, THREATFOX_URL, json=payload)
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPStatusError as e:
@@ -164,7 +164,7 @@ class ThreatFoxFetcher(IOCFetcher):
                     if host:
                         metadata["host"] = host.lower()
                 except Exception:
-                    pass
+                    pass  # malformed URL -- host stays unset, ioc_value still stored as-is
 
             # Basic IPv4/IPv6 discrimination (very cheap)
             if canonical_type == "ipv4" and ":" in ioc_value and ioc_value.count(":") > 1:

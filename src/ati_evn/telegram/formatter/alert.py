@@ -5,7 +5,7 @@ Vietnamese for narrative, English for technical terms.
 from __future__ import annotations
 
 from ati_evn.config import get_settings
-from ati_evn.db.models import Finding, Severity
+from ati_evn.db.models import Severity
 from ati_evn.telegram.formatter.common import truncate
 
 SEVERITY_EMOJI = {

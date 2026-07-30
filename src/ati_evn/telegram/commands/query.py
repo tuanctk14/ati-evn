@@ -8,7 +8,7 @@ import math
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, select, text
 
 from ati_evn.db.models import (
     AlertQueue,
@@ -23,7 +23,6 @@ from ati_evn.db.query_utils import (
     cve_only_filter,
     customer_match_order_by,
     customer_name_or_code_match,
-    only_live_asset,
     only_live_customer,
     ti_default_status_filter,
 )

@@ -7,10 +7,14 @@ tools.
 """
 from __future__ import annotations
 
+import logging
+
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.external.censys_client import CensysConfigError, CensysQuotaExceeded, search_ip
 from ati_evn.external.exposure_ingest import upsert_exposures
+
+logger = logging.getLogger("ati_evn.agent.tools.scan_censys")
 
 
 @register_action_tool(
@@ -40,6 +44,7 @@ async def scan_censys(ip: str) -> dict:
     except ValueError as e:
         return tool_error(f"Invalid IP: {e}")
     except Exception as e:
+        logger.warning("scan_censys failed for ip=%s: %s", ip, e)
         return tool_error(f"Scan failed: {str(e)[:200]}")
 
     if not exposures:

@@ -5,12 +5,15 @@ tracked entirely inside metadata_ (JSON), same pattern as /silence.
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from ati_evn.agent.tools._action_base import pending_confirmation, register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Finding
 from ati_evn.db.session import async_session
+
+logger = logging.getLogger("ati_evn.agent.tools.rescan_finding")
 
 
 @register_action_tool(
@@ -56,6 +59,7 @@ async def rescan_finding(finding_id: int, reenrich_ip: bool = True, confirmed: b
             await enrich_ip_full(ioc_value, force=True)
             actions_taken.append("ip_reenriched")
         except Exception as e:
+            logger.warning("rescan_finding ip re-enrich failed for finding #%d: %s", finding_id, e)
             actions_taken.append(f"ip_reenrich_failed:{str(e)[:80]}")
 
     now = datetime.now(timezone.utc)

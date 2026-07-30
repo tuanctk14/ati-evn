@@ -67,7 +67,7 @@ def log_command(command_name: str):
                 try:
                     await message.answer(f"⚠️ Lỗi khi xử lý lệnh: {str(e)[:200]}")
                 except Exception:
-                    pass
+                    pass  # best-effort notify -- original exception is already logged above and re-raised
                 raise
             finally:
                 elapsed_ms = int((time.monotonic() - start) * 1000)

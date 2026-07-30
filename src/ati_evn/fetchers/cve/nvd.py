@@ -212,7 +212,7 @@ class NVDFetcher(IOCFetcher):
                     "startIndex": start_index,
                 }
                 try:
-                    resp = await client.get(NVD_URL, params=params)
+                    resp = await self._get(client, NVD_URL, params=params)
                     resp.raise_for_status()
                     data = resp.json()
                 except httpx.HTTPStatusError as e:

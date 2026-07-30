@@ -45,6 +45,11 @@ def _output_paths(prefix: str = "global_report") -> tuple[Path, Path]:
     return html_path, pdf_path
 
 
+def _customer_prefix(short_code: str) -> str:
+    safe_code = "".join(c if c.isalnum() or c == "_" else "_" for c in (short_code or "unknown"))
+    return f"customer_{safe_code}"
+
+
 def html_to_pdf(html_content: str, pdf_path: Path) -> bool:
     """Convert HTML to PDF via wkhtmltopdf. Returns True on success."""
     try:
@@ -113,20 +118,6 @@ async def generate_report_files(
     return result
 
 
-def _customer_output_paths(short_code: str) -> tuple[Path, Path]:
-    """Return (html_path, pdf_path) with a timestamped day folder,
-    filename convention customer_{short_code}.html per slice 8B."""
-    base = _reports_dir()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    day_dir = base / today
-    day_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%H%M%S")
-    safe_code = "".join(c if c.isalnum() or c == "_" else "_" for c in (short_code or "unknown"))
-    html_path = day_dir / f"customer_{safe_code}_{ts}.html"
-    pdf_path = day_dir / f"customer_{safe_code}_{ts}.pdf"
-    return html_path, pdf_path
-
-
 def render_customer_html(report_data: dict, narrative: str) -> str:
     env = _get_template_env()
     template = env.get_template("customer_report.html.j2")
@@ -139,7 +130,7 @@ async def generate_customer_report_files(
 ) -> dict:
     formats = formats or ["html", "pdf"]
     html_content = render_customer_html(report_data, narrative)
-    html_path, pdf_path = _customer_output_paths(short_code)
+    html_path, pdf_path = _output_paths(_customer_prefix(short_code))
 
     result = {
         "html_path": None, "pdf_path": None,

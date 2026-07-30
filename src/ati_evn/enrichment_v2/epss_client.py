@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ati_evn.db.models import CveEnrichmentCache
 from ati_evn.db.session import async_session
@@ -18,6 +19,17 @@ logger = logging.getLogger("ati_evn.enrichment_v2.epss_client")
 
 URL = "https://api.first.org/data/v1/epss"
 BATCH_SIZE = 100  # EPSS API accepts up to ~100 CVE per query
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True,
+)
+async def _fetch_epss_batch(params: dict) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        return await client.get(URL, params=params)
 
 
 async def _cves_needing_epss(cve_ids: list[str]) -> list[str]:
@@ -48,8 +60,7 @@ async def enrich_epss(cve_ids: list[str]) -> dict:
         batch = needing[i:i + BATCH_SIZE]
         try:
             params = {"cve": ",".join(batch)}
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(URL, params=params)
+            resp = await _fetch_epss_batch(params)
             if resp.status_code >= 400:
                 logger.warning("EPSS HTTP %d for batch", resp.status_code)
                 stats["errors"] += len(batch)

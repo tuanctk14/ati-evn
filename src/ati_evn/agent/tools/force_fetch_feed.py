@@ -6,9 +6,13 @@ is not caller-controlled.
 """
 from __future__ import annotations
 
+import logging
+
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.fetchers.scheduler import run_feed_once
+
+logger = logging.getLogger("ati_evn.agent.tools.force_fetch_feed")
 
 VALID_FEEDS = ["nvd", "threatfox", "malwarebazaar", "urlhaus", "feodo"]
 
@@ -37,6 +41,7 @@ async def force_fetch_feed(feed_name: str) -> dict:
     try:
         result = await run_feed_once(feed_name, trigger_reason="manual_force_fetch")
     except Exception as e:
+        logger.warning("force_fetch_feed failed for %s: %s", feed_name, e)
         return tool_error(f"Fetch failed: {str(e)[:200]}")
 
     if result.get("status") != "success":

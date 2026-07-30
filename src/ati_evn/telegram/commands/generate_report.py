@@ -188,6 +188,7 @@ async def cmd_generate_report(message: Message):
                 caption=f"HTML ({files['html_size_bytes']:,} bytes)",
             )
         except Exception as e:
+            logger.warning("generate_report HTML upload failed for report #%s: %s", result["report_id"], e)
             await message.answer(f"⚠️ HTML upload failed: {e}")
 
     if files.get("pdf_path"):
@@ -197,4 +198,5 @@ async def cmd_generate_report(message: Message):
                 caption=f"PDF ({files['pdf_size_bytes']:,} bytes)",
             )
         except Exception as e:
+            logger.warning("generate_report PDF upload failed for report #%s: %s", result["report_id"], e)
             await message.answer(f"⚠️ PDF upload failed: {e}")

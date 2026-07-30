@@ -77,7 +77,7 @@ class FeodoFetcher(IOCFetcher):
 
         async with await self._http_client(extra_headers=headers) as client:
             try:
-                resp = await client.get(FEODO_URL)
+                resp = await self._get(client, FEODO_URL)
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPStatusError as e:

@@ -51,4 +51,4 @@ def extract_host_from_url(url: str) -> str | None:
         host = parsed.hostname
         return host.lower() if host else None
     except Exception:
-        return None
+        return None  # malformed URL is an expected input case, not a bug -- caller treats None as "no host"

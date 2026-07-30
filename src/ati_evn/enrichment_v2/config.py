@@ -20,6 +20,21 @@ def load_config() -> dict:
     return cfg
 
 
+def reload_config() -> dict:
+    """Force a re-read of enrichment_config.yaml, bypassing the cache.
+
+    load_config() is cached for the life of the process (by design --
+    it's read on essentially every enrichment call, and re-parsing the
+    YAML each time would be wasteful) but that means editing
+    enrichment_config.yaml (e.g. tweaking provider weights) previously
+    had no effect until the whole Bot process was restarted. Call this
+    after an edit (e.g. from a REPL, a maintenance script, or a future
+    /reload_config admin command) to pick up changes without a restart.
+    """
+    load_config.cache_clear()
+    return load_config()
+
+
 def get_provider_config(provider: str) -> dict:
     cfg = load_config()
     return (cfg.get("providers") or {}).get(provider) or {}

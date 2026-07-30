@@ -69,7 +69,7 @@ class URLhausFetcher(IOCFetcher):
 
         async with await self._http_client(extra_headers=headers) as client:
             try:
-                resp = await client.get(URLHAUS_RECENT_URL)
+                resp = await self._get(client, URLHAUS_RECENT_URL)
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPStatusError as e:

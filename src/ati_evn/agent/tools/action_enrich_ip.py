@@ -5,9 +5,13 @@ IpEnrichment rows only. This tool actually calls the providers.
 """
 from __future__ import annotations
 
+import logging
+
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.enrichment_v2.ip_enricher import enrich_ip_foreground, enrich_ip_full
+
+logger = logging.getLogger("ati_evn.agent.tools.enrich_ip")
 
 
 @register_action_tool(
@@ -50,6 +54,7 @@ async def action_enrich_ip(ip: str, full: bool = False, force: bool = False) -> 
         else:
             results, agg = await enrich_ip_foreground(ip, force=force)
     except Exception as e:
+        logger.warning("enrich_ip failed for %s: %s", ip, e)
         return tool_error(f"Enrichment failed: {str(e)[:200]}")
 
     return {
