@@ -1,5 +1,5 @@
 """Small helpers for filter-common expressions."""
-from sqlalchemy import or_
+from sqlalchemy import case, func, or_
 
 from ati_evn.db.models import Customer, CustomerAsset, Detection, Finding, ThreatIndicator
 
@@ -21,6 +21,24 @@ def customer_name_or_code_match(query: str):
     return or_(
         Customer.name.ilike(pattern),
         Customer.short_code.ilike(pattern),
+    )
+
+
+def customer_match_order_by(query: str):
+    """ORDER BY expression to put an exact short_code/name match first
+    among rows selected by customer_name_or_code_match().
+
+    Without this, a query like "EVN" (short_code of "Vietnam Electricity
+    (EVN)") can ambiguously match multiple customers whose name/short_code
+    merely CONTAINS "EVN" as a substring (e.g. "EVN Hanoi Power
+    Corporation") — callers using .limit(1) would then get whichever row
+    the DB happens to return first, not the one the analyst meant.
+    """
+    q = query.strip()
+    return case(
+        (func.lower(Customer.short_code) == q.lower(), 0),
+        (func.lower(Customer.name) == q.lower(), 1),
+        else_=2,
     )
 
 

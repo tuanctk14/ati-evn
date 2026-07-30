@@ -10,7 +10,7 @@ from sqlalchemy import select
 from ati_evn.agent.tools._action_base import pending_confirmation, register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Customer, Severity, ThreatIndicator
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 _SEVERITY_ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -70,7 +70,8 @@ async def export_indicators(
 
         if customer:
             cr = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer)).limit(1)
             )
             cid = cr.scalar_one_or_none()
             if not cid:

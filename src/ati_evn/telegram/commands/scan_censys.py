@@ -29,7 +29,7 @@ from sqlalchemy import select
 
 from ati_evn.config import get_settings
 from ati_evn.db.models import Customer, Exposure
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.exposure_rules.finding_creator import process_exposures
 from ati_evn.external.censys_client import (
@@ -80,6 +80,7 @@ async def cmd_scan_censys(message: Message):
                 row = await session.execute(
                     select(Customer.id)
                     .where(customer_name_or_code_match(auto_discover))
+                    .order_by(customer_match_order_by(auto_discover))
                     .limit(1)
                 )
                 r = row.scalar_one_or_none()

@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.db.models import Campaign, Customer
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 
@@ -54,6 +54,7 @@ async def search_campaigns(
         if customer:
             cust_row = await session.execute(
                 select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer))
                 .limit(1)
             )
             cust_id = cust_row.scalar_one_or_none()

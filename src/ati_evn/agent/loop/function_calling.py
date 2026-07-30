@@ -47,6 +47,15 @@ async def run_function_calling(
         "content": (context_prefix + "\n\n" + user_message).strip(),
     })
 
+    # Destructive tools that failed the confirmed=True guard anywhere
+    # in this turn (any step, not just the current LLM response) --
+    # models sometimes respond to that failure by immediately retrying
+    # the same tool in a later step instead of stopping to ask the
+    # analyst again, which would bypass the point of the confirmation
+    # step. Persists across the whole run_function_calling call (one
+    # analyst turn), not just within a single tool_calls batch.
+    blocked_after_pending_failure: set[str] = set()
+
     for step in range(max_steps):
         try:
             response = await client.chat_with_tools(
@@ -94,12 +103,34 @@ async def run_function_calling(
             "tool_calls": tool_calls,
         })
 
-        # Execute each tool call, append tool responses
+        # Execute each tool call, append tool responses.
         for tc in tool_calls:
             tc_id = tc.get("id")
             fn = tc.get("function") or {}
             fn_name = fn.get("name")
             fn_args_raw = fn.get("arguments") or "{}"
+
+            if fn_name in blocked_after_pending_failure:
+                tool_result = {
+                    "success": False,
+                    "error": (
+                        f"Blocked: {fn_name} already failed its confirmation "
+                        "check earlier in this same turn. Do not retry it "
+                        "automatically -- stop and ask the analyst to "
+                        "confirm again in a new message."
+                    ),
+                }
+                trace.tool_calls.append(ToolCallTrace(
+                    tool_name=fn_name, args={},
+                    result_summary="blocked: retry after pending-confirmation failure",
+                    duration_ms=0, success=False,
+                ))
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc_id,
+                    "content": json.dumps(tool_result),
+                })
+                continue
 
             if not fn_name or fn_name not in TOOL_REGISTRY:
                 trace.tool_calls.append(ToolCallTrace(
@@ -132,6 +163,13 @@ async def run_function_calling(
                 **fn_args, _session_id=session_state.user_id,
             )
             call_duration = int((time.monotonic() - call_start) * 1000)
+
+            if (
+                fn_args.get("confirmed")
+                and not tool_result.get("success", True)
+                and "PENDING_CONFIRMATION" in str(tool_result.get("error", ""))
+            ):
+                blocked_after_pending_failure.add(fn_name)
 
             _update_session_from_tool(session_state, fn_name, fn_args, tool_result)
 

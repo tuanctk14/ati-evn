@@ -18,8 +18,14 @@ from ati_evn.db.models import (
     Finding,
     IpEnrichment,
     SigmaRule,
+    ThreatIndicator,
 )
-from ati_evn.db.query_utils import customer_name_or_code_match, only_live_asset, only_live_customer
+from ati_evn.db.query_utils import (
+    customer_match_order_by,
+    customer_name_or_code_match,
+    only_live_asset,
+    only_live_customer,
+)
 from ati_evn.db.session import async_session
 from ati_evn.enrichment.attack_catalog import get_technique_name
 
@@ -85,8 +91,23 @@ async def _rel_ioc(session, ioc_value: str) -> dict:
     )
     findings = [{"id": fid, "label": title} for fid, title in finding_rows.all()]
 
+    # ThreatIndicator.indicator_value often stores a full URL (e.g.
+    # "https://evngov.cc/") rather than a bare domain/IP, so exact match
+    # would miss most brand_abuse/exposed_document rows -- use substring
+    # match instead (same reasoning as customer_name_or_code_match).
+    ti_rows = await session.execute(
+        select(ThreatIndicator.id, ThreatIndicator.title, ThreatIndicator.indicator_type).where(
+            ThreatIndicator.indicator_value.ilike(f"%{value_norm}%"),
+        ).limit(CAP)
+    )
+    indicators = [
+        {"id": tid, "label": title, "indicator_type": itype}
+        for tid, title, itype in ti_rows.all()
+    ]
+
     return {
         "findings": findings,
+        "indicators": indicators,
         "feeds": [{"id": f, "label": f} for f in feeds],
     }
 
@@ -179,7 +200,8 @@ async def _rel_customer(session, customer_id_or_name: str) -> dict:
         cust = await session.get(Customer, int(customer_id_or_name))
     if not cust:
         result = await session.execute(
-            select(Customer).where(customer_name_or_code_match(customer_id_or_name)).limit(1)
+            select(Customer).where(customer_name_or_code_match(customer_id_or_name))
+            .order_by(customer_match_order_by(customer_id_or_name)).limit(1)
         )
         cust = result.scalar_one_or_none()
     if not cust:

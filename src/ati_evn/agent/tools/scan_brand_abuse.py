@@ -6,7 +6,7 @@ from sqlalchemy import select
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Customer
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.external.brand_abuse_ingest import ingest_brand_abuse
 from ati_evn.external.urlscan_client import UrlscanAPIError, UrlscanConfigError, search_brand
@@ -51,7 +51,7 @@ async def scan_brand_abuse(
                 select(Customer).where(
                     customer_name_or_code_match(customer),
                     Customer.deleted_at.is_(None),
-                ).limit(1)
+                ).order_by(customer_match_order_by(customer)).limit(1)
             )
             c = row.scalar_one_or_none()
             if not c:

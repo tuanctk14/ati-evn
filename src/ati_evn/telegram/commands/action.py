@@ -73,6 +73,12 @@ async def cmd_close(message: Message):
         if not finding:
             await message.answer(f"Không tìm thấy Finding #{finding_id}")
             return
+        if finding.ioc_type != "cve_id":
+            await message.answer(
+                f"⚠️ Finding #{finding_id} là legacy non-CVE (đã migrate sang ThreatIndicator) — "
+                f"không có lifecycle close/reopen/FP. Dùng /acknowledge_indicator thay thế."
+            )
+            return
         if finding.status == FindingStatus.CLOSED:
             await message.answer(f"Finding #{finding_id} đã closed từ trước.")
             return
@@ -107,6 +113,12 @@ async def cmd_mark_fp(message: Message):
         finding = await session.get(Finding, finding_id)
         if not finding:
             await message.answer(f"Không tìm thấy Finding #{finding_id}")
+            return
+        if finding.ioc_type != "cve_id":
+            await message.answer(
+                f"⚠️ Finding #{finding_id} là legacy non-CVE (đã migrate sang ThreatIndicator) — "
+                f"không có lifecycle close/reopen/FP. Dùng /acknowledge_indicator thay thế."
+            )
             return
 
         # Narrow scope by default: resolve the actual asset_id from
@@ -192,6 +204,12 @@ async def cmd_reopen(message: Message):
         finding = await session.get(Finding, finding_id)
         if not finding:
             await message.answer(f"Không tìm thấy Finding #{finding_id}")
+            return
+        if finding.ioc_type != "cve_id":
+            await message.answer(
+                f"⚠️ Finding #{finding_id} là legacy non-CVE (đã migrate sang ThreatIndicator) — "
+                f"không có lifecycle close/reopen/FP. Dùng /acknowledge_indicator thay thế."
+            )
             return
         if finding.status == FindingStatus.OPEN:
             await message.answer(f"Finding #{finding_id} đã open.")

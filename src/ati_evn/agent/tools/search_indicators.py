@@ -8,7 +8,7 @@ from sqlalchemy import desc, select
 from ati_evn.agent.tools._action_base import register_action_tool
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.db.models import Customer, ThreatIndicator
-from ati_evn.db.query_utils import customer_name_or_code_match, ti_default_status_filter
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match, ti_default_status_filter
 from ati_evn.db.session import async_session
 
 VALID_TYPES = [
@@ -83,7 +83,8 @@ async def search_indicators(
 
         if customer:
             cr = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer)).limit(1)
             )
             cid = cr.scalar_one_or_none()
             if not cid:

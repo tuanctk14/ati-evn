@@ -17,12 +17,15 @@ from ati_evn.db.models import (
     Detection,
     Finding,
     FindingStatus,
+    ThreatIndicator,
 )
 from ati_evn.db.query_utils import (
     cve_only_filter,
+    customer_match_order_by,
     customer_name_or_code_match,
     only_live_asset,
     only_live_customer,
+    ti_default_status_filter,
 )
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
@@ -31,7 +34,7 @@ from ati_evn.telegram.formatter.asset import format_asset_detail
 from ati_evn.telegram.formatter.customer import format_customer_detail
 from ati_evn.telegram.formatter.cve import format_cve_detail
 from ati_evn.telegram.formatter.finding import format_finding_detail
-from ati_evn.telegram.formatter.ioc import format_ioc_detail
+from ati_evn.telegram.formatter.ioc import format_ioc_as_indicator, format_ioc_detail
 from ati_evn.telegram.formatter.list import format_finding_list, list_open_pagination_keyboard
 from ati_evn.telegram.formatter.stats import format_stats
 
@@ -149,6 +152,18 @@ async def cmd_ioc(message: Message):
         )
         detections = list(det_result.scalars())
         if not detections:
+            # Fallback: this value may only exist as a ThreatIndicator
+            # (slice 15A+ non-CVE signal -- brand_abuse/document/exposure
+            # ingest write directly there, never through Detection).
+            ti_result = await session.execute(
+                select(ThreatIndicator).where(ThreatIndicator.indicator_value == ioc_value)
+            )
+            ti = ti_result.scalars().first()
+            if ti:
+                await message.answer(
+                    format_ioc_as_indicator(ti), disable_web_page_preview=True,
+                )
+                return
             await message.answer(f"Không tìm thấy IOC: {ioc_value}")
             return
 
@@ -225,7 +240,7 @@ async def cmd_customer(message: Message):
                 select(Customer).where(
                     customer_name_or_code_match(query_str),
                     only_live_customer(),
-                ).limit(1)
+                ).order_by(customer_match_order_by(query_str)).limit(1)
             )
             customer = result.scalar_one_or_none()
         if not customer:
@@ -249,6 +264,16 @@ async def cmd_customer(message: Message):
         )
         finding_counts = {s.value: c for s, c in finding_rows.all()}
 
+        ti_type_rows_cust = await session.execute(
+            select(ThreatIndicator.indicator_type, func.count()).where(
+                ti_default_status_filter(),
+                ThreatIndicator.customer_id == customer.id,
+                ThreatIndicator.first_seen >= cutoff_30d,
+            ).group_by(ThreatIndicator.indicator_type).order_by(func.count().desc())
+        )
+        ti_counts = [(t, c) for t, c in ti_type_rows_cust.all()]
+        ti_total = sum(c for _, c in ti_counts)
+
         cutoff_24h = datetime.now(timezone.utc) - timedelta(hours=24)
         alert_count_result = await session.execute(
             select(func.count()).select_from(AlertQueue).where(
@@ -269,8 +294,20 @@ async def cmd_customer(message: Message):
         """), {"customer_id": customer.id, "cutoff": cutoff_30d})
         top_techniques = [(r[0], r[1]) for r in top_tech_rows.all()]
 
+        # Resolve parent name explicitly here (in-session) rather than
+        # let the formatter touch customer.parent -- that's a lazy-load
+        # relationship, and format_customer_detail is a plain sync
+        # function called after this point; accessing it there raised
+        # sqlalchemy.exc.MissingGreenlet (no greenlet context to do the
+        # implicit lazy-load query in).
+        parent_name = None
+        if customer.parent_id:
+            parent = await session.get(Customer, customer.parent_id)
+            parent_name = parent.name if parent else None
+
         text_out = format_customer_detail(
             customer, asset_breakdown, finding_counts, recent_alerts, top_techniques,
+            parent_name=parent_name, ti_counts=ti_counts, ti_total=ti_total,
         )
         await message.answer(text_out, disable_web_page_preview=True)
 
@@ -355,6 +392,23 @@ async def cmd_stats(message: Message):
         from ati_evn.telegram.formatter.common import fmt_dt
         latest_ingest_str = f"{fmt_dt(latest_ingest)} ICT" if latest_ingest else None
 
+        ti_total = (await session.execute(
+            select(func.count()).select_from(ThreatIndicator)
+        )).scalar_one()
+
+        ti_status_rows = await session.execute(
+            select(ThreatIndicator.status, func.count()).group_by(ThreatIndicator.status)
+        )
+        ti_by_status = dict(ti_status_rows.all())
+
+        ti_type_rows = await session.execute(
+            select(ThreatIndicator.indicator_type, func.count())
+            .where(ThreatIndicator.status.in_(["active", "acknowledged"]))
+            .group_by(ThreatIndicator.indicator_type)
+            .order_by(func.count().desc())
+        )
+        ti_by_type = [(t, c) for t, c in ti_type_rows.all()]
+
         counters = {
             "findings_total": findings_total,
             "findings_by_status": findings_by_status,
@@ -363,6 +417,9 @@ async def cmd_stats(message: Message):
             "detections_by_source": detections_by_source,
             "top_vendors": top_vendors,
             "latest_ingest": latest_ingest_str,
+            "ti_total": ti_total,
+            "ti_by_status": ti_by_status,
+            "ti_by_type": ti_by_type,
         }
 
         text_out = format_stats(counters, top_customers, top_techniques, dispatch_stats)

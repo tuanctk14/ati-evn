@@ -13,7 +13,7 @@ from ati_evn.agent.tools._action_base import pending_confirmation, register_acti
 from ati_evn.agent.tools._base import tool_error
 from ati_evn.alerts.dispatch_rule import should_dispatch
 from ati_evn.db.models import AlertQueue, Customer, Finding, FindingStatus, Severity
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 
@@ -52,7 +52,7 @@ async def create_finding(
             select(Customer.id, Customer.name).where(
                 customer_name_or_code_match(customer),
                 Customer.deleted_at.is_(None),
-            ).limit(1)
+            ).order_by(customer_match_order_by(customer)).limit(1)
         )
         r = row.first()
         if not r:

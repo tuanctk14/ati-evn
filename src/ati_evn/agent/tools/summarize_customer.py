@@ -10,7 +10,12 @@ from sqlalchemy import func, select, text
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.config import get_settings
 from ati_evn.db.models import AlertQueue, Customer, CustomerAsset, Finding, FindingStatus
-from ati_evn.db.query_utils import cve_only_filter, customer_name_or_code_match, only_live_asset
+from ati_evn.db.query_utils import (
+    customer_match_order_by,
+    customer_name_or_code_match,
+    cve_only_filter,
+    only_live_asset,
+)
 from ati_evn.db.session import async_session
 from ati_evn.llm.client import LLMClient
 
@@ -30,7 +35,10 @@ figures given. Return ONLY the JSON, no markdown fences."""
 async def _resolve_customer(session, query_str: str) -> Customer | None:
     if query_str.isdigit():
         return await session.get(Customer, int(query_str))
-    result = await session.execute(select(Customer).where(customer_name_or_code_match(query_str)).limit(1))
+    result = await session.execute(
+        select(Customer).where(customer_name_or_code_match(query_str))
+        .order_by(customer_match_order_by(query_str)).limit(1)
+    )
     return result.scalar_one_or_none()
 
 
@@ -123,9 +131,20 @@ async def summarize_customer(customer: str, since_days: int = 7) -> dict:
         words = summary.split()
         if len(words) > 500:
             summary = " ".join(words[:500])
-        return {"summary": summary, "data": data}
+        return {"success": True, "summary": summary, "data": data}
     except Exception as e:
+        # The raw metrics in `data` are still valid even though the LLM
+        # narrative failed -- but this must NOT look like a plain
+        # success to the caller (an earlier version returned tool_error()
+        # with `data` attached, which let the agent quietly present the
+        # raw numbers as if the full summary had succeeded, hiding the
+        # LLM failure from the analyst). success=True + narrative_failed
+        # is a distinct third state the agent is told (SYSTEM_PROMPT) to
+        # always surface before presenting `data`.
         logger.warning("summarize_customer LLM failed: %s", e)
-        result = tool_error(f"LLM summary failed: {str(e)[:200]}")
-        result["data"] = data
-        return result
+        return {
+            "success": True,
+            "narrative_failed": True,
+            "narrative_error": str(e)[:200],
+            "data": data,
+        }

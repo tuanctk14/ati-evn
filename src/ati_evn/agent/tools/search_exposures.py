@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
-from ati_evn.db.models import Customer, Exposure
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.models import Customer, Exposure, ThreatIndicator
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 
@@ -51,7 +51,8 @@ async def search_exposures(
 
         if customer:
             r = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer)).limit(1)
             )
             cid = r.scalar_one_or_none()
             if not cid:
@@ -79,6 +80,23 @@ async def search_exposures(
                 c = await session.get(Customer, r.customer_id)
                 customer_names[r.customer_id] = c.name if c else f"#{r.customer_id}"
 
+        # Map exposure -> its ThreatIndicator id so callers can point the
+        # analyst at /indicator <id> without confusing the two ID spaces
+        # (Exposure.id and ThreatIndicator.id are unrelated sequences).
+        # An exposure can have more than one TI row across rescans; use
+        # the most recently created one.
+        exposure_ids = [r.id for r in rows]
+        indicator_ids: dict[int, int] = {}
+        if exposure_ids:
+            ti_rows = await session.execute(
+                select(ThreatIndicator.id, ThreatIndicator.source_entity_id).where(
+                    ThreatIndicator.source_entity_type == "exposure",
+                    ThreatIndicator.source_entity_id.in_(exposure_ids),
+                ).order_by(ThreatIndicator.id.desc())
+            )
+            for ti_id, eid in ti_rows.all():
+                indicator_ids.setdefault(eid, ti_id)
+
         return {
             "total_count": total,
             "returned_count": len(rows),
@@ -95,6 +113,7 @@ async def search_exposures(
                     "first_seen_local": r.first_seen_local.isoformat() if r.first_seen_local else None,
                     "last_seen_local": r.last_seen_local.isoformat() if r.last_seen_local else None,
                     "capabilities": r.capabilities or {},
+                    "indicator_id": indicator_ids.get(r.id),
                 }
                 for r in rows
             ],

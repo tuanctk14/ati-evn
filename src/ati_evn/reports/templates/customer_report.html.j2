@@ -144,7 +144,7 @@
    {% endif %}
 </p>
 {% if vulnerabilities.findings %}
-{% for v in vulnerabilities.findings[:15] %}
+{% for v in vulnerabilities.findings %}
 <div class="cve-detail">
   <h4>
     {{ v.cve }}
@@ -168,9 +168,6 @@
   <div class="cve-refs">Refs: <a href="{{ v.nvd_url }}">NVD</a></div>
 </div>
 {% endfor %}
-{% if vulnerabilities.findings | length > 15 %}
-<p><em>...và {{ vulnerabilities.findings | length - 15 }} CVE khác.</em></p>
-{% endif %}
 {% else %}
 <p><em>Không có CVE finding trong kỳ.</em></p>
 {% endif %}

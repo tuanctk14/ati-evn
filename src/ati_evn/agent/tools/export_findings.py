@@ -66,9 +66,10 @@ async def export_findings(
         )
 
         if customer:
-            from ati_evn.db.query_utils import customer_name_or_code_match
+            from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
             cr = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer)).limit(1)
             )
             cid = cr.scalar_one_or_none()
             if not cid:

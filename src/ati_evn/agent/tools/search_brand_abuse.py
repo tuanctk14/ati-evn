@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
-from ati_evn.db.models import BrandAbuseSighting, Customer
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.models import BrandAbuseSighting, Customer, ThreatIndicator
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 
@@ -47,7 +47,8 @@ async def search_brand_abuse(
 
         if customer:
             r = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer)).limit(1)
             )
             cid = r.scalar_one_or_none()
             if not cid:
@@ -78,6 +79,24 @@ async def search_brand_abuse(
                 c = await session.get(Customer, r.customer_id)
                 customer_names[r.customer_id] = c.name if c else f"#{r.customer_id}"
 
+        # Map sighting -> its ThreatIndicator id so callers can point the
+        # analyst at /indicator <id> without confusing the two ID spaces
+        # (BrandAbuseSighting.id and ThreatIndicator.id are unrelated
+        # sequences -- a sighting's own "id" is NOT a valid /indicator arg).
+        # A sighting can have more than one TI row across rescans; use the
+        # most recently created one.
+        sighting_ids = [r.id for r in rows]
+        indicator_ids: dict[int, int] = {}
+        if sighting_ids:
+            ti_rows = await session.execute(
+                select(ThreatIndicator.id, ThreatIndicator.source_entity_id).where(
+                    ThreatIndicator.source_entity_type == "brand_abuse_sighting",
+                    ThreatIndicator.source_entity_id.in_(sighting_ids),
+                ).order_by(ThreatIndicator.id.desc())
+            )
+            for ti_id, sid in ti_rows.all():
+                indicator_ids.setdefault(sid, ti_id)
+
         return {
             "total_count": total,
             "returned_count": len(rows),
@@ -95,6 +114,7 @@ async def search_brand_abuse(
                     "llm_relevant": r.llm_relevant,
                     "llm_reasoning": r.llm_reasoning,
                     "first_seen_local": r.first_seen_local.isoformat() if r.first_seen_local else None,
+                    "indicator_id": indicator_ids.get(r.id),
                 }
                 for r in rows
             ],

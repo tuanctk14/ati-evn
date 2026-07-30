@@ -11,7 +11,7 @@ import logging
 import re
 import time
 
-from ati_evn.agent.loop.config import MAX_STEPS, TOKEN_SOFT_CAP, render_context_prefix
+from ati_evn.agent.loop.config import EVN_SCOPE_RULES, MAX_STEPS, TOKEN_SOFT_CAP, render_context_prefix
 from ati_evn.agent.loop.trace import AgentRunTrace, ToolCallTrace
 from ati_evn.agent.session.state import SessionState
 from ati_evn.agent.tools import TOOL_REGISTRY
@@ -48,7 +48,11 @@ Rules:
 - Cap at 8 tool calls.
 - Preserve English tech terms (CVE-IDs, T-numbers, product names).
 - Do NOT invent numbers or IDs.
+
+{evn_scope_rules}
 """
+
+REACT_SYSTEM = REACT_SYSTEM.replace("{evn_scope_rules}", EVN_SCOPE_RULES)
 
 ACTION_RE = re.compile(
     r"Action:\s*(?P<name>\w+).*?Action Input:\s*(?P<args>\{.*?\})",

@@ -16,7 +16,7 @@ from aiogram.types import BufferedInputFile, Message
 from sqlalchemy import select
 
 from ati_evn.db.models import Customer, ThreatIndicator
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
 from ati_evn.telegram.audit import log_command
@@ -52,7 +52,8 @@ async def cmd_export_indicators(message: Message):
             stmt = stmt.where(ThreatIndicator.severity == severity.upper())
         if customer_arg:
             cr = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer_arg)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer_arg))
+                .order_by(customer_match_order_by(customer_arg)).limit(1)
             )
             cid = cr.scalar_one_or_none()
             if not cid:

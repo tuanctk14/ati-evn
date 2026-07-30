@@ -7,14 +7,17 @@ from sqlalchemy import func, select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.db.models import AlertQueue, Customer, CustomerAsset, Finding, FindingStatus
-from ati_evn.db.query_utils import customer_name_or_code_match, only_live_asset
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match, only_live_asset
 from ati_evn.db.session import async_session
 
 
 async def _resolve_customer(session, query_str: str) -> Customer | None:
     if query_str.isdigit():
         return await session.get(Customer, int(query_str))
-    result = await session.execute(select(Customer).where(customer_name_or_code_match(query_str)).limit(1))
+    result = await session.execute(
+        select(Customer).where(customer_name_or_code_match(query_str))
+        .order_by(customer_match_order_by(query_str)).limit(1)
+    )
     return result.scalar_one_or_none()
 
 

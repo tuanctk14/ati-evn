@@ -33,7 +33,8 @@ def _postprocess_narrative(text: str) -> str:
     if "Đoạn 3" not in text:
         logger.warning("Narrative missing Đoạn 3 (Recommendations section). Length: %d chars", len(text))
 
-    return _PARAGRAPH_LABEL_RE.sub("", text).strip()
+    text = _PARAGRAPH_LABEL_RE.sub("\n\n", text).strip()
+    return re.sub(r"\n{3,}", "\n\n", text)
 
 
 REMEDIATION_SYSTEM = """Bạn là SOC lead của EVN. Nhận danh sách CVE
@@ -98,6 +99,7 @@ async def generate_aggregated_remediation(cve_findings: list[dict]) -> str:
             system=REMEDIATION_SYSTEM, user=prompt,
             max_tokens=settings.report_llm_max_tokens,
             temperature=0.2,
+            timeout=60.0,
         )
     except Exception as e:
         logger.exception("Remediation LLM failed")

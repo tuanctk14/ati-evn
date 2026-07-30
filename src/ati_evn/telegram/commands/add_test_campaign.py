@@ -32,7 +32,7 @@ from ati_evn.db.models import (
     FindingStatus,
     Severity,
 )
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.enrichment.attack_catalog import (
     get_mitigation_name,
@@ -73,7 +73,8 @@ async def cmd_add_test_campaign(message: Message):
 
     async with async_session() as session:
         cust_row = await session.execute(
-            select(Customer).where(customer_name_or_code_match(customer_name)).limit(1)
+            select(Customer).where(customer_name_or_code_match(customer_name))
+            .order_by(customer_match_order_by(customer_name)).limit(1)
         )
         customer = cust_row.scalar_one_or_none()
         if not customer:

@@ -22,7 +22,20 @@ def format_stats(counters, top_customers, top_techniques, dispatch_stats) -> str
             lines.append(f"    • {k}: {v}")
 
     lines.append("")
-    lines.append(f"Dữ liệu thu thập từ feed (raw): {counters.get('detections_total', 0)}")
+    lines.append(f"Threat Indicators: {counters.get('ti_total', 0)}")
+    ti_by_status = counters.get("ti_by_status") or {}
+    if ti_by_status:
+        lines.append("  Theo status:")
+        for k, v in sorted(ti_by_status.items(), key=lambda x: -x[1]):
+            lines.append(f"    • {k}: {v}")
+    ti_by_type = counters.get("ti_by_type") or []
+    if ti_by_type:
+        lines.append("  Theo loại:")
+        for tp, cnt in ti_by_type[:6]:
+            lines.append(f"    • {tp}: {cnt}")
+
+    lines.append("")
+    lines.append(f"Dữ liệu thu thập: {counters.get('detections_total', 0)}")
     by_source = counters.get("detections_by_source") or []
     if by_source:
         lines.append("  Top nguồn:")

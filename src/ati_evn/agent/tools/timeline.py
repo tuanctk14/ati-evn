@@ -7,7 +7,7 @@ from sqlalchemy import or_, select
 
 from ati_evn.agent.tools._base import register_tool, tool_error
 from ati_evn.db.models import AlertQueue, CommandLog, Customer, CustomerAsset, Finding
-from ati_evn.db.query_utils import cve_only_filter, customer_name_or_code_match
+from ati_evn.db.query_utils import cve_only_filter, customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 
 EVENT_CAP = 50
@@ -16,7 +16,10 @@ EVENT_CAP = 50
 async def _resolve_customer(session, query_str: str) -> Customer | None:
     if query_str.isdigit():
         return await session.get(Customer, int(query_str))
-    result = await session.execute(select(Customer).where(customer_name_or_code_match(query_str)).limit(1))
+    result = await session.execute(
+        select(Customer).where(customer_name_or_code_match(query_str))
+        .order_by(customer_match_order_by(query_str)).limit(1)
+    )
     return result.scalar_one_or_none()
 
 

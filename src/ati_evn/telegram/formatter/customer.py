@@ -4,12 +4,14 @@ from __future__ import annotations
 
 def format_customer_detail(
     customer, asset_breakdown, finding_counts, recent_alerts, top_techniques,
+    parent_name: str | None = None,
+    ti_counts: list | None = None, ti_total: int = 0,
 ) -> str:
     lines = [
         f"🏢 {customer.name}",
         "",
         f"Short code: {customer.short_code or '-'}",
-        f"Parent: {customer.parent.name if customer.parent else '-'}",
+        f"Parent: {parent_name or '-'}",
         f"Industry: {customer.industry or '-'}",
         f"Primary domain: {customer.primary_domain or '-'}",
         f"Tier: {customer.tier or '-'}",
@@ -28,6 +30,12 @@ def format_customer_detail(
         for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
             if sev in finding_counts:
                 lines.append(f"  • {sev}: {finding_counts[sev]}")
+
+    if ti_counts:
+        lines.append("")
+        lines.append(f"Threat Indicators (30 ngày qua): {ti_total}")
+        for tp, count in ti_counts:
+            lines.append(f"  • {tp}: {count}")
 
     lines.append("")
     lines.append(f"Alerts (24h qua): {recent_alerts}")

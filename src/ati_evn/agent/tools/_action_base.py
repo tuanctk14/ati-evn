@@ -34,10 +34,15 @@ logger = logging.getLogger("ati_evn.agent.action_base")
 
 PENDING_TTL_SECONDS = 300  # 5 minutes
 
-# In-process pending-confirmation registry: {(session_id, tool_name, args_hash): expires_at}.
-# Enforces the confirm-before-execute contract at the code layer instead of
-# trusting the LLM to only send confirmed=True after a real user confirmation.
-_pending_confirmations: dict[tuple[str, str, str], float] = {}
+# In-process pending-confirmation registry: {(session_id, tool_name, args_hash):
+# (expires_at, original_kwargs)}. Enforces the confirm-before-execute contract
+# at the code layer instead of trusting the LLM to only send confirmed=True
+# after a real user confirmation. original_kwargs is replayed verbatim on
+# confirm (see wrapper below) rather than trusting whatever args the model
+# resends -- models frequently drop optional/default args (e.g. window=7d)
+# when the analyst confirms tersely ("OK"), which would otherwise hash-miss
+# and reject a perfectly legitimate confirmation.
+_pending_confirmations: dict[tuple[str, str, str], tuple[float, dict]] = {}
 
 
 def _args_hash(kwargs: dict) -> str:
@@ -49,9 +54,20 @@ def _args_hash(kwargs: dict) -> str:
 
 def _prune_expired() -> None:
     now = time.monotonic()
-    expired = [k for k, exp in _pending_confirmations.items() if exp < now]
+    expired = [k for k, (exp, _) in _pending_confirmations.items() if exp < now]
     for k in expired:
         del _pending_confirmations[k]
+
+
+def _find_pending_for_tool(session_id: str, tool_name: str) -> list[tuple[tuple[str, str, str], dict]]:
+    """All non-expired pending confirmations for this (session, tool),
+    regardless of args_hash -- used as a fallback when the strict
+    (session, tool, args_hash) key doesn't match on confirm."""
+    return [
+        (key, original_kwargs)
+        for key, (_, original_kwargs) in _pending_confirmations.items()
+        if key[0] == session_id and key[1] == tool_name
+    ]
 
 
 def pending_confirmation(summary: dict) -> dict:
@@ -138,21 +154,48 @@ def register_action_tool(
             input_args = dict(kwargs)
             _prune_expired()
 
-            if destructive:
-                key = (session_id, name, _args_hash(kwargs))
-                if kwargs.get("confirmed"):
-                    if key not in _pending_confirmations:
+            if destructive and kwargs.get("confirmed"):
+                strict_key = (session_id, name, _args_hash(kwargs))
+                if strict_key in _pending_confirmations:
+                    del _pending_confirmations[strict_key]
+                else:
+                    # Strict hash miss -- fall back to any pending
+                    # confirmation for this (session, tool). If exactly
+                    # one exists, replay ITS original args (not the
+                    # model's possibly-incomplete re-call args) so a
+                    # terse "OK"/"xac nhan" still executes the exact
+                    # action the analyst was shown, never a different
+                    # one.
+                    candidates = _find_pending_for_tool(session_id, name)
+                    if len(candidates) == 1:
+                        (matched_key, original_kwargs) = candidates[0]
+                        del _pending_confirmations[matched_key]
+                        recovered = dict(original_kwargs)
+                        recovered["confirmed"] = True
+                        logger.info(
+                            "Action %s: confirm args didn't match pending hash -- "
+                            "replaying original pending args instead", name,
+                        )
+                        kwargs = recovered
+                        input_args = dict(kwargs)
+                    elif len(candidates) > 1:
                         err = (
-                            "confirmed=True was sent without a matching prior "
-                            "PENDING_CONFIRMATION call in this session (same "
-                            "tool + same args) -- call the tool first WITHOUT "
-                            "confirmed=True, show the summary to the analyst, "
-                            "and only re-call with confirmed=True after they "
-                            "explicitly confirm."
+                            f"Multiple pending confirmations exist for {name} in "
+                            "this session -- ambiguous which one to confirm. Ask "
+                            "the analyst to restate the request from scratch."
                         )
                         await log_action(name, input_args, {"error": err}, "failed", err)
                         return tool_error(err)
-                    del _pending_confirmations[key]
+                    else:
+                        err = (
+                            "confirmed=True was sent without a matching prior "
+                            "PENDING_CONFIRMATION call in this session for this "
+                            "tool -- call the tool first WITHOUT confirmed=True, "
+                            "show the summary to the analyst, and only re-call "
+                            "with confirmed=True after they explicitly confirm."
+                        )
+                        await log_action(name, input_args, {"error": err}, "failed", err)
+                        return tool_error(err)
 
             try:
                 if fn_wants_session_id:
@@ -170,7 +213,9 @@ def register_action_tool(
                 status = "pending_confirmation"
                 if destructive:
                     key = (session_id, name, _args_hash(kwargs))
-                    _pending_confirmations[key] = time.monotonic() + PENDING_TTL_SECONDS
+                    _pending_confirmations[key] = (
+                        time.monotonic() + PENDING_TTL_SECONDS, dict(kwargs),
+                    )
             elif isinstance(result, dict) and result.get("error"):
                 status = "failed"
 

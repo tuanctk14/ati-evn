@@ -214,7 +214,7 @@ async def gather_global_report(from_dt: datetime, to_dt: datetime) -> dict:
             if not is_test_finding(f)
         ]
 
-        findings_by_severity = {sev.value: 0 for sev in Severity}
+        findings_by_severity = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
         source_counts: dict[str, int] = {}
         customer_ids_in_window = set()
         for f in in_window_findings:

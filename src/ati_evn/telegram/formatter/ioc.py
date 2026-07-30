@@ -27,3 +27,31 @@ def format_ioc_detail(ioc_type, ioc_value, detections, related_findings) -> str:
         lines.append(f"  ...và {len(related_findings) - 5} finding khác")
 
     return "\n".join(lines)
+
+
+def format_ioc_as_indicator(ti) -> str:
+    """Fallback formatter for /ioc when the value has no Detection row
+    but exists as a ThreatIndicator (slice 15A+ non-CVE signal) -- e.g.
+    an IP/domain that only ever came in through brand_abuse/document/
+    exposure ingest, which write directly to ThreatIndicator now.
+    """
+    sev = ti.severity.value if hasattr(ti.severity, "value") else str(ti.severity)
+    ack = "Yes" if ti.acknowledged_at else "No"
+    lines = [
+        f"🔎 IOC: {ti.indicator_value} ({ti.indicator_type.upper()})",
+        "",
+        "ℹ️ Không có Detection row (feed-level) cho giá trị này -- tìm "
+        "thấy dưới dạng ThreatIndicator (non-CVE signal).",
+        "",
+        f"Threat Indicator: #{ti.id}",
+        f"Title: {ti.title}",
+        f"Severity: {fmt_severity(sev)}",
+        f"Status: {ti.status}  (acknowledged: {ack})",
+        f"Sources: {', '.join(ti.sources or []) or ti.source}",
+        f"First seen: {fmt_dt(ti.first_seen)} ICT",
+        f"Last seen : {fmt_dt(ti.last_seen)} ICT",
+        f"Expires at: {fmt_dt(ti.expires_at)} ICT",
+        "",
+        f"Dùng /indicator {ti.id} để xem chi tiết đầy đủ.",
+    ]
+    return "\n".join(lines)

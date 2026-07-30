@@ -80,9 +80,8 @@ def format_campaign_list(campaigns, customer_names, total, page, per_page,
                           status_filter) -> str:
     if not campaigns:
         return f"Không có campaign với status={status_filter}."
-    pages = (total + per_page - 1) // per_page
-    lines = [f"📋 Campaign list — status={status_filter} — trang {page}/{pages} "
-             f"(tổng {total})"]
+    pages = max(1, (total + per_page - 1) // per_page)
+    lines = [f"📋 Campaign list — status={status_filter}"]
     for c in campaigns:
         cust = customer_names.get(c.customer_id, f"#{c.customer_id}")
         span = (c.window_end - c.window_start).total_seconds() / 3600
@@ -91,6 +90,5 @@ def format_campaign_list(campaigns, customer_names, total, page, per_page,
             f"{c.finding_count} findings / {span:.1f}h · "
             f"{','.join((c.technique_ids or [])[:3])}"
         )
-    if pages > page:
-        lines.append(f"\nTrang tiếp: --page={page+1}")
+    lines.append(f"\nTrang {page}/{pages} (tổng {total}).")
     return "\n".join(lines)

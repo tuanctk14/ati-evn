@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from ati_evn.config import get_settings
 from ati_evn.db.models import Customer
-from ati_evn.db.query_utils import customer_name_or_code_match, only_live_customer
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match, only_live_customer
 from ati_evn.db.session import async_session
 from ati_evn.external.brand_abuse_ingest import ingest_brand_abuse
 from ati_evn.external.urlscan_client import UrlscanAPIError, UrlscanConfigError, search_brand
@@ -39,7 +39,7 @@ async def cmd_scan_urlscan(message: Message):
             row = await session.execute(
                 select(Customer).where(
                     customer_name_or_code_match(customer_query), only_live_customer(),
-                ).limit(1)
+                ).order_by(customer_match_order_by(customer_query)).limit(1)
             )
             customer = row.scalar_one_or_none()
         if not customer:

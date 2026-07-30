@@ -38,9 +38,10 @@ async def list_reports(
             stmt = stmt.where(Report.report_type == report_type)
 
         if customer:
-            from ati_evn.db.query_utils import customer_name_or_code_match
+            from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
             cust_r = await session.execute(
-                select(Customer.id).where(customer_name_or_code_match(customer)).limit(1)
+                select(Customer.id).where(customer_name_or_code_match(customer))
+                .order_by(customer_match_order_by(customer)).limit(1)
             )
             cid = cust_r.scalar_one_or_none()
             if cid:

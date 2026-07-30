@@ -26,3 +26,6 @@ Deferred to future work / thesis Limitations chapter.
 - [LOW] **E.3**: 12 client file(s) without a @retry decorator
   External API clients should retry transient network errors.
 
+- [MEDIUM] **Manual test S4.4**: slash-command results are invisible to the agent's session history
+  `SessionState.history` is only appended by `agent_handler.py` (free-text path) via `append_history()` -- slash-commands (`/confirm_ingest`, `/ack`, `/close`, all 34+ command routers) never touch it. Discovered when "CVE mới ingest có match asset không?" (a temporal-anaphora reference to a `/confirm_ingest` result issued moments earlier in the same Telegram chat) made the agent report "no ingest action happened in this conversation" -- correct given its visibility, but surprising to the analyst since the ingest clearly *did* happen. The temporal-anaphora prompt fix (agent asks for clarification instead of silently guessing a time window) is a safe stopgap, but the underlying fix is a unified interaction log so slash-command outcomes populate the same session history free-text turns do. Estimated ~400 LOC across `agent/session/state.py` (log-write hook) and every command router's success path. Deferred: fixing 2 of 34 commands (`/ingest`, `/confirm_ingest`) only would create inconsistent behavior across commands with no architectural justification.
+

@@ -21,7 +21,7 @@ from aiogram.types import FSInputFile, Message
 from sqlalchemy import select
 
 from ati_evn.db.models import Customer
-from ati_evn.db.query_utils import customer_name_or_code_match
+from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.reports.generator import generate_customer_report, generate_global_report
 from ati_evn.telegram.argparse_util import parse_args, parse_iso_date, parse_window
@@ -82,7 +82,7 @@ async def cmd_generate_report(message: Message):
                 select(Customer.id, Customer.name, Customer.short_code).where(
                     customer_name_or_code_match(customer_arg),
                     Customer.deleted_at.is_(None),
-                ).limit(1)
+                ).order_by(customer_match_order_by(customer_arg)).limit(1)
             )
             row = r.first()
             if not row:
