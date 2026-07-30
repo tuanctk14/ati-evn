@@ -36,3 +36,7 @@ src/ati_evn/data/technique_embeddings.npz
 
 # Bot runtime logs (start.bat writes here)
 /logs/
+
+# DB backups taken before manual ALTER TABLE migrations (contains
+# real session/customer data, not source)
+/backups/

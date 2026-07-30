@@ -11,7 +11,7 @@ from aiogram.types import Message
 from ati_evn.db.models import ThreatIndicator
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 router = Router()
 logger = logging.getLogger("ati_evn.telegram.acknowledge_indicator")
@@ -59,4 +59,9 @@ async def cmd_acknowledge_indicator(message: Message):
         indicator_type = ti.indicator_type
         title = ti.title
 
+    register_command_tool_call(
+        message, tool_name="acknowledge_indicator",
+        output_summary=f"TI #{ti_id} ({indicator_type}) acknowledged",
+        entity_ids=[ti_id],
+    )
     await message.answer(f"✓ Acknowledged TI #{ti_id} — {indicator_type}: {title[:80]}.")

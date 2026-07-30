@@ -11,6 +11,14 @@ Structured state fields (all optional, updated by tool calls):
 
 Conversation history: list of {role, content, timestamp} for LLM context.
 Capped at 20 turns (10 user + 10 assistant) to bound token cost.
+
+command_log_recent (slice 16A): list of {command_name, args_summary,
+tool_calls, timestamp} for slash-commands issued in this session --
+kept separate from `history` (which is free-text-only and feeds the
+LLM `messages` list verbatim in agent/loop/function_calling.py) so
+that adding slash-command visibility doesn't require touching the
+message-building contract other code already depends on. Injected into
+the prompt as text via entity_summary()-style rendering instead.
 """
 from __future__ import annotations
 
@@ -28,6 +36,7 @@ logger = logging.getLogger("ati_evn.agent.session")
 
 SESSION_TTL_MINUTES = 30
 HISTORY_MAX_TURNS = 20
+COMMAND_LOG_MAX_ENTRIES = 20
 
 
 @dataclass
@@ -36,6 +45,14 @@ class SessionState:
     user_id: int
     state: dict[str, Any] = field(default_factory=dict)
     history: list[dict[str, Any]] = field(default_factory=list)
+    command_log_recent: list[dict[str, Any]] = field(default_factory=list)
+    # True once this state has been loaded from (or already saved as) an
+    # existing DB row within the TTL window -- lets `save()` update that
+    # row in place for slash-command-only saves instead of always
+    # inserting a new one, since a command can run this loop many times
+    # per minute (every one of 41 command handlers may call it) where a
+    # free-text turn runs it once.
+    _existing_row_id: int | None = None
 
     def update_entity(self, **kwargs) -> None:
         """Update structured entities. Example:
@@ -53,6 +70,44 @@ class SessionState:
         })
         if len(self.history) > HISTORY_MAX_TURNS:
             self.history = self.history[-HISTORY_MAX_TURNS:]
+
+    def append_command_log(
+        self, command_name: str, args_summary: str,
+        tool_calls: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Record a slash-command invocation for temporal-anaphora
+        resolution ("CVE moi ingest", etc. -- see SYSTEM_PROMPT's
+        TEMPORAL ANAPHORIC REFERENCES section). Oldest entry evicted
+        once COMMAND_LOG_MAX_ENTRIES is exceeded."""
+        self.command_log_recent.append({
+            "command_name": command_name,
+            "args_summary": (args_summary or "")[:200],
+            "tool_calls": tool_calls or [],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        if len(self.command_log_recent) > COMMAND_LOG_MAX_ENTRIES:
+            self.command_log_recent = self.command_log_recent[-COMMAND_LOG_MAX_ENTRIES:]
+
+    def command_log_summary(self, max_entries: int = 10) -> str:
+        """Compact text for injecting recent slash-command actions into
+        the agent's prompt (see render_context_prefix)."""
+        recent = self.command_log_recent[-max_entries:]
+        if not recent:
+            return ""
+        lines = []
+        for entry in recent:
+            ts = entry.get("timestamp", "")[11:19]  # HH:MM:SS
+            line = f"[{ts}] /{entry['command_name']}"
+            if entry.get("args_summary"):
+                line += f" {entry['args_summary']}"
+            for tc in entry.get("tool_calls") or []:
+                out = tc.get("output_summary", "")[:150]
+                line += f"\n    -> {tc.get('tool_name', '?')}: {out}"
+                ids = tc.get("entity_ids") or []
+                if ids:
+                    line += f" (IDs: {ids})"
+            lines.append(line)
+        return "Recent slash-commands in this session:\n" + "\n".join(lines)
 
     def entity_summary(self) -> str:
         """Compact text for injecting into LLM system prompt as
@@ -91,22 +146,49 @@ async def load_or_create(user_id: int) -> SessionState:
                 user_id=user_id,
                 state=dict(existing.state or {}),
                 history=list(existing.conversation_history or []),
+                command_log_recent=list(existing.command_log_recent or []),
+                _existing_row_id=existing.id,
             )
         return SessionState(user_id=user_id)
 
 
-async def save(state: SessionState) -> None:
-    """Persist state + history. Creates a new AgentSession row each
-    time (append-only). Reads always take the freshest non-expired row."""
+async def save(state: SessionState, *, is_command_log_update: bool = False) -> None:
+    """Persist state + history.
+
+    Default (is_command_log_update=False, the free-text path's only
+    call site in agent/loop/runner.py): UNCHANGED append-only insert,
+    same as before slice 16A -- preserves the per-turn row history this
+    path was already verified against during the manual test phase.
+
+    is_command_log_update=True (slice 16A, used by @log_command):
+    updates the most recent non-expired row in place instead of
+    inserting. Slash-commands call save() far more often than free-text
+    turns (every one of 41 command handlers, vs. once per agent turn),
+    and always inserting would make agent_sessions grow unboundedly
+    from command-log writes alone. Falls back to a normal insert if
+    there's no existing row within the TTL window (state._existing_row_id
+    unset, or that row has since expired/been superseded).
+    """
     async with async_session() as session:
+        if is_command_log_update and state._existing_row_id is not None:
+            existing = await session.get(AgentSession, state._existing_row_id)
+            if existing is not None:
+                existing.state = dict(state.state)
+                existing.command_log_recent = list(state.command_log_recent)
+                existing.last_active = datetime.now(timezone.utc)
+                await session.commit()
+                return
+
         new_row = AgentSession(
             telegram_user_id=state.user_id,
             state=dict(state.state),
             conversation_history=list(state.history),
+            command_log_recent=list(state.command_log_recent),
             last_active=datetime.now(timezone.utc),
         )
         session.add(new_row)
         await session.commit()
+        state._existing_row_id = new_row.id
 
 
 async def clear_for_user(user_id: int) -> int:

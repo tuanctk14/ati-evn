@@ -80,7 +80,10 @@ async def run_react(
         for t in TOOL_REGISTRY.values()
     )
     system = REACT_SYSTEM.format(tools_list=tools_list)
-    context_prefix = render_context_prefix(session_state.entity_summary())
+    context_prefix = render_context_prefix(
+        session_state.entity_summary(),
+        session_state.command_log_summary(),
+    )
 
     transcript = context_prefix + "\n\n" + f"User question: {user_message}\n\n"
 

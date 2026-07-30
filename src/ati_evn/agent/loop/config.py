@@ -274,6 +274,17 @@ Example:
   search_findings(since_days=7) and report on whatever CVEs that
   happens to surface instead.
 
+  A "Recent slash-commands in this session" block may also appear in
+  the context prefix (slice 16A) -- this covers actions the analyst
+  took via a Telegram slash-command (e.g. /confirm_ingest,
+  /acknowledge_indicator, /close), which you would otherwise have no
+  visibility into since those don't go through you. Temporal and
+  entity anaphora resolution applies to this block exactly the same
+  way it applies to your own prior free-text answers: if "CVE moi
+  ingest" matches a /confirm_ingest entry there, use the CVE IDs it
+  lists, not a broad time-window query. If neither your own prior
+  answers nor this block has a matching action, ask for clarification.
+
 {EVN_SCOPE_RULES}
 - If a tool returns success=false, do NOT retry with the same args.
   Try a different approach, or ask the user for clarification.
@@ -392,8 +403,14 @@ automatically.
 SYSTEM_PROMPT = SYSTEM_PROMPT.replace("{EVN_SCOPE_RULES}", EVN_SCOPE_RULES)
 
 
-def render_context_prefix(entity_summary: str) -> str:
-    """Optional recent-entity summary injected before user turn."""
-    if not entity_summary:
+def render_context_prefix(entity_summary: str, command_log_summary: str = "") -> str:
+    """Optional recent-entity summary + recent slash-command actions
+    (slice 16A), injected before the user turn."""
+    blocks = []
+    if entity_summary:
+        blocks.append(f"[Recent session context]\n{entity_summary}")
+    if command_log_summary:
+        blocks.append(command_log_summary)
+    if not blocks:
         return ""
-    return f"\n\n[Recent session context]\n{entity_summary}\n"
+    return "\n\n" + "\n\n".join(blocks) + "\n"

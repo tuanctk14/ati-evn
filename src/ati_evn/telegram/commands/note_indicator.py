@@ -11,7 +11,7 @@ from aiogram.types import Message
 from ati_evn.db.models import ThreatIndicator
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 router = Router()
 logger = logging.getLogger("ati_evn.telegram.note_indicator")
@@ -54,4 +54,9 @@ async def cmd_note_indicator(message: Message):
         await session.commit()
         total_notes = len(ti.notes)
 
+    register_command_tool_call(
+        message, tool_name="note_indicator",
+        output_summary=f"Added note to TI #{ti_id} ({total_notes} total)",
+        entity_ids=[ti_id],
+    )
     await message.answer(f"📝 Added note to TI #{ti_id}. Total notes: {total_notes}.")

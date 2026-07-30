@@ -20,7 +20,7 @@ from ati_evn.db.query_utils import customer_name_or_code_match
 from ati_evn.db.session import async_session
 from ati_evn.rescan import trigger_rescan_background
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 logger = logging.getLogger("ati_evn.telegram.add_asset")
 router = Router()
@@ -123,6 +123,11 @@ async def cmd_add_asset(message: Message):
         if version:
             reply += f"  Version: {version}\n"
 
+    register_command_tool_call(
+        message, tool_name="add_asset",
+        output_summary=f"Asset #{asset.id} ({asset_type.value}: {asset_value}) created for {cust_name}",
+        entity_ids=[asset.id],
+    )
     focus_vendor = vendor.lower() if vendor else None
     trigger_rescan_background(
         reason=f"add_asset via Telegram — asset#{asset.id}",

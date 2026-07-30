@@ -29,7 +29,7 @@ from ati_evn.db.models import Detection, DetectionStatus, Severity
 from ati_evn.db.session import async_session
 from ati_evn.match.customer_router import route_detections
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 logger = logging.getLogger("ati_evn.telegram.add_ioc")
 router = Router()
@@ -123,4 +123,9 @@ async def cmd_add_ioc(message: Message):
     )
     if stats.findings_created > 0:
         reply += "\n\n🚨 Bot 1 sẽ dispatch alert nếu severity đủ threshold."
+    register_command_tool_call(
+        message, tool_name="add_ioc",
+        output_summary=f"IOC #{detection_id} ({ioc_type}: {value}) added, {stats.findings_created} finding(s) created",
+        entity_ids=[detection_id],
+    )
     await message.answer(reply)

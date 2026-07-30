@@ -10,7 +10,7 @@ from sqlalchemy import select
 from ati_evn.db.models import Customer
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 router = Router()
 
@@ -66,6 +66,11 @@ async def cmd_add_customer(message: Message):
         )
         session.add(c)
         await session.commit()
+        register_command_tool_call(
+            message, tool_name="add_customer",
+            output_summary=f"Customer #{c.id} '{name}' created",
+            entity_ids=[c.id],
+        )
         await message.answer(
             f"✅ Đã tạo customer #{c.id}: {name}"
             + (f" (parent={parent_name})" if parent_name else "")

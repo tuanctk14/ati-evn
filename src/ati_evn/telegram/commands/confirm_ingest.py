@@ -14,7 +14,7 @@ from aiogram.types import Message
 
 from ati_evn.ingestion.confirm import confirm_ingestion
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 logger = logging.getLogger("ati_evn.telegram.confirm_ingest")
 router = Router()
@@ -51,6 +51,16 @@ async def cmd_confirm_ingest(message: Message):
     if "error" in stats:
         await message.answer(f"⚠️ Confirm failed: {stats['error']}")
         return
+
+    register_command_tool_call(
+        message,
+        tool_name="confirm_ingest",
+        output_summary=(
+            f"Confirmed session #{sid}: {stats['iocs_ingested']} IOC, "
+            f"{stats['cves_ingested']} CVE ingested"
+        ),
+        entity_ids=stats.get("cve_ids") or [],
+    )
 
     lines = [
         f"✅ Session #{sid} confirmed",

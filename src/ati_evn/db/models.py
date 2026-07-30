@@ -607,6 +607,13 @@ class AgentSession(Base):
     telegram_user_id = Column(BigInteger, nullable=False)
     state = Column(JSON, default=dict)
     conversation_history = Column(JSON, default=list)
+    # Slice 16A: recent slash-command actions (separate from
+    # conversation_history, which is free-text-only and feeds the LLM
+    # messages list directly -- keeping that contract unchanged avoids
+    # touching function_calling.py's message-building loop). Injected
+    # into the prompt as text via render_context_prefix, capped at 20
+    # entries (oldest evicted at append time, see SessionState.append_command_log).
+    command_log_recent = Column(JSON, default=list)
     last_active = Column(DateTime(timezone=True), default=_utcnow,
                           nullable=False)
     created_at = Column(DateTime(timezone=True), default=_utcnow,

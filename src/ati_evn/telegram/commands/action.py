@@ -13,7 +13,7 @@ from ati_evn.db.models import AlertQueue, CustomerAsset, Finding, FindingStatus,
 from ati_evn.db.session import async_session
 from ati_evn.match.fp_check import compute_fp_hash
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 logger = logging.getLogger("ati_evn.telegram.action")
 router = Router()
@@ -87,6 +87,11 @@ async def cmd_close(message: Message):
         finding.closed_by = who
         finding.closed_reason = reason
         await session.commit()
+    register_command_tool_call(
+        message, tool_name="close",
+        output_summary=f"Finding #{finding_id} closed by @{who}: {reason}",
+        entity_ids=[finding_id],
+    )
     await message.answer(f"✅ Finding #{finding_id} closed bởi @{who}\nReason: {reason}")
 
 
@@ -175,6 +180,11 @@ async def cmd_mark_fp(message: Message):
         finding.closed_reason = f"FP: {reason}"
         await session.commit()
 
+    register_command_tool_call(
+        message, tool_name="mark_fp",
+        output_summary=f"Finding #{finding_id} marked FP by @{who}: {reason}",
+        entity_ids=[finding_id],
+    )
     scope_msg = "all assets của customer" if all_assets else f"asset đơn (#{asset_id})"
     await message.answer(
         f"✅ Finding #{finding_id} marked FP (scope: {scope_msg})\n"
@@ -220,6 +230,11 @@ async def cmd_reopen(message: Message):
         finding.closed_by = None
         finding.closed_reason = f"reopened by @{who}: {reason} (was {prev_status})"
         await session.commit()
+    register_command_tool_call(
+        message, tool_name="reopen",
+        output_summary=f"Finding #{finding_id} reopened (was {prev_status}) by @{who}",
+        entity_ids=[finding_id],
+    )
     await message.answer(f"✅ Finding #{finding_id} reopened (was {prev_status}) by @{who}")
 
 

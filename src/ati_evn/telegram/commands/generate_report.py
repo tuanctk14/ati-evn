@@ -25,7 +25,7 @@ from ati_evn.db.query_utils import customer_match_order_by, customer_name_or_cod
 from ati_evn.db.session import async_session
 from ati_evn.reports.generator import generate_customer_report, generate_global_report
 from ati_evn.telegram.argparse_util import parse_args, parse_iso_date, parse_window
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 router = Router()
 logger = logging.getLogger("ati_evn.telegram.generate_report")
@@ -170,6 +170,15 @@ async def cmd_generate_report(message: Message):
         for e in files["errors"]:
             lines.append(f"  - {e}")
 
+    register_command_tool_call(
+        message, tool_name="generate_report",
+        output_summary=(
+            f"Report #{result['report_id']} generated "
+            f"({'customer ' + customer_display if customer_id else 'global'}, "
+            f"{data['findings']['total']} findings)"
+        ),
+        entity_ids=[result["report_id"]],
+    )
     await message.answer("\n".join(lines))
 
     if files.get("html_path"):

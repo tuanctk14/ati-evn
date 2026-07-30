@@ -189,6 +189,7 @@ async def confirm_ingestion(session_id: int, analyst_username: str) -> dict:
         "session_id": session_id,
         "iocs_ingested": len(iocs),
         "cves_ingested": len(cve_fetch_ok),
+        "cve_ids": cve_fetch_ok,
         "cves_fetch_failed": cve_fetch_fail,
         "detections_created": len(new_detection_ids),
         "findings_created": len(new_finding_ids),

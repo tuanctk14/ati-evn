@@ -10,7 +10,7 @@ from aiogram.types import Message
 from ati_evn.db.models import IngestionSession
 from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
-from ati_evn.telegram.audit import log_command
+from ati_evn.telegram.audit import log_command, register_command_tool_call
 
 router = Router()
 
@@ -45,6 +45,11 @@ async def cmd_reject_ingest(message: Message):
         ingest.rejected_at = datetime.now(timezone.utc)
         ingest.rejected_reason = reason or f"Rejected by @{who}"
         await session.commit()
+    register_command_tool_call(
+        message, tool_name="reject_ingest",
+        output_summary=f"Session #{sid} rejected by @{who}",
+        entity_ids=[sid],
+    )
     await message.answer(
         f"❌ Session #{sid} REJECTED by @{who}" + (f"\nReason: {reason}" if reason else "")
     )

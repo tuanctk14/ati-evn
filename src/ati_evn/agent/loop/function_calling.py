@@ -36,9 +36,16 @@ async def run_function_calling(
     overall_start = time.monotonic()
 
     tools_schema = get_all_openai_schemas()
-    context_prefix = render_context_prefix(session_state.entity_summary())
+    context_prefix = render_context_prefix(
+        session_state.entity_summary(),
+        session_state.command_log_summary(),
+    )
 
-    # Build initial messages from session history + this user turn
+    # Build initial messages from session history + this user turn.
+    # `history` (free-text turns) is untouched by slice 16A -- it still
+    # feeds this loop verbatim, exactly as before; command_log_recent
+    # only reaches the model via context_prefix above, so this dict-key
+    # access contract is unaffected by the new field.
     messages: list[dict] = []
     for h in session_state.history[-10:]:
         messages.append({"role": h["role"], "content": h["content"]})
