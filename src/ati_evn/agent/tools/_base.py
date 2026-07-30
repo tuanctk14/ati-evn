@@ -25,6 +25,7 @@ def register_tool(
     parameters: dict,
     *,
     accepts_session_id: bool = False,
+    accepts_bot_context: bool = False,
 ) -> Callable:
     """Decorator to register an async function as a tool.
 
@@ -32,12 +33,25 @@ def register_tool(
     wrapper expects a _session_id kwarg (used for the pending-confirmation
     registry) and pops it before delegating to the underlying tool fn.
     Plain query tools never see it.
+
+    accepts_bot_context: set True by a tool that needs to fire a
+    background task and notify the analyst later (e.g. scan_brand_abuse
+    running a slow external scan) -- its wrapped fn should declare
+    _bot/_chat_id params to receive the aiogram Bot instance and the
+    Telegram chat id of the analyst who invoked it. These are always
+    present in the caller's kwargs (agent/loop/function_calling.py and
+    react.py always pass them) but are None outside a live Telegram
+    session (e.g. a CLI test harness), so a tool using them must handle
+    that case rather than assuming they're set.
     """
     def decorator(fn):
         @functools.wraps(fn)
         async def wrapper(**kwargs) -> dict:
             if not accepts_session_id:
                 kwargs.pop("_session_id", None)
+            if not accepts_bot_context:
+                kwargs.pop("_bot", None)
+                kwargs.pop("_chat_id", None)
             try:
                 result = await fn(**kwargs)
                 if not isinstance(result, dict):

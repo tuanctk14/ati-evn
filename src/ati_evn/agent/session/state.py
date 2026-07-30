@@ -53,6 +53,14 @@ class SessionState:
     # per minute (every one of 41 command handlers may call it) where a
     # free-text turn runs it once.
     _existing_row_id: int | None = None
+    # Runtime-only (never persisted to AgentSession -- set fresh by
+    # agent_handler.py on every free-text turn): lets long-running agent
+    # tools (e.g. scan_brand_abuse) fire a background task and notify the
+    # analyst via Telegram when done, the same pattern
+    # rescan.trigger_rescan_background already uses for /add_asset,
+    # instead of blocking the whole turn's TIMEOUT_SECONDS budget.
+    _bot: Any = None
+    _chat_id: int | None = None
 
     def update_entity(self, **kwargs) -> None:
         """Update structured entities. Example:

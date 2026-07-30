@@ -57,6 +57,8 @@ async def handle_free_text(message: Message) -> None:
         settings = get_settings()
         client = LLMClient(settings)
         session = await load_or_create(user_id)
+        session._bot = message.bot
+        session._chat_id = message.chat.id
 
         answer, trace, trace_block = await run_agent(client, session, text)
         answer, filter_stats = postfilter_answer(answer)

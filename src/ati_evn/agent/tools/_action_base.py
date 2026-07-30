@@ -123,6 +123,7 @@ def register_action_tool(
     """
     def decorator(fn):
         fn_wants_session_id = "_session_id" in inspect.signature(fn).parameters
+        fn_wants_bot_context = "_bot" in inspect.signature(fn).parameters
 
         if destructive:
             props = parameters.setdefault("properties", {})
@@ -146,11 +147,13 @@ def register_action_tool(
 
         @register_tool(
             name=name, description=desc, parameters=parameters,
-            accepts_session_id=True,
+            accepts_session_id=True, accepts_bot_context=True,
         )
         @functools.wraps(fn)
         async def wrapper(**kwargs):
             session_id = str(kwargs.pop("_session_id", None) or "unknown")
+            bot_ctx = kwargs.pop("_bot", None)
+            chat_id_ctx = kwargs.pop("_chat_id", None)
             input_args = dict(kwargs)
             _prune_expired()
 
@@ -197,11 +200,15 @@ def register_action_tool(
                         await log_action(name, input_args, {"error": err}, "failed", err)
                         return tool_error(err)
 
+            extra_kwargs = {}
+            if fn_wants_session_id:
+                extra_kwargs["_session_id"] = session_id
+            if fn_wants_bot_context:
+                extra_kwargs["_bot"] = bot_ctx
+                extra_kwargs["_chat_id"] = chat_id_ctx
+
             try:
-                if fn_wants_session_id:
-                    result = await fn(**kwargs, _session_id=session_id)
-                else:
-                    result = await fn(**kwargs)
+                result = await fn(**kwargs, **extra_kwargs)
             except Exception as e:
                 logger.exception("Action tool %s failed", name)
                 err = f"{type(e).__name__}: {str(e)[:200]}"

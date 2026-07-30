@@ -169,6 +169,7 @@ async def run_function_calling(
             call_start = time.monotonic()
             tool_result = await TOOL_REGISTRY[fn_name].handler(
                 **fn_args, _session_id=session_state.user_id,
+                _bot=session_state._bot, _chat_id=session_state._chat_id,
             )
             call_duration = int((time.monotonic() - call_start) * 1000)
 
