@@ -39,6 +39,7 @@ async def run_function_calling(
     context_prefix = render_context_prefix(
         session_state.entity_summary(),
         session_state.command_log_summary(),
+        user_message,
     )
 
     # Build initial messages from session history + this user turn.

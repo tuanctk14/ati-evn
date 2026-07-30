@@ -129,7 +129,18 @@ async def _send_markdown(message: Message, chunk: str) -> None:
     try:
         await message.answer(chunk, parse_mode="Markdown", disable_web_page_preview=True)
     except TelegramBadRequest:
-        await message.answer(_strip_markdown(chunk), disable_web_page_preview=True)
+        stripped = _strip_markdown(chunk).strip()
+        if not stripped:
+            # Telegram rejects an empty message outright (BadRequest:
+            # "message text is empty") -- this crashed the whole turn
+            # silently (no error shown to the analyst) when the agent's
+            # answer was itself empty or pure markup punctuation.
+            logger.warning(
+                "Agent answer became empty after markdown strip; original: %r",
+                chunk[:200],
+            )
+            stripped = "⚠️ (Câu trả lời rỗng sau khi xử lý — thử lại câu hỏi khác.)"
+        await message.answer(stripped, disable_web_page_preview=True)
 
 
 def _strip_markdown(text: str) -> str:

@@ -26,6 +26,22 @@ Deferred to future work / thesis Limitations chapter.
 - [LOW] **E.3**: 12 client file(s) without a @retry decorator
   External API clients should retry transient network errors.
 
+- [LOW] **ReAct fallback leaks raw "Thought:" text as the final answer**
+  `agent/loop/react.py:124-129`: when a step's LLM response has neither a
+  parseable `Final Answer:` nor a valid `Action:`/`Action Input:` pair
+  (e.g. the model's output was truncated mid-thought, observed during
+  LLM provider degradation -- 429/500 errors -- that also triggers the
+  ReAct fallback in the first place), the code falls through to
+  `return raw.strip()[:2000], trace`, sending the raw text -- including
+  a leading "Thought: ..." fragment -- to the analyst verbatim instead
+  of a clean answer or a "please retry" message. Low severity (no data
+  loss, cosmetic only, and rare -- requires both a function-calling
+  failure that triggers ReAct AND a subsequent malformed ReAct
+  response), but confusing when it does surface. Fix approach: strip a
+  leading `Thought:.*?(?=\n|$)` line before returning at this fallback
+  path, or route it through the same "agent gap loi" retry message used
+  for exceptions instead of showing raw model output.
+
 - [RESOLVED] **Manual test S4.4 / Slice 16A**: slash-command results were invisible to the agent's session history
   Originally: `SessionState.history` was only appended by `agent_handler.py` (free-text path); slash-commands never touched it, so temporal-anaphora references ("CVE moi ingest") to a `/confirm_ingest` result issued moments earlier couldn't resolve. Fixed in slice 16A via an *additive* design (not a `history` replacement, to avoid regressing `function_calling.py`'s message-building loop and the S3.3/S4.4 reference-resolution fixes that depend on it): a new `SessionState.command_log_recent` field (capped at 20 entries) populated by `register_command_tool_call()`, called explicitly from priority command handlers (`/confirm_ingest`, `/reject_ingest`, `/close`, `/mark_fp`, `/reopen`, `/acknowledge_indicator`, `/note_indicator`, `/generate_report`, `/add_customer`, `/add_asset`, `/add_ioc`) via `@log_command`. Persisted in a new `agent_sessions.command_log_recent` JSONB column (backed up before the manual `ALTER TABLE`, since the project has no Alembic/migration framework -- see `backups/`), using an update-in-place write path for command-log saves specifically (free-text's original append-only insert-per-turn behavior is unchanged). Injected into the agent's prompt via `render_context_prefix`. Verified end-to-end: `/ingest` -> `/confirm_ingest` -> "CVE moi ingest co match asset khong?" now resolves to the exact CVE IDs from the confirm step instead of a broad time-window query. Remaining commands outside the priority list (~30 of 41) still only get minimal tracking (command name, no tool-call detail) -- sufficient for read-only commands per the original design, but could be extended if a future test surfaces a gap there.
 

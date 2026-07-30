@@ -1,6 +1,8 @@
 """Agent loop configuration + system prompt."""
 from __future__ import annotations
 
+import re
+
 MAX_STEPS = 8
 TIMEOUT_SECONDS = 60
 TOKEN_SOFT_CAP = 50_000
@@ -223,6 +225,18 @@ Example:
   expression. When in doubt, prefer the broader (global) scope and let
   the analyst narrow it, rather than narrowing silently on their behalf.
 
+  This applies equally to the "Recent slash-commands in this session"
+  block (command_log_recent, slice 16A) -- it exists ONLY to resolve
+  anaphoric references ("CVE moi ingest", "customer do"), NOT as
+  ambient context to blend into every answer. A question that is fully
+  self-contained and names its own scope (e.g. "Indicator nao nghiem
+  trong nhat can dieu tra tiep?" after a /list_indicators command) must
+  be answered ONLY from data relevant to that question -- do not pull
+  in an unrelated CVE from a /confirm_ingest entry earlier in
+  command_log_recent just because it's sitting in context and happens
+  to be severe. If the analyst wanted the ingested CVE included, they
+  would have referenced it ("CVE do", "cai CVE vua ingest").
+
 - CRITICAL: when a referring expression ("customer do", "don vi do",
   "campaign do", "finding do") points at something YOU concluded or
   named in your OWN previous answer (e.g. you ranked several customers
@@ -403,13 +417,41 @@ automatically.
 SYSTEM_PROMPT = SYSTEM_PROMPT.replace("{EVN_SCOPE_RULES}", EVN_SCOPE_RULES)
 
 
-def render_context_prefix(entity_summary: str, command_log_summary: str = "") -> str:
+_ANAPHORA_RE = re.compile(
+    r"\b("
+    r"do|đó|này|nay|vừa|vừa\s+rồi|vừa\s+xong|mới\s+(?:ingest|tạo|confirm|xong)|"
+    r"trên|nói\s+trên|trên\s+đó|"
+    r"that|this|above|previous|prior|just\s+now|recent(?:ly)?"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def _has_anaphora_signal(user_message: str) -> bool:
+    """Heuristic gate for whether command_log_recent should be injected
+    into this turn's context. Prompt-level instruction alone ("only use
+    this if the message refers back to it") was verified insufficient
+    -- the model repeatedly bled an unrelated CVE from an earlier
+    /confirm_ingest into answers about a completely different topic
+    (ThreatIndicators) simply because it was present in context. Gating
+    at the code layer removes the irrelevant context from the prompt
+    entirely for turns with no anaphoric signal, rather than trusting
+    the model to ignore it once it's there."""
+    return bool(_ANAPHORA_RE.search(user_message or ""))
+
+
+def render_context_prefix(
+    entity_summary: str, command_log_summary: str = "", user_message: str = "",
+) -> str:
     """Optional recent-entity summary + recent slash-command actions
-    (slice 16A), injected before the user turn."""
+    (slice 16A), injected before the user turn. command_log_summary is
+    only included when user_message contains an anaphoric signal (see
+    _has_anaphora_signal) -- otherwise it's irrelevant context that
+    risks bleeding into an unrelated answer."""
     blocks = []
     if entity_summary:
         blocks.append(f"[Recent session context]\n{entity_summary}")
-    if command_log_summary:
+    if command_log_summary and _has_anaphora_signal(user_message):
         blocks.append(command_log_summary)
     if not blocks:
         return ""
