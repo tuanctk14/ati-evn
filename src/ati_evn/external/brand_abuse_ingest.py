@@ -113,13 +113,20 @@ async def _existing_ti_keys() -> set[str]:
 
 
 async def ingest_brand_abuse(sightings: list[dict]) -> dict:
-    """Full pipeline: typosquat -> rule -> LLM -> upsert -> findings."""
+    """Full pipeline: typosquat -> rule -> LLM -> upsert -> ThreatIndicators.
+
+    Post slice 15A, brand abuse sightings create ThreatIndicator rows,
+    not Finding rows -- stats["indicators_created"] reflects that (was
+    misleadingly named "findings_created" until this was caught during
+    manual testing, when a scan reported "3 finding mới" to the analyst
+    despite the Finding table having no new rows).
+    """
     settings = get_settings()
     stats = {
         "new": 0, "updated": 0,
         "typosquat_matched": 0, "rule_matched": 0,
         "llm_calls": 0, "llm_relevant": 0,
-        "findings_created": 0, "queued_for_alert": 0,
+        "indicators_created": 0, "queued_for_alert": 0,
     }
     now = datetime.now(timezone.utc)
 
@@ -262,7 +269,7 @@ async def ingest_brand_abuse(sightings: list[dict]) -> dict:
                     session.add(ti)
                     await session.flush()
                     existing_ti_keys.add(key)
-                    stats["findings_created"] += 1
+                    stats["indicators_created"] += 1
 
                     # Push to alert_queue -- Bot 1 (telegram/bot_alert.py)
                     # polls this table and never talks to this pipeline

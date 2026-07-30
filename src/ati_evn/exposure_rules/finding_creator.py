@@ -47,8 +47,17 @@ def _cve_finding_key(exposure_id: int, cve_id: str) -> str:
 
 
 async def process_exposures(exposure_ids: list[int]) -> dict:
-    """Process a batch of exposures: match rules + vuln + create Findings.
-    Returns stats dict."""
+    """Process a batch of exposures: match rules -> ThreatIndicator,
+    vuln match -> Finding (CVE). Returns stats dict.
+
+    service_findings/config_findings are misleadingly named -- both
+    create ThreatIndicator rows (post slice 15A), not Finding rows.
+    Only vuln_findings creates an actual Finding. Kept as-is (not
+    renamed to indicators_*) since these two names are the public
+    contract of this stats dict and are read by callers (e.g.
+    weekly_scan.py); see the ThreatIndicator vs Finding note in this
+    function's body for where each is actually created.
+    """
     stats = {
         "processed": 0, "service_findings": 0, "config_findings": 0,
         "vuln_findings": 0, "vuln_llm_calls": 0, "skipped_dedup": 0,

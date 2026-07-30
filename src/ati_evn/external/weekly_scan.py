@@ -30,7 +30,7 @@ async def run_weekly_censys_scan() -> dict:
     logger.info("Starting weekly Censys IP sweep")
     stats = {
         "ips_scanned": 0, "exposures_new": 0, "exposures_updated": 0,
-        "findings_created": 0, "errors": [],
+        "findings_created": 0, "indicators_created": 0, "errors": [],
     }
 
     async with async_session() as session:
@@ -80,9 +80,12 @@ async def run_weekly_censys_scan() -> dict:
 
     if all_exposure_ids:
         proc_stats = await process_exposures(all_exposure_ids)
-        stats["findings_created"] = (
+        # service_findings/config_findings actually create ThreatIndicator
+        # rows (post slice 15A), only vuln_findings creates a real Finding
+        # -- see finding_creator.process_exposures' docstring.
+        stats["findings_created"] = proc_stats["vuln_findings"]
+        stats["indicators_created"] = (
             proc_stats["service_findings"] + proc_stats["config_findings"]
-            + proc_stats["vuln_findings"]
         )
         stats["rule_engine"] = proc_stats
 

@@ -37,7 +37,7 @@ async def _run_scan(keyword: str, primary_domain: str | None, max_results: int) 
         return {
             "keyword": keyword,
             "sightings_found": 0,
-            "findings_created": 0,
+            "indicators_created": 0,
             "note": "No sightings for this keyword.",
         }
 
@@ -51,7 +51,7 @@ async def _run_scan(keyword: str, primary_domain: str | None, max_results: int) 
         "typosquat_matched": stats.get("typosquat_matched", 0),
         "rule_matched": stats.get("rule_matched", 0),
         "llm_calls": stats.get("llm_calls", 0),
-        "findings_created": stats.get("findings_created", 0),
+        "indicators_created": stats.get("indicators_created", 0),
         "queued_for_alert": stats.get("queued_for_alert", 0),
     }
 
@@ -65,7 +65,7 @@ def _format_scan_result(result: dict) -> str:
         f"🎭 Brand abuse scan hoàn tất ({result['keyword']}): "
         f"{result['sightings_found']} sighting ({result.get('sightings_new', 0)} mới, "
         f"{result.get('sightings_updated', 0)} cập nhật), "
-        f"{result.get('findings_created', 0)} finding mới."
+        f"{result.get('indicators_created', 0)} indicator mới."
     )
 
 

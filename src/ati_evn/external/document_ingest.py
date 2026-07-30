@@ -91,13 +91,18 @@ async def _existing_ti_keys() -> set[str]:
 
 
 async def ingest_documents(files: list[dict]) -> dict:
-    """Full pipeline: whitelist -> rule -> LLM -> upsert -> findings."""
+    """Full pipeline: whitelist -> rule -> LLM -> upsert -> ThreatIndicators.
+
+    Post slice 15A, document leaks create ThreatIndicator rows, not
+    Finding rows -- stats["indicators_created"] reflects that (renamed
+    from "findings_created", same rename as brand_abuse_ingest.py).
+    """
     settings = get_settings()
     stats = {
         "new": 0, "updated": 0,
         "whitelisted": 0, "rule_matched": 0,
         "llm_calls": 0, "llm_relevant": 0,
-        "findings_created": 0, "queued_for_alert": 0,
+        "indicators_created": 0, "queued_for_alert": 0,
     }
     now = datetime.now(timezone.utc)
 
@@ -230,7 +235,7 @@ async def ingest_documents(files: list[dict]) -> dict:
                     session.add(ti)
                     await session.flush()
                     existing_ti_keys.add(key)
-                    stats["findings_created"] += 1
+                    stats["indicators_created"] += 1
 
                     # Push to alert_queue -- Bot 1 (telegram/bot_alert.py)
                     # polls this table and never talks to this pipeline

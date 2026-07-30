@@ -41,7 +41,7 @@ async def scan_document_leak(keyword: str, max_files: int = 50) -> dict:
             "keyword": keyword,
             "files_found": 0,
             "documents_new": 0,
-            "findings_created": 0,
+            "indicators_created": 0,
             "note": "No files matched keyword.",
         }
 
@@ -55,6 +55,6 @@ async def scan_document_leak(keyword: str, max_files: int = 50) -> dict:
         "rule_matches": stats.get("rule_matched", 0),
         "llm_calls": stats.get("llm_calls", 0),
         "llm_relevant": stats.get("llm_relevant", 0),
-        "findings_created": stats.get("findings_created", 0),
+        "indicators_created": stats.get("indicators_created", 0),
         "queued_for_alert": stats.get("queued_for_alert", 0),
     }

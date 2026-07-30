@@ -28,7 +28,7 @@ async def run_weekly_urlscan_scan() -> dict:
 
     stats = {
         "keywords_scanned": 0, "sightings_new": 0, "sightings_updated": 0,
-        "findings_created": 0, "total_llm_calls": 0, "errors": [],
+        "indicators_created": 0, "total_llm_calls": 0, "errors": [],
     }
 
     async with async_session() as session:
@@ -72,7 +72,7 @@ async def run_weekly_urlscan_scan() -> dict:
         ingest = await ingest_brand_abuse(sightings)
         stats["sightings_new"] += ingest["new"]
         stats["sightings_updated"] += ingest["updated"]
-        stats["findings_created"] += ingest["findings_created"]
+        stats["indicators_created"] += ingest["indicators_created"]
         stats["total_llm_calls"] += ingest["llm_calls"]
         stats["keywords_scanned"] += 1
 

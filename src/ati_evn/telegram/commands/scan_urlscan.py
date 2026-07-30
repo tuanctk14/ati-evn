@@ -98,7 +98,7 @@ async def cmd_scan_urlscan(message: Message):
         f"  LLM classifier calls: {stats['llm_calls']}",
         f"  LLM confirmed relevant: {stats['llm_relevant']}",
         "",
-        f"Findings created: {stats['findings_created']}",
+        f"Indicators created: {stats['indicators_created']}",
         f"Queued for Bot 1 alert: {stats.get('queued_for_alert', 0)}",
     ]
     if stats.get("queued_for_alert", 0) > 0:

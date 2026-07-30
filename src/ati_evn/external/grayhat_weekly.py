@@ -27,7 +27,7 @@ async def run_weekly_grayhat_scan() -> dict:
 
     stats = {
         "keywords_scanned": 0, "files_new": 0, "files_updated": 0,
-        "findings_created": 0, "total_llm_calls": 0, "errors": [],
+        "indicators_created": 0, "total_llm_calls": 0, "errors": [],
     }
 
     async with async_session() as session:
@@ -69,7 +69,7 @@ async def run_weekly_grayhat_scan() -> dict:
         ingest = await ingest_documents(files)
         stats["files_new"] += ingest["new"]
         stats["files_updated"] += ingest["updated"]
-        stats["findings_created"] += ingest["findings_created"]
+        stats["indicators_created"] += ingest["indicators_created"]
         stats["total_llm_calls"] += ingest["llm_calls"]
         stats["keywords_scanned"] += 1
 
