@@ -22,9 +22,17 @@ VALID_TYPES = [
     destructive=False,
     description=(
         "Search ThreatIndicators (non-CVE ephemeral signals: IOC, brand "
-        "abuse, doc leak, exposure). Filter by type, customer, severity, "
-        "status, time window. Read-only -- use acknowledge_indicator / "
-        "add_indicator_note to modify."
+        "abuse, doc leak, exposure) -- for CVE vulnerabilities, use "
+        "search_findings instead, not this tool. "
+        "Filter by type, customer, severity, status, time window. "
+        "Omit `customer` for GLOBAL scope across all customers. "
+        "Returns up to `limit` rows (max 100), but NO total_count field -- "
+        "if you need a total across all matches, count returned rows "
+        "against a high limit rather than assuming this tool reports it. "
+        "Default since_days=30 -- pass a larger value or omit filters for "
+        "broader/historical queries. "
+        "Read-only -- use acknowledge_indicator / add_indicator_note to "
+        "modify."
     ),
     parameters={
         "type": "object",

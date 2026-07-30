@@ -13,13 +13,22 @@ HARD_CAP = 20
 
 @register_tool(
     name="search_asset",
-    description="Search live CustomerAssets, optionally filtered by customer, vendor, product.",
+    description=(
+        "Search live CustomerAssets, optionally filtered by customer, "
+        "vendor, product, or asset_value (the asset's own identifying "
+        "value -- hostname, IP, domain, keyword, etc., e.g. 'evn-web-01' "
+        "or 'evn.io.vn'). There is no separate lookup-by-value tool -- "
+        "use asset_value here for 'does asset/domain/IP X have any "
+        "findings' questions rather than assuming a dedicated tool "
+        "exists for that."
+    ),
     parameters={
         "type": "object",
         "properties": {
             "customer": {"type": "string", "description": "Customer name (partial match)"},
             "vendor": {"type": "string", "description": "Vendor name (partial match)"},
             "product": {"type": "string", "description": "Product name (partial match)"},
+            "asset_value": {"type": "string", "description": "Asset's identifying value (partial match) -- hostname, IP, domain, keyword, etc."},
             "limit": {"type": "integer", "description": "Max rows (capped at 20)", "default": 20},
         },
         "required": [],
@@ -29,6 +38,7 @@ async def search_asset(
     customer: str | None = None,
     vendor: str | None = None,
     product: str | None = None,
+    asset_value: str | None = None,
     limit: int = 20,
 ) -> dict:
     limit = min(limit or 20, HARD_CAP)
@@ -44,6 +54,8 @@ async def search_asset(
             stmt = stmt.where(CustomerAsset.vendor.ilike(f"%{vendor}%"))
         if product:
             stmt = stmt.where(CustomerAsset.product.ilike(f"%{product}%"))
+        if asset_value:
+            stmt = stmt.where(CustomerAsset.asset_value.ilike(f"%{asset_value}%"))
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_count = (await session.execute(count_stmt)).scalar_one()

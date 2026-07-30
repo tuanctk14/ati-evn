@@ -14,14 +14,29 @@ from ati_evn.enrichment_v2.ip_enricher import enrich_ip_foreground, enrich_ip_fu
     name="enrich_ip",
     destructive=False,
     description=(
-        "Enrich an IP via multi-source providers (live API calls). "
+        "Enrich an IPv4/IPv6 via multi-source providers (live API calls). "
         "Default: foreground (AbuseIPDB + VirusTotal, ~5s). "
-        "full=true: all 5 providers (~15-30s)."
+        "full=true: all 5 providers (~15-30s). "
+        "IMPORTANT: the `ip` param is passed to providers as-is with no "
+        "DNS resolution -- you CAN pass a domain string instead of an IP "
+        "(e.g. to check a typosquat domain's hosting reputation), but "
+        "IP-only providers (e.g. AbuseIPDB) will error and be skipped, "
+        "so a domain query returns partial coverage, not a failure. "
+        "There is no separate domain-to-IP resolution tool -- if you "
+        "need the real resolved IP first, check search_indicators or "
+        "search_exposures for an already-known IP tied to that domain."
     ),
     parameters={
         "type": "object",
         "properties": {
-            "ip": {"type": "string"},
+            "ip": {
+                "type": "string",
+                "description": (
+                    "IPv4/IPv6 address, e.g. '8.8.8.8'. A domain name "
+                    "(e.g. 'evn.io.vn') also works but yields partial "
+                    "provider coverage -- see tool description."
+                ),
+            },
             "full": {"type": "boolean", "default": False, "description": "Query all 5 providers"},
             "force": {"type": "boolean", "default": False, "description": "Bypass cache TTL"},
         },

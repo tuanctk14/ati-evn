@@ -2,6 +2,9 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [LOW] **Slice 16B retest**: scan_brand_abuse (and likely scan_ghwarfare/scan_censys) can exceed the agent turn's 60s TIMEOUT_SECONDS
+  Discovered while assessing Item 3/Problem-1: "Scan brand abuse cho Vietnam Electricity" via free-text timed out with no tool-call trace at all -- the LLM response + urlscan.io API call + up to 8 internal LLM classifier calls (per the scan itself) together exceeded `asyncio.wait_for(..., timeout=TIMEOUT_SECONDS)` in `agent/loop/runner.py`, which wraps the WHOLE turn, not just the tool call. Not an LLM provider outage (confirmed by testing an unrelated query immediately after, which succeeded in 6s) and not a Problem-1/scope bug -- a genuine slow-tool-vs-turn-timeout mismatch. User-suggested fix direction: run `scan_brand_abuse` (and similar external-scan tools) in the background and report back via Telegram once done, the same pattern `trigger_rescan_background` already uses for `/add_asset`. Deferred as an architectural change (background execution + async result delivery for agent-invoked tools) outside slice 16B's schema-clarity scope.
+
 - [MEDIUM] **A.2**: 1 soft-deleted customer(s) with active findings/assets
   Soft-deleted customers still have OPEN/ACKED findings or live (non-deleted) assets. This data still surfaces in global reports/queries that don't filter by customer status.
 

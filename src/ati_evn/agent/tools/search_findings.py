@@ -16,19 +16,25 @@ HARD_CAP = 20
 @register_tool(
     name="search_findings",
     description=(
-        "Search Findings with optional filters: customer name, severity, "
-        "since_days (age window), ioc_type, status. Returns up to 20 rows, "
-        "sorted by severity then recency."
+        "Search Finding records (CVE vulnerabilities matched to a customer "
+        "asset). Always CVE-only regardless of ioc_type -- this table has "
+        "contained only ioc_type='cve_id' rows since the slice 15A split; "
+        "for non-CVE signals (raw IOC, brand abuse, doc leak, exposure), "
+        "use search_indicators instead, not this tool. "
+        "Omit `customer` for GLOBAL scope across all customers. "
+        "Returns UP TO 20 rows max (hard cap, `limit` cannot raise it), "
+        "sorted by severity then recency -- for a total count use "
+        "limit=1 and read total_count in the response, not len(findings)."
     ),
     parameters={
         "type": "object",
         "properties": {
-            "customer": {"type": "string", "description": "Customer name (partial match)"},
+            "customer": {"type": "string", "description": "Customer name or short_code (partial match). Omit for all customers."},
             "severity": {"type": "string", "description": "CRITICAL|HIGH|MEDIUM|LOW|INFO"},
-            "since_days": {"type": "integer", "description": "Only findings first_seen within this many days"},
-            "ioc_type": {"type": "string", "description": "e.g. cve_id, ipv4, domain"},
+            "since_days": {"type": "integer", "description": "Only findings first_seen within this many days. Omit for no time limit."},
+            "ioc_type": {"type": "string", "description": "Always cve_id in practice post slice-15A -- included for forward-compat only."},
             "status": {"type": "string", "description": "open|acknowledged|closed|false_positive|expired"},
-            "limit": {"type": "integer", "description": "Max rows to return (capped at 20)", "default": 20},
+            "limit": {"type": "integer", "description": "Max rows to return, hard-capped at 20 regardless of value passed.", "default": 20},
         },
         "required": [],
     },
