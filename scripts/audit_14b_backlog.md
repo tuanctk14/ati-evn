@@ -2,6 +2,39 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Post-backlog manual retest (Phase 2)**: legacy_finding_postfilter's rewrite text read as raw system syntax embedded mid-sentence
+  Found on "Trong danh sách trên, indicator nào chưa acknowledge?" -- Finding #29 and ThreatIndicator #29
+  happen to share the same numeric id (independent auto-increment sequences per the slice 15A split), and the
+  LLM suggested `/acknowledge_indicator 29 --note=...` for what was actually Finding #29 (a CVE test-campaign
+  row, not a ThreatIndicator). `agent/loop/legacy_finding_postfilter.py`'s Direction-2 guard correctly
+  detected and blocked the invalid suggestion (this defense-in-depth mechanism worked as designed -- the
+  real backend guard in `acknowledge_indicator`'s own lookup would have rejected it anyway), but the
+  replacement text it substituted in --
+  `[/acknowledge_indicator không áp dụng cho Finding #29 -- đây là CVE finding, dùng /close hoặc /mark_fp thay thế]`
+  -- is bracketed pseudo-syntax, not a sentence, and got embedded inline mid-answer next to the "Gợi ý:" line,
+  reading as a raw system note leaking into analyst-facing text rather than a warning phrased for a human.
+  Fixed by rewriting `_replace_ti_cmd()`'s return string into plain Vietnamese prose: "#{fid} là Finding
+  (CVE), không phải Threat Indicator, nên /{cmd} không áp dụng -- dùng /close hoặc /mark_fp {fid} thay thế" --
+  same information, reads as a sentence when inlined. Left the detection/blocking logic and Direction-1
+  rewrite (Finding -> real ThreatIndicator id via `migrated_to_ti_id`) unchanged -- those already worked
+  correctly. Chose the text-only fix over adding a system-prompt rule (user's explicit choice when asked) --
+  postfilter remains the safety net regardless of whether the LLM learns to avoid the wrong suggestion.
+
+  Follow-up found on the same retest: the `[legacy-finding postfilter: ...]` trace line shown to the analyst
+  after this fix was itself buggy in two ways. (1) `agent_handler.py` unconditionally formatted every entry
+  in `legacy_stats["rewritten"]` as `{orig}->/acknowledge_indicator {tid}`, but that list was shared between
+  Direction 1 (a real rewrite TO `/acknowledge_indicator {ti_id}`) and Direction 2 (a BLOCK, no rewrite
+  target -- `tid` was actually just the original Finding id), so a Direction-2 block rendered in the trace as
+  if the postfilter had rewritten the suggestion to `/acknowledge_indicator 29` -- the exact command it had
+  just blocked. (2) the regex `_TI_CMD_RE` matches `(?:\s+\S.*)?` (the rest of the line) so `m.group(0)` used
+  as the "orig" text included the LLM's entire trailing sentence, making the trace line very long. Fixed:
+  `postfilter_legacy_finding_actions()` now returns two separate lists, `rewritten` (Direction 1) and
+  `blocked` (Direction 2), and both `_replace_finding_cmd`/`_replace_ti_cmd` build their `orig` string from
+  just `/{cmd} {fid}` (the actual matched command) instead of the full regex match. `agent_handler.py` now
+  renders each list with its own correctly-labeled trace line ("... rewrote: ..." vs "... blocked: ...").
+  Verified with a unit test (mocked DB) that `blocked` now holds `("/acknowledge_indicator 29", 29)` -- a
+  short, correctly-scoped original command string, not the whole trailing sentence.
+
 - [FIXED, prompt-layer] **Post-backlog manual retest (Phase 2)**: confirmed=True loop -- agent re-showed PENDING_CONFIRMATION instead of executing after analyst confirmed in a NEW turn
   Found on "Ingest văn bản ... CVE-2026-88888": after the analyst confirmed a `ingest_article` PENDING_CONFIRMATION
   and the tool correctly rejected a mismatched confirmed=True call in that same turn (existing, working safety

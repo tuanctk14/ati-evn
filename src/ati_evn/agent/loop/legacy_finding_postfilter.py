@@ -44,14 +44,20 @@ _TI_CMD_RE = re.compile(
 
 
 async def postfilter_legacy_finding_actions(text: str) -> tuple[str, dict]:
-    """Return (cleaned_text, stats). stats: {"rewritten": [(orig, id), ...]}."""
+    """Return (cleaned_text, stats).
+
+    stats: {"rewritten": [(orig_cmd, new_target), ...],  # Direction 1: Finding -> ThreatIndicator
+            "blocked": [(orig_cmd, finding_id), ...]}     # Direction 2: TI command on a Finding id, blocked
+    orig_cmd is truncated to the matched command itself (not any trailing
+    text the regex also consumed) so trace lines built from this stay short.
+    """
     if not text:
-        return text, {"rewritten": []}
+        return text, {"rewritten": [], "blocked": []}
 
     finding_cmd_matches = list(_FINDING_CMD_RE.finditer(text))
     ti_cmd_matches = list(_TI_CMD_RE.finditer(text))
     if not finding_cmd_matches and not ti_cmd_matches:
-        return text, {"rewritten": []}
+        return text, {"rewritten": [], "blocked": []}
 
     finding_ids = {int(m.group(2)) for m in finding_cmd_matches}
     finding_ids |= {int(m.group(2)) for m in ti_cmd_matches}
@@ -68,9 +74,10 @@ async def postfilter_legacy_finding_actions(text: str) -> tuple[str, dict]:
         }
 
     rewritten: list[tuple[str, int]] = []
+    blocked: list[tuple[str, int]] = []
 
     def _replace_finding_cmd(m: re.Match) -> str:
-        fid_str = m.group(2)
+        cmd, fid_str = m.group(1), m.group(2)
         fid = int(fid_str)
         info = finding_info.get(fid)
         if info is None or info[0] == "cve_id":
@@ -78,7 +85,7 @@ async def postfilter_legacy_finding_actions(text: str) -> tuple[str, dict]:
         ti_id = info[1]
         if ti_id is None:
             return m.group(0)
-        rewritten.append((m.group(0), ti_id))
+        rewritten.append((f"/{cmd} {fid}", ti_id))
         return f"/acknowledge_indicator {ti_id}"
 
     def _replace_ti_cmd(m: re.Match) -> str:
@@ -88,17 +95,20 @@ async def postfilter_legacy_finding_actions(text: str) -> tuple[str, dict]:
         if info is None:
             # Not a known Finding id -- assume it's a real ThreatIndicator id.
             return m.group(0)
-        rewritten.append((m.group(0), fid))
+        blocked.append((f"/{cmd} {fid}", fid))
+        # Plain Vietnamese prose, not bracketed pseudo-syntax -- this text
+        # gets embedded inline in the analyst-facing answer (not shown
+        # separately), so it needs to read as a sentence, not a system note.
         return (
-            f"[/{cmd} không áp dụng cho Finding #{fid} -- đây là CVE finding, "
-            f"dùng /close hoặc /mark_fp thay thế]"
+            f"#{fid} là Finding (CVE), không phải Threat Indicator, nên "
+            f"/{cmd} không áp dụng -- dùng /close hoặc /mark_fp {fid} thay thế"
         )
 
     cleaned = _FINDING_CMD_RE.sub(_replace_finding_cmd, text)
     cleaned = _TI_CMD_RE.sub(_replace_ti_cmd, cleaned)
-    if rewritten:
+    if rewritten or blocked:
         logger.info(
-            "Legacy-finding postfilter: rewrote %d suggestion(s): %s",
-            len(rewritten), rewritten,
+            "Legacy-finding postfilter: %d rewritten, %d blocked: rewritten=%s blocked=%s",
+            len(rewritten), len(blocked), rewritten, blocked,
         )
-    return cleaned, {"rewritten": rewritten}
+    return cleaned, {"rewritten": rewritten, "blocked": blocked}

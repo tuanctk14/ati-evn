@@ -69,7 +69,10 @@ async def handle_free_text(message: Message) -> None:
             trace_block = (trace_block or "") + f"\n  [postfilter fixed: {fixes}]"
         if legacy_stats["rewritten"]:
             fixes = ", ".join(f"{b}->/acknowledge_indicator {tid}" for b, tid in legacy_stats["rewritten"])
-            trace_block = (trace_block or "") + f"\n  [legacy-finding postfilter: {fixes}]"
+            trace_block = (trace_block or "") + f"\n  [legacy-finding postfilter rewrote: {fixes}]"
+        if legacy_stats["blocked"]:
+            fixes = ", ".join(f"{b} (Finding #{fid}, not a ThreatIndicator)" for b, fid in legacy_stats["blocked"])
+            trace_block = (trace_block or "") + f"\n  [legacy-finding postfilter blocked: {fixes}]"
         summary = (
             f"agent {trace.method}, {len(trace.tool_calls)} tools, "
             f"{trace.total_prompt_tokens + trace.total_completion_tokens} tok"
