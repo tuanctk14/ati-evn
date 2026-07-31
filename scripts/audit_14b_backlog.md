@@ -2,6 +2,49 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Post-backlog manual retest**: `/add_ioc` reported matcher stats for the WRONG detections (whole NEW batch, not just the one just added)
+  Found during Phase 1 manual retest (2026-07-31): `/add_ioc --type=domain --value=test-manual-check.example.com
+  --severity=LOW` (a throwaway test IOC) replied "Matcher: 440 matched, 109 finding(s) created" -- wildly
+  disproportionate for one LOW-severity test domain. Root cause: both `telegram/commands/add_ioc.py:99` and
+  `agent/tools/add_ioc.py:93` called `route_detections(session, only_new=True)` after inserting the new
+  Detection, instead of scoping the matcher pass to just that row. `only_new=True` matches ALL
+  `Detection.status == NEW` rows in the DB, so it also swept up an unrelated batch of ~1500 NVD CVE
+  detections inserted moments earlier by the fetcher (not yet processed by the hourly `run_detection_once`
+  job) and reported their match/finding counts back to the analyst as if they came from the one IOC just
+  added -- a materially misleading number for an analyst deciding how urgently to react. Confirmed via
+  `SELECT ... FROM findings WHERE first_seen > now() - interval '10 minutes'` that all 109 "new" findings
+  were `cve_id` findings from the NVD batch, none related to the test domain. Other call sites got this
+  right already: `route_detections()` has a `detection_ids: list[int] | None` param specifically for this
+  ("scopes the pass to exactly those rows"), and both `ingestion/confirm.py:162` and
+  `telegram/commands/restore_ioc.py:60` already use it. Fixed both `add_ioc.py`'s to pass
+  `detection_ids=[detection_id]` instead of `only_new=True`, matching the existing correct pattern. Verified
+  live on Bot 2 after restart: `/add_ioc --type=domain --value=test-manual-check-2.example.com --severity=LOW`
+  now correctly replies "Matcher: 0 matched, 0 finding(s) created" (a throwaway test domain matches nothing),
+  no longer polluted by the unrelated NVD batch.
+
+- [BUG] **Post-backlog manual retest**: `/playbook <CVE-ID>` can fail with "Could not extract valid JSON from text"
+  Found during the post-E.1/E.3 manual retest (2026-07-31), NOT a regression from those changes --
+  `telegram/commands/playbook.py`'s `_get_or_generate()` calls `LLMClient.chat_json(..., max_tokens=4096)`
+  asking for a full NIST 800-61 playbook (5 sections, Vietnamese narrative + commands) as a JSON string value.
+  For a CVE with rich context (e.g. CVE-2026-47295 on a SQL Server asset), the model's `markdown` field can
+  get truncated mid-sentence before the closing `"}/` of the JSON object, so all 3 tiers of
+  `llm/json_extract.py`'s `_extract_json_any()` fail (direct parse, fence-strip, brace-balance) since the
+  JSON itself is incomplete -- not a formatting slip the fallback tiers can recover from. Pre-existing issue,
+  unrelated to `chat_json`'s retry/logging changes in this session. Fix approach: raise `max_tokens` for this
+  specific call (playbook content is long by design) and/or ask the model to emit the 5 sections as separate
+  string fields instead of one giant markdown blob, reducing the chance any single field overruns the budget.
+
+- [INFRA, not a code bug] **Post-backlog manual retest**: LeakIX provider unreachable on this host (`ConnectError`, firewall)
+  Every `/enrich_ip` call during the 2026-07-31 retest shows `leakix: unknown score=0 (ConnectError: )`.
+  Confirmed via a direct `httpx.get("https://leakix.net/host/...")` probe outside the app: same `ConnectError`
+  with root cause `BrokenResourceError` -- user confirmed this host's firewall blocks LeakIX. Not a code
+  defect: the new `@retry` (E.3) correctly retried 3x before giving up, and the new `logger.warning(...)`
+  (E.1) correctly surfaced the failure instead of silently swallowing it (previously this failure mode had
+  NO log line at all -- this is actually the E.1 fix doing its job, making a pre-existing silent failure
+  visible). `str(ConnectError(...))` being empty is normal httpx behavior for a bare connection-reset with
+  no OS-level errno text. No action needed in code; LeakIX will keep failing gracefully (falls back to
+  "unknown" in the aggregate) as long as the firewall rule stands.
+
 - [RESOLVED] **Slice 16B retest / Post-16B**: scan_brand_abuse could exceed the agent turn's 60s TIMEOUT_SECONDS
   Originally: "Scan brand abuse cho Vietnam Electricity" via free-text timed out with no tool-call trace -- the LLM response + urlscan.io API call + up to 8 internal LLM classifier calls together exceeded `asyncio.wait_for(..., timeout=TIMEOUT_SECONDS)` in `agent/loop/runner.py`, which wraps the WHOLE turn, not just the tool call. Fixed by threading Telegram `bot`/`chat_id` context through the agent loop (`SessionState._bot`/`_chat_id`, set by `agent_handler.py`, forwarded through `function_calling.py`/`react.py` into `TOOL_REGISTRY[...].handler(...)`, and a new `accepts_bot_context` flag on `register_tool`/`register_action_tool` that forwards them to a tool's `_bot`/`_chat_id` params) -- the same mechanism `_session_id` already used. `scan_brand_abuse` now fires the scan as a background `asyncio.Task` when Telegram context is present, returns `{"status": "queued"}` immediately so the turn completes well under budget, and sends a follow-up Telegram message via `bot.send_message()` when the scan finishes, mirroring `rescan.trigger_rescan_background`'s pattern for `/add_asset`. Falls back to the original synchronous behavior when no bot context is available (e.g. a CLI/test harness calling the tool directly). Verified end-to-end via real Bot 2: the initiating turn completed in ~10s ("scan queued"), and the completion notification ("🎭 Brand abuse scan hoàn tất...") arrived automatically ~45s later with correct sighting/finding counts. `scan_ghwarfare`/`scan_censys` were not converted in this pass (same fix would apply if they're observed hitting the same timeout).
 

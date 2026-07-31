@@ -90,7 +90,7 @@ async def add_ioc(
 
     try:
         async with async_session() as session:
-            stats = await route_detections(session, only_new=True)
+            stats = await route_detections(session, detection_ids=[detection_id])
     except Exception as e:
         logger.warning("add_ioc matcher pass failed for detection #%d: %s", detection_id, e)
         return {

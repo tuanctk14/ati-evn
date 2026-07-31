@@ -96,7 +96,7 @@ async def cmd_add_ioc(message: Message):
 
     try:
         async with async_session() as session:
-            stats = await route_detections(session, only_new=True)
+            stats = await route_detections(session, detection_ids=[detection_id])
     except Exception as e:
         await thinking.delete()
         logger.exception("Matcher after /add_ioc failed: %s", e)
