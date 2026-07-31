@@ -2,6 +2,23 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Post-backlog manual retest (Phase 2)**: free-text agent sent a completely empty answer ("⚠️ (Câu trả lời rỗng...)")
+  Found on "Chỉ báo nào cần điều tra gấp nhất cho EVN?" -- a complex turn with several prior tool calls
+  already in context (long `messages` list). `agent/loop/function_calling.py`'s per-step call to
+  `chat_with_tools(..., max_tokens=2048)` got cut off mid-generation (log showed `completion_tok=2048`,
+  landing exactly on the cap) before the model emitted either real `content` or a complete `tool_calls`
+  array, so both came back empty. The loop's `if not tool_calls: return content, trace` treated that as a
+  valid final answer with no empty-check, so `run_agent()` returned `""`, which
+  `telegram/commands/agent_handler.py`'s `_send_markdown()` correctly detected as empty AFTER markdown-strip
+  and showed the "câu trả lời rỗng" fallback -- but the root cause was upstream, not the Markdown sanitizer
+  added earlier this session (confirmed via log: `original: ''` was already empty before any stripping).
+  Fixed by adding an empty-content-and-no-tool_calls guard: when both are empty, treat it as a truncated
+  response and route through the existing `_force_final_answer()` path (drops `tools=[]`, asks explicitly
+  for a concise final summary) instead of returning the blank string. Verified live on Bot 2 after restart:
+  re-running the exact same question no longer produces an empty answer (this particular retry actually
+  hit the ReAct fallback due to a 60s timeout on a different step, unrelated to this fix, and ReAct answered
+  successfully) -- confirmed via log grep that "Agent answer became empty" did not fire again.
+
 - [FIXED] **Post-backlog manual retest**: `/add_ioc` reported matcher stats for the WRONG detections (whole NEW batch, not just the one just added)
   Found during Phase 1 manual retest (2026-07-31): `/add_ioc --type=domain --value=test-manual-check.example.com
   --severity=LOW` (a throwaway test IOC) replied "Matcher: 440 matched, 109 finding(s) created" -- wildly

@@ -98,8 +98,25 @@ async def run_function_calling(
         msg = choices[0].get("message") or {}
         tool_calls = msg.get("tool_calls") or []
         content = msg.get("content") or ""
+        finish_reason = choices[0].get("finish_reason")
 
         if not tool_calls:
+            if not content.strip():
+                # Empty content + no tool_calls + finish_reason="length" means
+                # the model's response got cut off mid-generation by
+                # max_tokens=2048 before it emitted either a real answer or a
+                # complete tool_calls block -- returning "" here would send
+                # the analyst a blank message (observed live: completion_tok
+                # landed exactly on the 2048 cap). Force a final answer with
+                # a larger budget instead of treating empty as a valid reply.
+                logger.warning(
+                    "Empty content + no tool_calls at step %d (finish_reason=%s) "
+                    "— forcing final answer with larger budget",
+                    step, finish_reason,
+                )
+                answer, trace = await _force_final_answer(client, messages, trace)
+                trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
+                return answer, trace
             # Final answer
             trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
             return content, trace
