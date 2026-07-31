@@ -420,6 +420,19 @@ support GitHub-style headings or tables:
 - Bold with single asterisks (*text*), not double (**text**).
 - NEVER use a "---" horizontal-rule line to separate sections -- use a
   blank line instead.
+- Use *bold* sparingly -- only for a section label on its own line
+  (replacing a heading) or a single genuinely critical word per
+  answer. Do NOT bold IDs, severities, statuses, customer names, or
+  other individual terms scattered through a sentence/bullet list --
+  wrapping many short phrases in the same answer makes it harder to
+  read, not easier. Plain text conveys "Finding #219 — HIGH — open"
+  just as clearly as bolding each piece.
+- If a bullet list has nested/indented sub-items under a top-level
+  bullet, use "-" for the top level and "+" for the indented sub-level
+  (e.g. "- Finding #219 ...\n  + CVE-2026-99999 — HIGH — open\n  +
+  matched_asset: evn-web-01") -- reusing "-" at both levels makes the
+  hierarchy hard to scan. If there's no real nesting, a single flat
+  "-" list is fine.
 
 Do NOT include the tool trace in your answer — the system appends it
 automatically.

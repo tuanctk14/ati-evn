@@ -172,6 +172,12 @@ _HEADING_RE = re.compile(r"^#{1,6}\s*(.+?)\s*$", re.MULTILINE)
 _HR_RE = re.compile(r"^\s*-{3,}\s*$", re.MULTILINE)
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _TABLE_SEP_RE = re.compile(r"^\s*\|[\s:|-]*\|\s*$")
+# An indented "- " sub-bullet reusing the same marker as its top-level
+# parent is hard to visually scan (both levels look identical). Retarget
+# indented dashes to "+" so nesting is visible at a glance. Only matches
+# lines with leading whitespace before the dash -- a flat top-level list
+# (no indentation) is left untouched.
+_NESTED_DASH_RE = re.compile(r"^([ \t]+)-(\s)", re.MULTILINE)
 
 
 def _table_row_cells(line: str) -> list[str]:
@@ -213,6 +219,7 @@ def sanitize_telegram_markdown(text: str) -> str:
     text = _HEADING_RE.sub(lambda m: f"*{m.group(1)}*", text)
     text = _BOLD_RE.sub(lambda m: f"*{m.group(1)}*", text)
     text = _HR_RE.sub("", text)
+    text = _NESTED_DASH_RE.sub(r"\1+\2", text)
     # collapse the blank-line runs left behind by a removed "---" line
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
