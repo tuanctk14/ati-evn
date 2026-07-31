@@ -178,6 +178,19 @@ _TABLE_SEP_RE = re.compile(r"^\s*\|[\s:|-]*\|\s*$")
 # lines with leading whitespace before the dash -- a flat top-level list
 # (no indentation) is left untouched.
 _NESTED_DASH_RE = re.compile(r"^([ \t]+)-(\s)", re.MULTILINE)
+# A raw snake_case identifier (risk_score, positive_count) leaking into the
+# answer from tool JSON gets its "_" read by Telegram as an italic marker,
+# mangling it into e.g. "risk" + garbled-italic "score" glued together with
+# no space. Only matches TWO-OR-MORE underscore-joined word/number segments
+# (snake_case shape) so a single deliberate "_word_" italic (already rare in
+# this system's answers per the prompt) is left alone. Deliberately excludes
+# anything preceded by "/" (a slash-command like /add_asset must stay exact
+# for postfilter_answer's WHITELIST match), "-" (a CLI flag like
+# --type=...), or "=" (the flag's value, e.g. --type=exposed_document) --
+# those are literal command syntax, not prose.
+_SNAKE_CASE_RE = re.compile(
+    r"(?<![/\-=\w])([a-zA-Z][a-zA-Z0-9]*(?:_[a-zA-Z0-9]+){1,})\b"
+)
 
 
 def _table_row_cells(line: str) -> list[str]:
@@ -220,6 +233,7 @@ def sanitize_telegram_markdown(text: str) -> str:
     text = _BOLD_RE.sub(lambda m: f"*{m.group(1)}*", text)
     text = _HR_RE.sub("", text)
     text = _NESTED_DASH_RE.sub(r"\1+\2", text)
+    text = _SNAKE_CASE_RE.sub(lambda m: m.group(1).replace("_", " "), text)
     # collapse the blank-line runs left behind by a removed "---" line
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()

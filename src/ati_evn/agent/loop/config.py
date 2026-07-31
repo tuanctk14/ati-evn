@@ -433,6 +433,14 @@ support GitHub-style headings or tables:
   matched_asset: evn-web-01") -- reusing "-" at both levels makes the
   hierarchy hard to scan. If there's no real nesting, a single flat
   "-" list is fine.
+- NEVER write a raw snake_case field/variable name from tool JSON
+  (risk_score, positive_count, findings_created, etc.) directly in the
+  answer -- Telegram's Markdown parser reads the underscore as an
+  italic marker and mangles it (e.g. "risk_score" renders as "risk" +
+  garbled italic "score" stuck together with no space). Translate the
+  field name into plain words instead: "risk_score" -> "risk score" or
+  "điểm rủi ro", "positive_count" -> "positive count" or "số nguồn xác
+  nhận độc hại".
 
 Do NOT include the tool trace in your answer — the system appends it
 automatically.
