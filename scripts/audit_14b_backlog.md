@@ -2,6 +2,27 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Post-backlog manual retest (Phase 2)**: `scan_document_leak` agent tool could exceed the agent turn's 60s TIMEOUT_SECONDS (same bug class as the earlier scan_brand_abuse fix)
+  Found on "Scan tài liệu rò rỉ từ khóa EVN" -- the turn timed out on both the function-calling attempt AND
+  the ReAct fallback attempt (log: `Function-calling timeout on attempt 2`), taking 181 seconds total before
+  finally erroring out to the analyst as "Xin lỗi, agent bị timeout". Root cause: `agent/tools/scan_document_leak.py`
+  ran GrayHatWarfare search + LLM relevance classification for every candidate file synchronously inside the
+  tool call -- with ~50 files and 2-6s per LLM classifier call, this routinely exceeds the 60s turn budget.
+  This was flagged as a known gap when `scan_brand_abuse` got the same fix earlier in this session (see the
+  `[RESOLVED] Slice 16B retest / Post-16B` entry below: "scan_ghwarfare/scan_censys were not converted in
+  this pass"), and has now materialized on retest. Fixed by applying the exact same pattern already proven
+  for `scan_brand_abuse.py`: split into `_run_scan()` (the actual work) + `_run_and_notify()` (runs the scan
+  then `bot.send_message()`s a formatted result), and the tool handler now fires `_run_and_notify()` as a
+  background `asyncio.Task` (kept in a module-level `_background_tasks` set so it can't be GC'd mid-run) and
+  returns `{"status": "queued"}` immediately when `_bot`/`_chat_id` context is present (already auto-forwarded
+  by `register_action_tool`'s `accepts_bot_context=True`), falling back to the original synchronous behavior
+  when no bot context exists (CLI/test harness). `scan_censys` was NOT converted in this pass -- it's a
+  single-IP Censys API call with no per-item LLM classification loop, so it's unlikely to hit the same
+  timeout, but should get the same treatment if it's ever observed to. Verified live on Bot 2 after restart:
+  re-running the exact same question that previously timed out at 181s now completes the initiating turn in
+  6.9s ("scan queued"), with the completion notification ("📄 Document leak scan hoàn tất...") arriving
+  automatically ~4 minutes later with correct file/indicator counts (50 files, 40 new, 16 indicators).
+
 - [FIXED] **Post-backlog manual retest (Phase 2)**: free-text agent sent a completely empty answer ("⚠️ (Câu trả lời rỗng...)")
   Found on "Chỉ báo nào cần điều tra gấp nhất cho EVN?" -- a complex turn with several prior tool calls
   already in context (long `messages` list). `agent/loop/function_calling.py`'s per-step call to
