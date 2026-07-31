@@ -14,10 +14,12 @@ from __future__ import annotations
 import logging
 
 from aiogram import Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message
 from sqlalchemy import select
 
+from ati_evn.agent.loop.postfilter import sanitize_telegram_markdown
 from ati_evn.config import get_settings
 from ati_evn.db.models import CustomerAsset, CveCweMap, CveProductMap, Detection, Finding, PlaybookCache
 from ati_evn.db.session import async_session
@@ -45,7 +47,8 @@ The markdown MUST include these 5 sections in order (Vietnamese headers):
   ## 5. Lessons Learned (Bài học)
 
 Each section:
-- 3-5 concrete action items with concrete commands where applicable
+- 2-4 concrete action items (be concise, one short line per item;
+  include a command only when it directly helps, not for every item)
 - Vietnamese narrative, English technical terms (CVE-ID, ATT&CK, tool
   names) preserved
 - Reference the specific vendor/product/version and network_segment
@@ -53,6 +56,11 @@ Each section:
   (do NOT reboot PLCs mid-operation, coordinate with plant operators)
 - For DMZ, focus on isolation + traffic filtering
 - For internal IT, focus on patching + credential rotation
+
+Keep the ENTIRE markdown value under ~1800 words total across all 5
+sections combined -- this is a quick-reference playbook for an
+analyst mid-incident, not an exhaustive runbook. Prioritize the most
+critical action per section over covering every possibility.
 
 Do NOT hallucinate CVE facts, CVSS scores, or vendor advisories.
 Do NOT include disclaimers about being an AI.
@@ -123,7 +131,11 @@ async def _get_or_generate(session, cve_id: str, network_segment: str | None,
     )
     raw = await client.chat_json(
         system=PLAYBOOK_SYSTEM, user=user_prompt,
-        max_tokens=4096, temperature=0.3,
+        # 4096 was observed truncating mid-JSON for CVEs with rich context
+        # (5 Vietnamese sections + commands can run long) -- see
+        # scripts/audit_14b_backlog.md's "/playbook can fail with 'Could
+        # not extract valid JSON'" entry.
+        max_tokens=6144, temperature=0.3,
     )
     markdown = raw.get("markdown", "")
     if not markdown:
@@ -214,7 +226,15 @@ async def cmd_playbook(message: Message):
         )
 
         if len(markdown) < 3500:
-            await message.answer(f"{header}\n\n{markdown}")
+            # Sanitize only for the inline-Telegram-message path -- the
+            # raw markdown (## headings etc.) is correct as-is for the
+            # .md file download below, where a real Markdown reader
+            # renders it properly.
+            body = sanitize_telegram_markdown(markdown)
+            try:
+                await message.answer(f"{header}\n\n{body}", parse_mode="Markdown")
+            except TelegramBadRequest:
+                await message.answer(f"{header}\n\n{body}")
         else:
             f = BufferedInputFile(markdown.encode("utf-8"), filename=f"{cve_id}_playbook.md")
             await message.answer_document(f, caption=header)

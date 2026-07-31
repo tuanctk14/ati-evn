@@ -30,6 +30,7 @@ from ati_evn.db.session import async_session
 from ati_evn.telegram.argparse_util import parse_args
 from ati_evn.telegram.audit import log_command
 from ati_evn.telegram.formatter.asset import format_asset_detail
+from ati_evn.telegram.formatter.common import fmt_dt
 from ati_evn.telegram.formatter.customer import format_customer_detail
 from ati_evn.telegram.formatter.cve import format_cve_detail
 from ati_evn.telegram.formatter.finding import format_finding_detail
@@ -388,7 +389,6 @@ async def cmd_stats(message: Message):
             select(func.max(Detection.created_at))
         )
         latest_ingest = latest_ingest_result.scalar_one()
-        from ati_evn.telegram.formatter.common import fmt_dt
         latest_ingest_str = f"{fmt_dt(latest_ingest)} ICT" if latest_ingest else None
 
         ti_total = (await session.execute(
@@ -524,8 +524,6 @@ async def cmd_list_alerts(message: Message):
         if not rows:
             await message.answer(f"Không có alert nào trong {recent} qua.")
             return
-
-        from ati_evn.telegram.formatter.common import fmt_dt
 
         lines = [f"📨 Alert list — {len(rows)} kết quả (gần đây)", ""]
         for alert, customer_name in rows:

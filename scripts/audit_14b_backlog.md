@@ -119,7 +119,7 @@ Deferred to future work / thesis Limitations chapter.
   now correctly replies "Matcher: 0 matched, 0 finding(s) created" (a throwaway test domain matches nothing),
   no longer polluted by the unrelated NVD batch.
 
-- [BUG] **Post-backlog manual retest**: `/playbook <CVE-ID>` can fail with "Could not extract valid JSON from text"
+- [FIXED] **Post-backlog manual retest**: `/playbook <CVE-ID>` can fail with "Could not extract valid JSON from text"
   Found during the post-E.1/E.3 manual retest (2026-07-31), NOT a regression from those changes --
   `telegram/commands/playbook.py`'s `_get_or_generate()` calls `LLMClient.chat_json(..., max_tokens=4096)`
   asking for a full NIST 800-61 playbook (5 sections, Vietnamese narrative + commands) as a JSON string value.
@@ -127,9 +127,32 @@ Deferred to future work / thesis Limitations chapter.
   get truncated mid-sentence before the closing `"}/` of the JSON object, so all 3 tiers of
   `llm/json_extract.py`'s `_extract_json_any()` fail (direct parse, fence-strip, brace-balance) since the
   JSON itself is incomplete -- not a formatting slip the fallback tiers can recover from. Pre-existing issue,
-  unrelated to `chat_json`'s retry/logging changes in this session. Fix approach: raise `max_tokens` for this
-  specific call (playbook content is long by design) and/or ask the model to emit the 5 sections as separate
-  string fields instead of one giant markdown blob, reducing the chance any single field overruns the budget.
+  unrelated to `chat_json`'s retry/logging changes in this session. First attempt: raised `max_tokens` from
+  4096 to 6144 -- retested with CVE-2026-47295 (the original repro, no cache present) and it STILL failed,
+  this time with `text: ''` (completely empty content, `completion_tokens=6144` exactly on the cap) instead
+  of a truncated-but-present JSON string -- the 9Router provider apparently returns empty `content` rather
+  than partial text when JSON-mode generation is cut off mid-structure. Root cause was the prompt asking for
+  too much content (5 sections x 3-5 detailed action items with commands), not just an undersized budget.
+  Fixed by also tightening `PLAYBOOK_SYSTEM`: reduced each section to 2-4 concise action items, added an
+  explicit ~1800-word total budget across all 5 sections, and reframed it as "a quick-reference playbook for
+  an analyst mid-incident, not an exhaustive runbook." Verified live on Bot 2 with a fresh (uncached)
+  CVE-2026-47295 generation: completed successfully, all 5 sections present with concrete Vietnamese content
+  + SQL/command snippets.
+
+  Follow-up found on the same retest: the generated playbook is sent via `message.answer(f"{header}\n\n
+  {markdown}")` with no `parse_mode` and no sanitization, so the LLM's `## 1. Identification` headings
+  rendered as literal `##` characters in Telegram -- the same class of bug fixed for the free-text agent
+  path earlier this session, but `playbook.py`'s inline-send path never got wired to
+  `sanitize_telegram_markdown()`. Fixed: the inline-message branch (< 3500 chars) now runs the markdown
+  through `sanitize_telegram_markdown()` and sends with `parse_mode="Markdown"` (falling back to plain text
+  on `TelegramBadRequest`, same pattern as `agent_handler.py`'s `_send_markdown`) -- the `.md` file-download
+  branch (>= 3500 chars) is deliberately left un-sanitized, since a real Markdown reader opening that file
+  should see the original `##` headings, not the Telegram-safe rewrite. Verified live: headings now render
+  as `*bold*` section labels instead of literal `##`. Known minor side effect: the same snake_case-underscore
+  fix from earlier this session (which turns `risk_score` into `risk score` so Telegram doesn't mangle it)
+  also touches SQL/command identifiers embedded in playbook text (e.g. `xp_cmdshell` -> `xp cmdshell`,
+  `create_date` -> `create date`) -- an accepted tradeoff for readable prose, and the untouched `.md` file
+  download remains the source of truth for copy-pasting exact commands.
 
 - [INFRA, not a code bug] **Post-backlog manual retest**: LeakIX provider unreachable on this host (`ConnectError`, firewall)
   Every `/enrich_ip` call during the 2026-07-31 retest shows `leakix: unknown score=0 (ConnectError: )`.
@@ -154,8 +177,14 @@ Deferred to future work / thesis Limitations chapter.
 - [RESOLVED / re-scoped] **E.2**: 15 LLM call site(s) without an explicit timeout wrap
   Re-investigated: `LLMClient.chat_json`/`chat_text`/`chat_with_tools` each already have their own default `timeout` parameter (60s/30s/30s respectively) -- a call site omitting `timeout=` still has a real httpx-level timeout, just the method's default rather than a per-call override. So "without an explicit timeout wrap" was a less severe finding than the original phrasing implied (no risk of an unbounded hang). Of the 15, verified 3 already pass an explicit override (`ingestion/extractor.py` timeout=90.0, `reports/narrative.py`'s remediation call timeout=60.0, `agent/loop/function_calling.py`'s main step timeout=30.0). Of the remaining, fixed the two most report-relevant ones: `reports/narrative.py`'s Executive Summary (`generate_narrative`) and per-customer narrative (`generate_customer_narrative`) calls now explicitly pass timeout=60.0 (previously relying on chat_text's 30s default), matching the value already used for the remediation call in the same file -- these are the narrative calls repeatedly observed timing out against a slow/degraded LLM provider during manual testing. The other ~9 call sites (brand/document rule classifiers, exposure vuln matcher, CPE inferrer, sigma generator, playbook, weekly-report summary, summarize_customer, the ReAct loop and function-calling's forced-final-answer path) were left on their method defaults -- each already has a real timeout, just not spelled out per-call, and none of them were observed hitting it during this session's testing.
 
-- [LOW] **B.1**: 2 file(s) with duplicate import statements
-  Duplicate import statements clutter files.
+- [RESOLVED] **B.1**: 2 file(s) with duplicate import statements
+  `external/censys_client.py`: `import asyncio` was repeated as a local import inside both `search_ip()` and
+  `search_cidr()` instead of once at module top-level -- no circular-import reason for the local scoping,
+  purely redundant. `telegram/commands/query.py`: `from ati_evn.telegram.formatter.common import fmt_dt` was
+  similarly repeated as a local import inside two different handler functions (the stats and alert-list
+  commands). Neither module has any risk of a circular import with the other (verified: both import cleanly
+  after hoisting). Hoisted both to their file's top-level import block, removed the two duplicate local
+  imports in each file. Verified: both files parse and import cleanly.
 
 - [LOW] **B.3**: renderer.py has 2 similar path builders
   `_output_paths` and `_customer_output_paths` share nearly identical logic (day-folder + timestamped filename). Could be unified with a prefix parameter.
@@ -172,21 +201,16 @@ Deferred to future work / thesis Limitations chapter.
 - [RESOLVED] **E.3**: 12 client file(s) without a @retry decorator
   Found 13 files calling httpx directly with no `@retry` (4 files in `external/*_client.py` already had it from earlier work). Centralized the fix at `fetchers/base.py`: added a shared `_retried_request()` (wraps `client.request()` with `tenacity.retry` on `httpx.RequestError`, 3 attempts, exponential backoff, reraise=True) plus `self._get()`/`self._post()` convenience methods on `IOCFetcher`, and switched all 6 subclasses (`fetchers/ioc/{threatfox,urlhaus,malwarebazaar,feodo}.py`, `fetchers/cve/{nvd,nvd_single}.py`) to call through them instead of `client.get/post` directly -- one fix, six fetchers covered. For the other 6 files, each call site wraps its own client creation inside a broad `except Exception`, so retry had to wrap the single HTTP call, not the whole `fetch()`: extracted a small `_get()`/`_post()` (or `_fetch_*`) helper per file in `enrichment_v2/adapters/{abuseipdb,leakix,otx,pulsedive,virustotal}.py`, `enrichment_v2/{epss_client,kev_client}.py`, `ingestion/fetcher.py`. `llm/client.py` got a tighter retry (2 attempts, short backoff, extracted `_post()` reused by `chat_json`/`chat_text`/`chat_with_tools`) since it sits inside the agent turn's overall timeout budget and must not itself risk compounding a slow-provider hang. Verified: all touched files import cleanly, and a full bot restart showed successful retried-through calls to abuseipdb/virustotal/otx/pulsedive/leakix/NVD/threatfox/urlhaus/malwarebazaar with no new errors.
 
-- [LOW] **ReAct fallback leaks raw "Thought:" text as the final answer**
-  `agent/loop/react.py:124-129`: when a step's LLM response has neither a
-  parseable `Final Answer:` nor a valid `Action:`/`Action Input:` pair
-  (e.g. the model's output was truncated mid-thought, observed during
-  LLM provider degradation -- 429/500 errors -- that also triggers the
-  ReAct fallback in the first place), the code falls through to
-  `return raw.strip()[:2000], trace`, sending the raw text -- including
-  a leading "Thought: ..." fragment -- to the analyst verbatim instead
-  of a clean answer or a "please retry" message. Low severity (no data
-  loss, cosmetic only, and rare -- requires both a function-calling
-  failure that triggers ReAct AND a subsequent malformed ReAct
-  response), but confusing when it does surface. Fix approach: strip a
-  leading `Thought:.*?(?=\n|$)` line before returning at this fallback
-  path, or route it through the same "agent gap loi" retry message used
-  for exceptions instead of showing raw model output.
+- [RESOLVED] **ReAct fallback leaks raw "Thought:" text as the final answer**
+  `agent/loop/react.py`: when a step's LLM response has neither a parseable `Final Answer:` nor a valid
+  `Action:`/`Action Input:` pair (e.g. truncated mid-thought during LLM provider degradation, which is also
+  what triggers the ReAct fallback in the first place), the code used to fall through to
+  `return raw.strip()[:2000], trace`, sending the raw text -- including a leading "Thought: ..." fragment --
+  to the analyst verbatim. Fixed with `_THOUGHT_PREFIX_RE` + `_clean_malformed_response()`: strips a leading
+  `Thought:...` line and falls back to an explicit "⚠️ Agent không tạo được câu trả lời hợp lệ..." retry
+  notice if nothing meaningful remains after stripping, used at both fallback sites (token-cap-reached path
+  and no-action-found path). Confirmed present and correctly wired in the current codebase (this fix had
+  already landed earlier in this session but the backlog entry was never updated to reflect it).
 
 - [RESOLVED] **Manual test S4.4 / Slice 16A**: slash-command results were invisible to the agent's session history
   Originally: `SessionState.history` was only appended by `agent_handler.py` (free-text path); slash-commands never touched it, so temporal-anaphora references ("CVE moi ingest") to a `/confirm_ingest` result issued moments earlier couldn't resolve. Fixed in slice 16A via an *additive* design (not a `history` replacement, to avoid regressing `function_calling.py`'s message-building loop and the S3.3/S4.4 reference-resolution fixes that depend on it): a new `SessionState.command_log_recent` field (capped at 20 entries) populated by `register_command_tool_call()`, called explicitly from priority command handlers (`/confirm_ingest`, `/reject_ingest`, `/close`, `/mark_fp`, `/reopen`, `/acknowledge_indicator`, `/note_indicator`, `/generate_report`, `/add_customer`, `/add_asset`, `/add_ioc`) via `@log_command`. Persisted in a new `agent_sessions.command_log_recent` JSONB column (backed up before the manual `ALTER TABLE`, since the project has no Alembic/migration framework -- see `backups/`), using an update-in-place write path for command-log saves specifically (free-text's original append-only insert-per-turn behavior is unchanged). Injected into the agent's prompt via `render_context_prefix`. Verified end-to-end: `/ingest` -> `/confirm_ingest` -> "CVE moi ingest co match asset khong?" now resolves to the exact CVE IDs from the confirm step instead of a broad time-window query. Remaining commands outside the priority list (~30 of 41) still only get minimal tracking (command name, no tool-call detail) -- sufficient for read-only commands per the original design, but could be extended if a future test surfaces a gap there.

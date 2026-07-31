@@ -15,6 +15,7 @@ by expanding the range into individual IPs and looking each one up.
 """
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
 
@@ -157,8 +158,6 @@ def _normalize_host(raw_resource: dict) -> list[dict]:
 async def search_ip(ip: str) -> list[dict]:
     """Look up a single host by IP. Returns a flat list of exposure dicts
     (one per open service), or [] if the host has no observed services."""
-    import asyncio
-
     data = await asyncio.to_thread(_get_host, ip)
     resource = (data.get("result") or {}).get("resource") or {}
     return _normalize_host(resource)
@@ -171,8 +170,6 @@ async def search_cidr(cidr: str, max_hosts: int | None = None) -> list[dict]:
     (see module docstring), so this issues one host lookup per address,
     capped at `max_hosts` (defaults to settings.censys_max_hosts_per_scan).
     """
-    import asyncio
-
     settings = get_settings()
     cap = max_hosts or settings.censys_max_hosts_per_scan
     try:
