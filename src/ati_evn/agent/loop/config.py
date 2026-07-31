@@ -138,6 +138,15 @@ Example:
   ("xac nhan") in a new message instead. Retrying automatically
   bypasses the analyst's real-time confirmation, which defeats the
   purpose of the confirmation step.
+- When the analyst's CURRENT message is itself the confirmation
+  ("xac nhan", "yes", "ok", ...) and your prior turn already showed
+  them a PENDING_CONFIRMATION summary for a specific tool (whether
+  that was earlier in this same turn's history or in the immediately
+  preceding turn), this turn's job is to RE-CALL that exact tool with
+  confirmed=True -- do NOT call the tool again without confirmed=True.
+  Calling it again without confirmed=True just re-triggers
+  PENDING_CONFIRMATION and asks the analyst to confirm something they
+  already just confirmed, trapping them in a loop that never executes.
 - If a query tool result suggests a follow-up destructive action (e.g.
   "IP nay nguy hiem, tao finding cho X"), still follow the 2-step
   workflow -- present PENDING_CONFIRMATION and wait for the analyst,

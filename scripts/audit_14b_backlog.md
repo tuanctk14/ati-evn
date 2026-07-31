@@ -2,6 +2,32 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED, prompt-layer] **Post-backlog manual retest (Phase 2)**: confirmed=True loop -- agent re-showed PENDING_CONFIRMATION instead of executing after analyst confirmed in a NEW turn
+  Found on "Ingest văn bản ... CVE-2026-88888": after the analyst confirmed a `ingest_article` PENDING_CONFIRMATION
+  and the tool correctly rejected a mismatched confirmed=True call in that same turn (existing, working safety
+  net -- see "no matching prior PENDING_CONFIRMATION" handling in `agent/tools/_action_base.py`), the analyst
+  replied "Xác nhận" again in a brand-new message. Instead of re-calling `ingest_article(..., confirmed=True)`
+  to actually execute, the LLM called it again WITHOUT confirmed=True, re-creating a fresh PENDING_CONFIRMATION
+  and asking the analyst to confirm the same thing a second time -- a loop that would never progress if the
+  analyst kept saying "xác nhận" the same way. The backend confirmation registry itself was not at fault (this
+  is the same NLU/reasoning gap class documented under the project's "layer selection principle": the model
+  correctly avoided retrying automatically within the SAME turn per an earlier prompt rule, but didn't
+  generalize that "analyst confirming across turn boundaries" still means "re-call with confirmed=True", not
+  "re-show the summary"). Fixed at the prompt layer (system prompt's "CRITICAL RULES for action tools"
+  section) with an explicit rule: when the analyst's current message is itself a confirmation and a prior turn
+  already showed PENDING_CONFIRMATION for a specific tool, this turn must re-call that tool WITH
+  confirmed=True, not without it. Chose prompt over code here because "which of several possible pending
+  actions across turns does 'xác nhận' refer to" is a reference-resolution/reasoning task, matching this
+  project's established pattern of using prompt fixes for NLU tasks and code fixes for hard behavioral
+  discipline (e.g. the empty-answer and command-hallucination postfilters). Verified live on Bot 2 after
+  restart: a fresh ingest_article request -> "Xác nhận" now completes in exactly one confirm round-trip (tool
+  called with confirmed=True on the very next turn, ingestion session created), no repeated
+  PENDING_CONFIRMATION loop. Unlike the nested-bullet case earlier this session, the prompt-only fix held
+  here -- if a future regression surfaces (loop reappears), fall back to a code-layer signal: e.g. gate the
+  SessionState command_log/entity summary to explicitly surface "there is 1 pending confirmation for tool X"
+  when one exists, so the model has a harder-to-miss structured signal instead of inferring it from prose
+  history.
+
 - [FIXED] **Post-backlog manual retest (Phase 2)**: `scan_document_leak` agent tool could exceed the agent turn's 60s TIMEOUT_SECONDS (same bug class as the earlier scan_brand_abuse fix)
   Found on "Scan tài liệu rò rỉ từ khóa EVN" -- the turn timed out on both the function-calling attempt AND
   the ReAct fallback attempt (log: `Function-calling timeout on attempt 2`), taking 181 seconds total before
