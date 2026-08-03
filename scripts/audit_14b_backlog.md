@@ -2,6 +2,22 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis test data collection**: `LLMClient.chat_json()` could return fully empty `content` when the completion was cut off, observed independently at 4 call sites
+  Found repeatedly while collecting Chương 3 test data: `/playbook` (`JSONExtractError: Could not extract
+  valid JSON from text: ''`), `generate_report`'s Executive Summary (same error, log showed
+  `completion_tokens` landing exactly on `max_tokens`), and both `brand_rules`/`document_rules` LLM
+  classifiers during `scan_brand_abuse`/`scan_document_leak` (`test_reports/D2_external_monitoring.md`).
+  Same root cause each time: the provider (9Router) sometimes returns `content=""` in JSON mode instead of a
+  truncated-but-present string when generation is cut off mid-structure -- previously `chat_json()` passed
+  this straight to `extract_json_dict("")`, which always fails (no JSON to extract from an empty string), so
+  every one of the 4 callers had to build its own ad-hoc fallback (raise, log-and-skip, or show
+  "(LLM summary lỗi: ...)" inline). Fixed at the shared root instead of patching each caller separately:
+  `chat_json()` now detects empty `content` and retries ONCE with `max_tokens` doubled (capped at 16000),
+  via a new keyword-only `_retry_on_empty` flag that prevents the retry itself from looping. All 4 callers
+  get the fix for free with no code changes on their side. Verified: re-running `generate_report` (the
+  clearest repro) now produces a full multi-paragraph Executive Summary instead of the
+  "(LLM summary lỗi: ...)" fallback text, in 19.4s (faster than the prior failing run).
+
 - [FIXED] **Thesis test data collection (Nhóm test 10)**: `_force_final_answer()` could itself return empty content, same failure class as the earlier empty-answer fix but at a different call site
   Found running a deliberately over-broad question ("mọi Finding của mọi đơn vị EVN... cho mỗi Finding
   ATT&CK, Sigma rule, playbook và IP làm giàu") via `scripts/test_agent.py` to test the token-cap limit for

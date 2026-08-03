@@ -52,6 +52,7 @@ class LLMClient:
         max_tokens: int = 4096,
         temperature: float = 0.1,
         timeout: float = 60.0,
+        _retry_on_empty: bool = True,
     ) -> dict:
         """POST /chat/completions with JSON-object response format.
 
@@ -113,6 +114,28 @@ class LLMClient:
         )
 
         content = data["choices"][0]["message"]["content"]
+        if not content and _retry_on_empty:
+            # Observed repeatedly across 4 independent call sites
+            # (/playbook, generate_report, brand_rules, document_rules
+            # classifiers): the provider sometimes returns a fully empty
+            # `content` in JSON mode instead of a truncated-but-present
+            # string when the completion is cut off mid-structure
+            # (completion_tokens lands exactly on max_tokens). Retrying
+            # once with a larger budget resolves it in practice; only
+            # retry once (_retry_on_empty=False on the recursive call) so
+            # a persistently-empty response still surfaces as a real
+            # JSONExtractError rather than looping.
+            logger.warning(
+                "chat_json got empty content (completion_tokens=%s, max_tokens=%s) "
+                "— retrying once with a larger token budget",
+                usage.get("completion_tokens"), max_tokens,
+            )
+            return await self.chat_json(
+                system, user,
+                max_tokens=min(max_tokens * 2, 16000),
+                temperature=temperature, timeout=timeout,
+                _retry_on_empty=False,
+            )
         return extract_json_dict(content)
 
     async def chat_text(
