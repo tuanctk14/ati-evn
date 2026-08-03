@@ -53,6 +53,7 @@ class LLMClient:
         temperature: float = 0.1,
         timeout: float = 60.0,
         _retry_on_empty: bool = True,
+        _retry_on_backend_error: bool = True,
     ) -> dict:
         """POST /chat/completions with JSON-object response format.
 
@@ -60,7 +61,7 @@ class LLMClient:
         API/transport failure, JSONExtractError (from json_extract) on
         parse failure of an otherwise-successful response.
         """
-        from ati_evn.llm.json_extract import extract_json_dict
+        from ati_evn.llm.json_extract import JSONExtractError, extract_json_dict
 
         if not self.is_configured():
             raise LLMError("OPENAI_API_KEY missing — LLM client not configured")
@@ -94,6 +95,31 @@ class LLMClient:
 
         if resp.status_code != 200:
             body = resp.text[:300]
+            # 9Router load-balances across backends; some (observed:
+            # "DFLASH") don't support grammar-constrained decoding (what
+            # response_format={"type":"json_object"} relies on) and
+            # reject the request outright with HTTP 400 instead of just
+            # that backend failing over. This isn't a malformed request
+            # on our end -- retrying once typically routes to a
+            # different, compatible backend. Only retry this specific
+            # transient-backend signature, not HTTP 400 in general
+            # (which is usually a real request problem that retrying
+            # won't fix).
+            if (
+                resp.status_code == 400
+                and _retry_on_backend_error
+                and "grammar-constrained decoding" in body
+            ):
+                logger.warning(
+                    "chat_json got a backend-incompatibility 400 (%s) — "
+                    "retrying once, likely routes to a different backend",
+                    body[:150],
+                )
+                return await self.chat_json(
+                    system, user, max_tokens=max_tokens, temperature=temperature,
+                    timeout=timeout, _retry_on_empty=_retry_on_empty,
+                    _retry_on_backend_error=False,
+                )
             logger.error("LLM HTTP %s (%.0fms): %s", resp.status_code, duration_ms, body)
             raise LLMError(f"LLM API returned HTTP {resp.status_code}: {body}")
 
@@ -114,21 +140,23 @@ class LLMClient:
         )
 
         content = data["choices"][0]["message"]["content"]
+        completion_tokens = usage.get("completion_tokens")
+        # Truncation shows up two ways, both meaning the same thing (the
+        # completion got cut off mid-structure before valid JSON was
+        # complete): (1) content comes back fully empty, or (2) content is
+        # present but is a partial JSON fragment (e.g. a string value cut
+        # off mid-word) that fails to parse. Observed at 5 independent
+        # call sites (/playbook, generate_report, brand_rules,
+        # document_rules classifiers, sigma_generator) -- (1) and (2) can
+        # both happen depending on exactly where the cutoff lands. Retry
+        # once with a larger budget for either; only retry once
+        # (_retry_on_empty=False on the recursive call) so a persistently
+        # bad response still surfaces as a real error rather than looping.
         if not content and _retry_on_empty:
-            # Observed repeatedly across 4 independent call sites
-            # (/playbook, generate_report, brand_rules, document_rules
-            # classifiers): the provider sometimes returns a fully empty
-            # `content` in JSON mode instead of a truncated-but-present
-            # string when the completion is cut off mid-structure
-            # (completion_tokens lands exactly on max_tokens). Retrying
-            # once with a larger budget resolves it in practice; only
-            # retry once (_retry_on_empty=False on the recursive call) so
-            # a persistently-empty response still surfaces as a real
-            # JSONExtractError rather than looping.
             logger.warning(
                 "chat_json got empty content (completion_tokens=%s, max_tokens=%s) "
                 "— retrying once with a larger token budget",
-                usage.get("completion_tokens"), max_tokens,
+                completion_tokens, max_tokens,
             )
             return await self.chat_json(
                 system, user,
@@ -136,7 +164,22 @@ class LLMClient:
                 temperature=temperature, timeout=timeout,
                 _retry_on_empty=False,
             )
-        return extract_json_dict(content)
+        try:
+            return extract_json_dict(content)
+        except JSONExtractError:
+            if _retry_on_empty and completion_tokens and completion_tokens >= max_tokens:
+                logger.warning(
+                    "chat_json got truncated/unparseable content (completion_tokens=%s, "
+                    "max_tokens=%s) — retrying once with a larger token budget",
+                    completion_tokens, max_tokens,
+                )
+                return await self.chat_json(
+                    system, user,
+                    max_tokens=min(max_tokens * 2, 16000),
+                    temperature=temperature, timeout=timeout,
+                    _retry_on_empty=False,
+                )
+            raise
 
     async def chat_text(
         self,

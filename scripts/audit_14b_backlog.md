@@ -2,6 +2,33 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis manual retest (follow-up on Nhóm 6)**: force_regen=True flip-flopped twice, plus two more chat_json() failure modes found via `/rule --regen`
+  Follow-up after the previous `generate_sigma_rule` fix: user clarified "sinh Sigma rule" SHOULD map to
+  force_regen=True (matching `/rule --regen`, not `/rule`'s default) -- the earlier revert went too far.
+  Restored the force_regen=True-on-"sinh"/"tao" prompt rule, now correctly scoped as "look up" (tim/tra) ->
+  force_regen=False vs "generate" (sinh/tao) -> force_regen=True, matching /rule vs /rule --regen exactly.
+
+  While re-verifying via `/rule CVE-2025-68686 --regen` directly, hit two more `chat_json()` failure modes,
+  neither covered by the existing empty-content retry (commit ac862af):
+  (1) HTTP 400 `"Upstream request failed: [400] DFLASH speculative decoding does not support
+  grammar-constrained decoding yet."` -- 9Router load-balances across backends and at least one ("DFLASH")
+  rejects `response_format={"type":"json_object"}` outright instead of failing over transparently. Fixed by
+  retrying once specifically on this signature (matching "grammar-constrained decoding" in the 400 body,
+  not HTTP 400 in general -- a real bad request shouldn't be blindly retried) -- a retry typically lands on a
+  different, compatible backend.
+  (2) `JSONExtractError: Could not extract valid JSON from text` with content NOT empty this time --
+  `completion_tokens` landed exactly on `max_tokens` (4096) with a partial JSON fragment (a string value cut
+  off mid-word), which the existing `if not content` check didn't catch since content wasn't empty, just
+  truncated. Found in `rules/sigma_generator.py`'s AI-rule-generation call (a 6th independent call site for
+  this general truncation problem, after /playbook, generate_report, brand_rules, document_rules
+  classifiers). Fixed by wrapping `extract_json_dict()` in try/except and retrying once with doubled
+  `max_tokens` when parsing fails AND `completion_tokens >= max_tokens` (the truncation signature) --
+  complements rather than replaces the empty-content retry, both share the same one-retry-only guard.
+
+  Verified via CLI (`scripts/test_tool.py generate_sigma_rule --args='{"cve_id":"CVE-2025-68686",
+  "force_regen":true}'`): completes successfully in 36.3s with `source: "ai_generated"`, a full Sigma YAML
+  rule, and analyst notes -- no HTTP 400, no JSON truncation error.
+
 - [FIXED] **Thesis manual retest (Nhóm 6)**: two issues found on "Sinh Sigma rule cho nó" continuing an entity-memory test chain
   (1) The agent resolved "nó" to the wrong CVE: the conversation's Nhóm 6 chain asked about 5 different
   topics (Fortinet, EVNNPC's worst CVE, cross-customer findings, GENCO1's asset, top IOC) before this

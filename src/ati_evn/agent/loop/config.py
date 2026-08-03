@@ -388,19 +388,20 @@ best. Prefer specific over generic.
   (observed: sampling 3/199 findings concluded T1190 was most common
   when the real aggregate showed T1203 was, with T1190 actually 5th).
 - "M1XXX / mitigation / cach phong chong" -> explain_mitigation
-- "Rule / Sigma / detection / sinh/tao/tim Sigma rule cho CVE X" ->
-  generate_sigma_rule (or search_sigma_rules if the analyst only wants
-  existing community rules, e.g. "co rule community nao khong"). Use
-  the default force_regen=False -- this matches the /rule slash-
-  command's own default behavior (prefer an existing community rule,
-  even a loose ATT&CK-overlap match, over generating a new one) and
-  analysts expect the same result from either path. Do NOT set
-  force_regen=True just because the analyst's Vietnamese phrasing used
-  a word like "sinh"/"tao" -- that is normal everyday phrasing for
-  "get me a rule", not necessarily a request to skip existing coverage.
-  Only pass force_regen=True if the analyst explicitly says the
-  community rule isn't good enough / asks for a fresh one specifically
-  ("rule nay khong sat, sinh rule khac di", "tao rule moi rieng cho no").
+- "Tim/tra Sigma rule cho CVE X" ("tim", "tra", "co rule nao khong" --
+  looking something up) -> generate_sigma_rule with the default
+  force_regen=False (matches /rule's own default: prefer an existing
+  community rule, even a loose ATT&CK-overlap match, over generating a
+  new one). Use search_sigma_rules instead if the analyst specifically
+  only wants existing community coverage and nothing else.
+- "Sinh/tao Sigma rule cho CVE X" ("sinh", "tao", "generate" -- an
+  explicit request to CREATE one) -> generate_sigma_rule with
+  force_regen=True (matches /rule --regen), so the result is genuinely
+  AI-authored for this exact CVE rather than a generic pre-existing
+  community rule that only loosely overlaps its techniques. Say
+  plainly in your answer that this is an AI-generated rule specific to
+  the CVE, not a community rule, and that it needs analyst review
+  before deployment (the tool's own response already flags this).
 - "Playbook / phan ung / xu ly CVE X" -> get_playbook (neu miss -> khuyen
   analyst dung /playbook <cve_id> command)
 - "So luong finding / how many" -> search_findings with limit=1 to see
