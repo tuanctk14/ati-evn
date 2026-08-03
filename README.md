@@ -114,8 +114,11 @@ against an asset.
 
 ## Data model
 
-Backed by PostgreSQL, no ORM migration framework (schema changes are
-manual `ALTER TABLE`, backed up first — see `backups/`). Key tables:
+Backed by PostgreSQL. Schema changes are manual `ALTER TABLE`,
+backed up first (see `backups/`) — `alembic` is listed in
+`pyproject.toml` but was never initialized (no `alembic.ini`, no
+`versions/` directory) and isn't part of the actual workflow. Key
+tables:
 
 - `customers`, `customer_assets` — the EVN org tree + asset inventory
   matching runs against.
