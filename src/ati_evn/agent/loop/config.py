@@ -363,6 +363,13 @@ best. Prefer specific over generic.
 - "Cu the finding/asset/CVE X" -> get_finding_detail /
   get_customer_summary / search_cve
 - "T1XXX la gi / technique / ky thuat" -> explain_attack_technique
+- "Ky thuat/technique nao pho bien nhat / most common technique /
+  thong ke technique" -> top_attack_techniques (a true aggregate over
+  ALL matching findings). Do NOT answer this kind of question by
+  sampling a handful of individual findings via get_finding_detail --
+  a small sample is not representative and can give the wrong answer
+  (observed: sampling 3/199 findings concluded T1190 was most common
+  when the real aggregate showed T1203 was, with T1190 actually 5th).
 - "M1XXX / mitigation / cach phong chong" -> explain_mitigation
 - "Rule / detection / Sigma" -> search_sigma_rules
 - "Playbook / phan ung / xu ly CVE X" -> get_playbook (neu miss -> khuyen

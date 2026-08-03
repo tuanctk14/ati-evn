@@ -2,7 +2,7 @@
 
 Deferred to future work / thesis Limitations chapter.
 
-- [FEATURE GAP, not a code bug] **Thesis manual retest (Nhóm 5.3)**: no aggregate tool for "most common ATT&CK technique", agent has to sample-and-guess
+- [FIXED] **Thesis manual retest (Nhóm 5.3)**: no aggregate tool for "most common ATT&CK technique", agent has to sample-and-guess
   Found on "Kỹ thuật ATT&CK nào phổ biến nhất trong tháng?" -- the agent answered "T1190" based on manually
   inspecting 3 sample findings out of 199 total (it explicitly disclosed this limitation: "cần /export nếu
   muốn thống kê chính xác tuyệt đối"), but the real answer (confirmed via direct SQL in
@@ -13,11 +13,16 @@ Deferred to future work / thesis Limitations chapter.
   technique occurrences server-side; the agent's only options are pulling individual findings and reasoning
   over a small sample (as it did here), or `generate_report`, which DOES compute this aggregate correctly
   internally (see `C9_report_generation.md`'s "Top 5 ATT&CK techniques" section) but wasn't the tool the
-  agent reached for on this particular phrasing. Not fixed in this pass -- this is a feature gap (needs a
-  new small aggregate tool, e.g. `top_attack_techniques(since_days, customer)`, or a prompt rule steering
-  "phổ biến nhất/thống kê" questions toward `generate_report` instead of ad-hoc finding sampling) rather than
-  a bug in existing code, and warrants its own design decision on scope (should it reuse generate_report's
-  existing aggregation logic, and does it need per-customer breakdown) before implementing.
+  agent reached for on this particular phrasing. Fixed by adding a new tool, `agent/tools/top_attack_techniques.py`
+  (`top_attack_techniques(since_days=30, customer=None, limit=5)`), reusing the exact same
+  `jsonb_array_elements`-based SQL `telegram/commands/export.py`'s weekly-report generator already relies on
+  for its "Top 5 ATT&CK techniques" section -- same aggregation logic, exposed as a directly-callable,
+  customer-filterable tool instead of only living inside report generation. Also added a tool-selection
+  heuristic rule steering "kỹ thuật nào phổ biến nhất / most common technique" questions toward this new
+  tool instead of ad-hoc `get_finding_detail` sampling, with the T1190-vs-T1203 mistake cited as the
+  concrete example of why sampling is unreliable. Verified via CLI: `top_attack_techniques(since_days=30)`
+  returns T1190=72, T1078=51, T1203=46, T1055=45, T1548=41 (consistent with `generate_report`'s own
+  30-day aggregate), and the customer filter (`customer="EVNHANOI"`) correctly narrows the count.
 
 - [FIXED, prompt-layer] **Thesis manual retest (Nhóm 5.3)**: "Chiến dịch tấn công nào phát hiện trong tuần này?" incorrectly answered "không có campaign nào" when 2 confirmed campaigns existed
   Found via Bot 2 Telegram: the agent called `search_campaigns(since_days=7)` (no `status` arg), got 0
