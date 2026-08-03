@@ -2,6 +2,23 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FEATURE GAP, not a code bug] **Thesis manual retest (Nhóm 5.3)**: no aggregate tool for "most common ATT&CK technique", agent has to sample-and-guess
+  Found on "Kỹ thuật ATT&CK nào phổ biến nhất trong tháng?" -- the agent answered "T1190" based on manually
+  inspecting 3 sample findings out of 199 total (it explicitly disclosed this limitation: "cần /export nếu
+  muốn thống kê chính xác tuyệt đối"), but the real answer (confirmed via direct SQL in
+  `test_reports/C9_report_generation.md`'s Nhóm test 9 data) is **T1203 (35 occurrences)**, not T1190 (30
+  occurrences, actually 5th place) -- the agent's sampled-based guess was simply wrong because no tool exists
+  to compute a true technique-frequency aggregate across all findings. `search_findings`/`get_finding_detail`
+  return technique IDs per-finding but there's no `search_findings`-adjacent tool that GROUPs/COUNTs
+  technique occurrences server-side; the agent's only options are pulling individual findings and reasoning
+  over a small sample (as it did here), or `generate_report`, which DOES compute this aggregate correctly
+  internally (see `C9_report_generation.md`'s "Top 5 ATT&CK techniques" section) but wasn't the tool the
+  agent reached for on this particular phrasing. Not fixed in this pass -- this is a feature gap (needs a
+  new small aggregate tool, e.g. `top_attack_techniques(since_days, customer)`, or a prompt rule steering
+  "phổ biến nhất/thống kê" questions toward `generate_report` instead of ad-hoc finding sampling) rather than
+  a bug in existing code, and warrants its own design decision on scope (should it reuse generate_report's
+  existing aggregation logic, and does it need per-customer breakdown) before implementing.
+
 - [FIXED, prompt-layer] **Thesis manual retest (Nhóm 5.3)**: "Chiến dịch tấn công nào phát hiện trong tuần này?" incorrectly answered "không có campaign nào" when 2 confirmed campaigns existed
   Found via Bot 2 Telegram: the agent called `search_campaigns(since_days=7)` (no `status` arg), got 0
   results, and concluded no campaigns existed in the last 7 days -- but `agent/tools/search_campaigns.py`
