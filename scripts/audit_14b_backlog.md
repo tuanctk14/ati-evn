@@ -2,6 +2,19 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis manual retest (Nhóm 5.2)**: LLM hallucinated a plausible-but-nonexistent `is_internet_facing` filter param on `search_asset`
+  Found on "Có tài sản nào của EVNNPC bị lộ ra Internet không?" -- the agent correctly reasoned it needed an
+  internet-facing filter and guessed the parameter name `is_internet_facing` (matching the real
+  `CustomerAsset.is_internet_facing` DB column, which the tool already returns in its output), but that
+  parameter didn't exist in `search_asset`'s schema. The tool call failed
+  (`search_asset() got an unexpected keyword argument 'is_internet_facing'`), and the agent recovered
+  gracefully by re-calling without the filter and reasoning over the unfiltered results itself -- the final
+  answer was still correct, just via 3 tool calls (1 failed) instead of 1. Since the field already exists on
+  the model and is already exposed read-only in the tool's output, added it as a real filter parameter
+  instead of just accepting the graceful-recovery path: `search_asset` now accepts an optional
+  `is_internet_facing: bool` and applies it as a WHERE clause. Verified: same question via Bot 2 now
+  completes in 1 tool call (6.8s, down from 21.6s/3 calls), same correct 4-asset result.
+
 - [FIXED] **Thesis manual retest (Nhóm 5.1)**: function-calling loop didn't round-trip `reasoning_content`, breaking every subsequent LLM call once the provider entered "thinking mode"
   Found on "Tổng hợp Finding theo đơn vị trong tháng này" via Bot 2 Telegram: the turn's function-calling
   attempt failed with `HTTP 400: "The reasoning_content in the thinking mode must be passed back to the

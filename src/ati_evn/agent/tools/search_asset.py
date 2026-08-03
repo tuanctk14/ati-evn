@@ -29,6 +29,7 @@ HARD_CAP = 20
             "vendor": {"type": "string", "description": "Vendor name (partial match)"},
             "product": {"type": "string", "description": "Product name (partial match)"},
             "asset_value": {"type": "string", "description": "Asset's identifying value (partial match) -- hostname, IP, domain, keyword, etc."},
+            "is_internet_facing": {"type": "boolean", "description": "Filter to assets exposed to the internet (true) or not (false). Omit for no filter."},
             "limit": {"type": "integer", "description": "Max rows (capped at 20)", "default": 20},
         },
         "required": [],
@@ -39,6 +40,7 @@ async def search_asset(
     vendor: str | None = None,
     product: str | None = None,
     asset_value: str | None = None,
+    is_internet_facing: bool | None = None,
     limit: int = 20,
 ) -> dict:
     limit = min(limit or 20, HARD_CAP)
@@ -56,6 +58,8 @@ async def search_asset(
             stmt = stmt.where(CustomerAsset.product.ilike(f"%{product}%"))
         if asset_value:
             stmt = stmt.where(CustomerAsset.asset_value.ilike(f"%{asset_value}%"))
+        if is_internet_facing is not None:
+            stmt = stmt.where(CustomerAsset.is_internet_facing == is_internet_facing)
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_count = (await session.execute(count_stmt)).scalar_one()
