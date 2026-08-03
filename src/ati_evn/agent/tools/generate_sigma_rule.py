@@ -21,16 +21,19 @@ from ati_evn.rules.orchestrator import get_rule_for_cve
     name="generate_sigma_rule",
     description=(
         "Get a Sigma detection rule for a CVE -- same 3-tier logic the "
-        "/rule slash-command uses. With force_regen=False (default, "
-        "matches /rule's own default), tries a direct CVE-tagged "
-        "community rule first, then an ATT&CK-technique-overlap community "
-        "rule, and only AI-generates a new rule via LLM if neither exists "
-        "(source field tells you which: 'community_direct', "
-        "'community_behavioral', or 'ai_generated'). Use the default for "
-        "ordinary 'sinh/tao/tim sigma rule cho CVE X' requests -- only set "
-        "force_regen=True if the analyst explicitly says the existing "
-        "community rule isn't a good enough match and asks for a fresh "
-        "one specifically."
+        "/rule slash-command uses. With force_regen=False (matches plain "
+        "/rule), tries a direct CVE-tagged community rule first, then an "
+        "ATT&CK-technique-overlap community rule, and only AI-generates a "
+        "new rule via LLM if neither exists. With force_regen=True "
+        "(matches /rule --regen) it skips straight to AI-generating a rule "
+        "written specifically for this CVE. source field in the response "
+        "tells you which happened: 'community_direct', "
+        "'community_behavioral', or 'ai_generated'. "
+        "IMPORTANT for your final answer: include the FULL raw YAML "
+        "(response['primary_rule']['yaml']) verbatim in a ```yaml code "
+        "block, exactly like /rule does -- do not paraphrase or summarize "
+        "the rule content into prose instead of showing it, the analyst "
+        "needs the literal YAML to copy into their SIEM."
     ),
     parameters={
         "type": "object",

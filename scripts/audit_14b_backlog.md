@@ -2,6 +2,18 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis manual retest (Nhóm 6, final)**: `generate_sigma_rule` paraphrased the YAML into prose instead of showing it verbatim like `/rule` does
+  Found after the force_regen fix was confirmed working (AI-generated rule content was correct): the
+  free-text agent's answer summarized the rule in prose and never showed the literal YAML, while `/rule`
+  (slash-command) sends the raw YAML as a second message in a ` ```yaml ` code block
+  (`telegram/commands/rule.py:121-126`). The tool call itself worked fine (`source: ai_generated`, correct
+  content) -- the gap was that nothing told the LLM it must reproduce `primary_rule.yaml` verbatim rather
+  than describing it, so it did what LLMs default to: summarized instead of quoting. Fixed by adding an
+  explicit instruction to `generate_sigma_rule`'s tool description: include the full raw YAML verbatim in a
+  ` ```yaml ` code block, not a paraphrase, since the analyst needs the literal text to paste into their
+  SIEM. Verified live on Bot 2: the same "Sinh Sigma rule cho nó" question now includes the complete YAML
+  (title/id/logsource/detection/falsepositives/tags) inline in the answer.
+
 - [FIXED] **Thesis manual retest (follow-up on Nhóm 6)**: force_regen=True flip-flopped twice, plus two more chat_json() failure modes found via `/rule --regen`
   Follow-up after the previous `generate_sigma_rule` fix: user clarified "sinh Sigma rule" SHOULD map to
   force_regen=True (matching `/rule --regen`, not `/rule`'s default) -- the earlier revert went too far.
