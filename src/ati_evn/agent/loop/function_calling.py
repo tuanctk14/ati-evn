@@ -121,12 +121,25 @@ async def run_function_calling(
             trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
             return content, trace
 
-        # Append assistant message (with tool_calls) to history
-        messages.append({
+        # Append assistant message (with tool_calls) to history. When the
+        # provider runs in "thinking mode" it returns a reasoning_content
+        # field alongside content/tool_calls -- 9Router then REJECTS the
+        # next request with HTTP 400 ("reasoning_content ... must be
+        # passed back to the API") if that field isn't echoed back in
+        # this same assistant message on the next call. This isn't
+        # optional metadata; it must round-trip exactly like tool_calls
+        # does. Observed live: this being missing broke function-calling
+        # entirely for a turn, which then also exhausted the ReAct
+        # fallback's timeout.
+        assistant_msg = {
             "role": "assistant",
             "content": content,
             "tool_calls": tool_calls,
-        })
+        }
+        reasoning_content = msg.get("reasoning_content")
+        if reasoning_content:
+            assistant_msg["reasoning_content"] = reasoning_content
+        messages.append(assistant_msg)
 
         # Execute each tool call, append tool responses.
         for tc in tool_calls:

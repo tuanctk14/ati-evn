@@ -2,6 +2,23 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis manual retest (Nhóm 5.1)**: function-calling loop didn't round-trip `reasoning_content`, breaking every subsequent LLM call once the provider entered "thinking mode"
+  Found on "Tổng hợp Finding theo đơn vị trong tháng này" via Bot 2 Telegram: the turn's function-calling
+  attempt failed with `HTTP 400: "The reasoning_content in the thinking mode must be passed back to the
+  API"`, which then exhausted the ReAct fallback's 60s timeout too, ending in the generic
+  "Agent không tạo được câu trả lời hợp lệ" message. Root cause: `agent/loop/function_calling.py`'s
+  assistant-message-history builder only copied `content`/`tool_calls` from the model's response into the
+  next turn's message history -- when the provider (9Router/DeepSeek) runs a step in "thinking mode" it
+  includes a `reasoning_content` field in that response, and (per the error text) requires it to be echoed
+  back verbatim in the next request's message history, not treated as optional/informational metadata. Since
+  the code silently dropped it, the very next `chat_with_tools()` call in the same turn was rejected outright
+  by the provider. Fixed by capturing `msg.get("reasoning_content")` and including it in the assistant
+  message appended to history whenever present. Verified: re-ran the exact question that triggered this via
+  `scripts/test_agent.py` -- completed successfully (7 tool calls, token cap correctly triggered and handled,
+  full substantive answer) with no HTTP 400. Note: since "thinking mode" appears to be provider-side and not
+  directly controllable, this fix addresses the confirmed root cause but can't be proven to eliminate every
+  future occurrence -- worth re-checking if a similar 400 resurfaces.
+
 - [FIXED] **Thesis test data collection**: `LLMClient.chat_json()` could return fully empty `content` when the completion was cut off, observed independently at 4 call sites
   Found repeatedly while collecting Chương 3 test data: `/playbook` (`JSONExtractError: Could not extract
   valid JSON from text: ''`), `generate_report`'s Executive Summary (same error, log showed
