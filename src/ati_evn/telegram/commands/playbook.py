@@ -153,18 +153,18 @@ async def _get_or_generate(session, cve_id: str, network_segment: str | None,
     return markdown, False
 
 
-@router.message(Command("playbook"))
-@log_command("playbook")
-async def cmd_playbook(message: Message):
-    args = parse_args(message.text or "", "playbook")
-    pos = args.get("_positional", [])
-    if not pos:
-        await message.answer("Cú pháp: /playbook <CVE-ID | finding_id>")
-        return
-    target = pos[0]
-
+async def generate_playbook_for(
+    target: str, *, network_segment_override: str | None = None,
+) -> dict:
+    """Public entry point for /playbook's generation logic, usable outside
+    the Telegram handler (added for the agent tool -- see
+    agent/tools/generate_playbook.py). `target` is a CVE-ID or a Finding id
+    (same as /playbook's positional arg). Returns
+    {"cve_id", "network_segment", "markdown", "was_cached"} or
+    {"error": "..."} on a resolvable failure (not found / not a CVE
+    finding) -- raises on generation failure same as _get_or_generate."""
     is_cve = target.upper().startswith("CVE-")
-    network_segment: str | None = None
+    network_segment: str | None = network_segment_override
     context: dict = {}
 
     async with async_session() as session:
@@ -174,21 +174,18 @@ async def cmd_playbook(message: Message):
             try:
                 finding_id = int(target)
             except ValueError:
-                await message.answer(f"ID không hợp lệ: {target}")
-                return
+                return {"error": f"ID không hợp lệ: {target}"}
             finding = await session.get(Finding, finding_id)
             if not finding:
-                await message.answer(f"Không tìm thấy Finding #{finding_id}")
-                return
+                return {"error": f"Không tìm thấy Finding #{finding_id}"}
             if finding.ioc_type != "cve_id":
-                await message.answer(
+                return {"error": (
                     f"Finding #{finding_id} không phải CVE finding, "
                     f"playbook chưa hỗ trợ IOC finding."
-                )
-                return
+                )}
             cve_id = finding.ioc_value.upper()
 
-            if finding.matched_asset:
+            if network_segment_override is None and finding.matched_asset:
                 asset_row = await session.execute(
                     select(CustomerAsset).where(
                         CustomerAsset.customer_id == finding.customer_id,
@@ -207,34 +204,64 @@ async def cmd_playbook(message: Message):
         cve_context = await _load_cve_context(session, cve_id)
         context = {**cve_context, **context}
 
-        thinking = await message.answer(f"📖 Đang generate playbook cho {cve_id}...")
+        markdown, was_cached = await _get_or_generate(session, cve_id, network_segment, context)
 
-        try:
-            markdown, was_cached = await _get_or_generate(session, cve_id, network_segment, context)
-        except Exception as e:
-            await thinking.delete()
-            logger.exception("Playbook generation failed: %s", e)
-            await message.answer(f"⚠️ Playbook generation lỗi: {str(e)[:200]}")
-            return
+    return {
+        "cve_id": cve_id,
+        "network_segment": network_segment,
+        "markdown": markdown,
+        "was_cached": was_cached,
+    }
 
+
+@router.message(Command("playbook"))
+@log_command("playbook")
+async def cmd_playbook(message: Message):
+    args = parse_args(message.text or "", "playbook")
+    pos = args.get("_positional", [])
+    if not pos:
+        await message.answer("Cú pháp: /playbook <CVE-ID | finding_id>")
+        return
+    target = pos[0]
+
+    thinking = await message.answer(f"📖 Đang generate playbook cho {target}...")
+
+    try:
+        result = await generate_playbook_for(target)
+    except Exception as e:
         await thinking.delete()
+        logger.exception("Playbook generation failed: %s", e)
+        await message.answer(f"⚠️ Playbook generation lỗi: {str(e)[:200]}")
+        return
 
-        header = (
-            f"📖 Playbook cho {cve_id}"
-            + (f" (network_segment={network_segment})" if network_segment else "")
-            + (" [cached]" if was_cached else " [freshly generated]")
-        )
+    if "error" in result:
+        await thinking.delete()
+        await message.answer(result["error"])
+        return
 
-        if len(markdown) < 3500:
-            # Sanitize only for the inline-Telegram-message path -- the
-            # raw markdown (## headings etc.) is correct as-is for the
-            # .md file download below, where a real Markdown reader
-            # renders it properly.
-            body = sanitize_telegram_markdown(markdown)
-            try:
-                await message.answer(f"{header}\n\n{body}", parse_mode="Markdown")
-            except TelegramBadRequest:
-                await message.answer(f"{header}\n\n{body}")
-        else:
-            f = BufferedInputFile(markdown.encode("utf-8"), filename=f"{cve_id}_playbook.md")
-            await message.answer_document(f, caption=header)
+    cve_id = result["cve_id"]
+    network_segment = result["network_segment"]
+    markdown = result["markdown"]
+    was_cached = result["was_cached"]
+
+    await thinking.delete()
+
+    header = (
+        f"📖 Playbook cho {cve_id}"
+        + (f" (network_segment={network_segment})" if network_segment else "")
+        + (" [cached]" if was_cached else " [freshly generated]")
+    )
+
+    if len(markdown) < 3500:
+        # Sanitize only for the inline-Telegram-message path -- the
+        # raw markdown (## headings etc.) is correct as-is for the
+        # .md file download below, where a real Markdown reader
+        # renders it properly.
+        body = sanitize_telegram_markdown(markdown)
+        try:
+            await message.answer(f"{header}\n\n{body}", parse_mode="Markdown")
+        except TelegramBadRequest:
+            await message.answer(f"{header}\n\n{body}")
+    else:
+        f = BufferedInputFile(markdown.encode("utf-8"), filename=f"{cve_id}_playbook.md")
+        await message.answer_document(f, caption=header)

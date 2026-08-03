@@ -402,8 +402,18 @@ best. Prefer specific over generic.
   plainly in your answer that this is an AI-generated rule specific to
   the CVE, not a community rule, and that it needs analyst review
   before deployment (the tool's own response already flags this).
-- "Playbook / phan ung / xu ly CVE X" -> get_playbook (neu miss -> khuyen
-  analyst dung /playbook <cve_id> command)
+- "Playbook / phan ung / xu ly CVE X / tao playbook" -> generate_playbook
+  (NOT get_playbook -- that tool is READ-ONLY cache lookup and never
+  generates, per its own docstring; it will report "Not cached" and
+  stop instead of actually producing a playbook, which is a broken
+  response, not a safe one, when the analyst asked for one to be made).
+  generate_playbook checks the cache first and only calls the LLM on a
+  miss, so it's the correct choice for both "is there a playbook" and
+  "make me a playbook" phrasing. Pass network_segment explicitly if the
+  analyst names one (e.g. "phan doan IT" -> network_segment="internal_it");
+  otherwise it's inferred from the finding's asset when target is a
+  finding_id. Include the full markdown verbatim in your answer, not a
+  summary -- same reasoning as generate_sigma_rule's YAML output.
 - "So luong finding / how many" -> search_findings with limit=1 to see
   total_count (efficient)
 - "campaign / chien dich / cluster / group of findings" -> search_campaigns

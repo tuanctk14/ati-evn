@@ -2,6 +2,29 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis manual retest (Nhóm 6)**: no agent tool could actually generate a playbook, same gap class as the Sigma rule issue
+  Found on "Tạo playbook cho nó ở phân đoạn IT": the agent could only call `get_playbook` (existing tool),
+  which is explicitly read-only cache lookup ("Never triggers LLM generation", per its own docstring) --
+  it reported "Not cached" and told the analyst to run `/playbook` themselves instead of actually producing
+  one, exactly the same failure mode fixed for Sigma rules earlier in this session. Root cause:
+  `telegram/commands/playbook.py`'s real generation logic (`_get_or_generate()` + cache lookup +
+  CVE/Finding context loading) was entangled inside `cmd_playbook()`, the Telegram handler, with no public
+  entry point another caller could use. Fixed by extracting a new public function,
+  `generate_playbook_for(target, network_segment_override=None)`, that does the CVE/Finding resolution +
+  cache-or-generate work and returns a plain dict (or `{"error": ...}` for a resolvable failure like
+  "Finding not found"), with `cmd_playbook()` refactored to call it and handle only the Telegram-specific
+  formatting/upload -- behavior unchanged for the slash-command. Added
+  `agent/tools/generate_playbook.py` wrapping it as a non-destructive tool (`generate_playbook(target,
+  network_segment=None)`), with the same "include the full markdown verbatim, don't summarize" instruction
+  used for `generate_sigma_rule`. Hit a circular import on the first attempt (`telegram/commands/playbook.py`
+  imports `agent/loop/postfilter.py`, which is reachable from `agent/tools/__init__.py` via
+  `agent/loop/function_calling.py`) -- fixed by deferring the import inside the tool function body instead
+  of at module level. Added a tool-selection heuristic explicitly warning the model that `get_playbook` never
+  generates and `generate_playbook` is the correct choice whenever the analyst wants one made, not just
+  looked up. Verified live on Bot 2: "Tạo playbook cho nó ở phân đoạn IT" now correctly resolves
+  network_segment="internal_it", finds the cached playbook (from an earlier CLI test with the same CVE+segment
+  key), and displays the full 5-section playbook verbatim instead of saying it couldn't generate one.
+
 - [FIXED] **Thesis manual retest (Nhóm 6, final)**: `generate_sigma_rule` paraphrased the YAML into prose instead of showing it verbatim like `/rule` does
   Found after the force_regen fix was confirmed working (AI-generated rule content was correct): the
   free-text agent's answer summarized the rule in prose and never showed the literal YAML, while `/rule`
