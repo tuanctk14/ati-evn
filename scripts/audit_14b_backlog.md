@@ -2,6 +2,32 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis manual retest (Nhóm 6)**: two issues found on "Sinh Sigma rule cho nó" continuing an entity-memory test chain
+  (1) The agent resolved "nó" to the wrong CVE: the conversation's Nhóm 6 chain asked about 5 different
+  topics (Fortinet, EVNNPC's worst CVE, cross-customer findings, GENCO1's asset, top IOC) before this
+  question, and `session.state.last_cve_id` -- which only tracks a single most-recently-touched CVE, gets
+  silently overwritten by every intervening question -- pointed at a CVE from question 2, not question 1's
+  Fortinet/CVE-2025-68686 that "nó" was actually meant to continue. Not a code bug (session behaves exactly
+  as designed, tracking one "last" value), but a real-world failure mode worth guarding against: added a
+  prompt rule warning the model not to blindly trust `last_cve_id` when multiple different CVEs were
+  mentioned recently, and to re-read its own conversation history to determine which one "nó" continues, or
+  ask if genuinely ambiguous. (2) No agent tool existed to look up/generate a Sigma rule at all --
+  `rules/orchestrator.py`'s `get_rule_for_cve()` (the same 3-tier logic `/rule` uses: direct CVE-tagged
+  community rule -> ATT&CK-overlap community rule -> AI-generated) was only reachable via the `/rule`
+  slash-command, so the agent incorrectly told the analyst "I have no tool to generate Sigma rules." Added
+  `agent/tools/generate_sigma_rule.py` wrapping `get_rule_for_cve()` directly (read-only + LLM-compute, no DB
+  writes -- registered non-destructive like `search_sigma_rules`). First attempt over-corrected: added a
+  prompt rule making the model set `force_regen=True` whenever the analyst's Vietnamese phrasing used
+  "sinh"/"tao" ("generate"/"create"), reasoning that word choice signaled wanting a fresh AI rule -- but
+  live retest showed this made the tool's output diverge from `/rule`'s own default behavior (which never
+  force-regens), producing a generic AI rule instead of the same well-matched community_behavioral rule
+  `/rule` returns for ordinary requests. Reverted: default is `force_regen=False` always (matching `/rule`
+  exactly), only set `force_regen=True` when the analyst explicitly says the existing/community rule isn't a
+  good match and asks for a different one specifically. Verified live on Bot 2 (re-ran the full Nhóm 6
+  question chain): "nó" now correctly resolves to CVE-2025-68686/Finding #222 (Fortinet, question 1's
+  topic), and `generate_sigma_rule(cve_id=CVE-2025-68686)` now returns the exact same "Cisco Discovery"
+  community_behavioral rule (confidence 0.5, same 4 alternates) as `/rule CVE-2025-68686`.
+
 - [FIXED] **Thesis manual retest (Nhóm 5.3)**: no aggregate tool for "most common ATT&CK technique", agent has to sample-and-guess
   Found on "Kỹ thuật ATT&CK nào phổ biến nhất trong tháng?" -- the agent answered "T1190" based on manually
   inspecting 3 sample findings out of 199 total (it explicitly disclosed this limitation: "cần /export nếu

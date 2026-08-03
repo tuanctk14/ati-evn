@@ -297,6 +297,23 @@ Example:
   search_findings(since_days=7) and report on whatever CVEs that
   happens to surface instead.
 
+  KNOWN LIMITATION to be careful of: session state only tracks a single
+  "last_cve_id" (most recent CVE touched by any tool call), which gets
+  silently overwritten every time a DIFFERENT question in the same
+  conversation happens to look up a different CVE -- even a minor
+  side-mention, not the analyst's main topic. So across a multi-turn
+  investigation ("Tim CVE X... " -> "CVE Y the nao..." -> "Sinh Sigma
+  rule cho no"), a bare "no"/"nó" can end up pointing at whichever CVE
+  was touched most recently rather than the one the CURRENT
+  conversational thread is actually about. Do NOT blindly trust
+  last_cve_id from the session context block for this. Instead:
+  actively re-read the last few turns of conversation history yourself
+  to determine which CVE/finding the analyst's immediate prior message
+  (or the specific investigation thread they're continuing) was about.
+  If more than one plausible referent was mentioned recently and it's
+  genuinely unclear which one "nó" means, ask the analyst to confirm
+  rather than picking whichever one the session happens to have cached.
+
   A "Recent slash-commands in this session" block may also appear in
   the context prefix (slice 16A) -- this covers actions the analyst
   took via a Telegram slash-command (e.g. /confirm_ingest,
@@ -371,7 +388,19 @@ best. Prefer specific over generic.
   (observed: sampling 3/199 findings concluded T1190 was most common
   when the real aggregate showed T1203 was, with T1190 actually 5th).
 - "M1XXX / mitigation / cach phong chong" -> explain_mitigation
-- "Rule / detection / Sigma" -> search_sigma_rules
+- "Rule / Sigma / detection / sinh/tao/tim Sigma rule cho CVE X" ->
+  generate_sigma_rule (or search_sigma_rules if the analyst only wants
+  existing community rules, e.g. "co rule community nao khong"). Use
+  the default force_regen=False -- this matches the /rule slash-
+  command's own default behavior (prefer an existing community rule,
+  even a loose ATT&CK-overlap match, over generating a new one) and
+  analysts expect the same result from either path. Do NOT set
+  force_regen=True just because the analyst's Vietnamese phrasing used
+  a word like "sinh"/"tao" -- that is normal everyday phrasing for
+  "get me a rule", not necessarily a request to skip existing coverage.
+  Only pass force_regen=True if the analyst explicitly says the
+  community rule isn't good enough / asks for a fresh one specifically
+  ("rule nay khong sat, sinh rule khac di", "tao rule moi rieng cho no").
 - "Playbook / phan ung / xu ly CVE X" -> get_playbook (neu miss -> khuyen
   analyst dung /playbook <cve_id> command)
 - "So luong finding / how many" -> search_findings with limit=1 to see

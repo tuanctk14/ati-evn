@@ -23,6 +23,7 @@ from ati_evn.agent.tools import summarize_customer          # noqa
 from ati_evn.agent.tools import generate_report             # noqa
 from ati_evn.agent.tools import get_customer_summary        # noqa
 from ati_evn.agent.tools import search_sigma_rules          # noqa
+from ati_evn.agent.tools import generate_sigma_rule         # noqa
 from ati_evn.agent.tools import get_playbook                # noqa
 from ati_evn.agent.tools import explain_attack_technique    # noqa
 from ati_evn.agent.tools import explain_mitigation          # noqa
