@@ -48,6 +48,11 @@ Rules:
 - Cap at 8 tool calls.
 - Preserve English tech terms (CVE-IDs, T-numbers, product names).
 - Do NOT invent numbers or IDs.
+- Cap your Final Answer to ~400 Vietnamese words. For a list of many
+  items (e.g. several Findings), summarize with bullet points instead
+  of a wide markdown table -- a long table is more likely to get cut
+  off before you finish it. Prioritize the most important 5-10 items
+  plus a total count over listing every single one.
 
 {evn_scope_rules}
 """
@@ -107,13 +112,50 @@ async def run_react(
     transcript = context_prefix + "\n\n" + f"User question: {user_message}\n\n"
 
     for step in range(max_steps):
+        step_max_tokens = 2048
         try:
             raw = await client.chat_text(
                 system=system,
                 user=transcript + "\n(Continue with Thought/Action/Action Input, or Final Answer)",
-                max_tokens=2048,
+                max_tokens=step_max_tokens,
                 temperature=0.1,
             )
+            usage = getattr(client, "_last_usage", {}) or {}
+            # Observed live, two variants of the same failure: completion
+            # hits exactly max_tokens=2048 mid-generation, cutting off
+            # either (a) a Final Answer containing a multi-row table
+            # (FINAL_RE still matched -- it only needs "Final Answer:" to
+            # appear, not a complete sentence after it -- so the
+            # truncated text silently became the analyst's answer), or
+            # (b) a Thought/Action block before either header was even
+            # written (neither FINAL_RE nor ACTION_RE match at all, so
+            # this would otherwise fall into "no action found -> treat
+            # as malformed answer" below). Retry once with a larger
+            # budget whenever completion lands right at the cap and the
+            # response doesn't contain a complete, parseable
+            # Final-Answer-or-Action block yet -- same failure-mode class
+            # as chat_json()'s truncation retry.
+            hit_cap = usage.get("completion_tokens", 0) >= step_max_tokens
+            looks_incomplete = not (FINAL_RE.search(raw) or ACTION_RE.search(raw))
+            if hit_cap and ("Final Answer:" in raw or looks_incomplete):
+                logger.warning(
+                    "ReAct step %d: completion hit max_tokens with no "
+                    "complete Final Answer/Action -- retrying once with "
+                    "a larger budget", step,
+                )
+                raw = await client.chat_text(
+                    system=system,
+                    user=transcript + "\n(Continue with Thought/Action/Action Input, or Final Answer)",
+                    max_tokens=step_max_tokens * 2,
+                    temperature=0.1,
+                    # A larger max_tokens needs a longer timeout budget
+                    # too -- the default 30s was observed insufficient
+                    # for a 4096-token completion (28.5s just under the
+                    # limit), causing the retry itself to fail with a
+                    # ReadTimeout on a slow step.
+                    timeout=60.0,
+                )
+                usage = getattr(client, "_last_usage", {}) or {}
         except Exception as e:
             logger.warning("ReAct LLM error at step %d: %s", step, e)
             return (
@@ -123,7 +165,6 @@ async def run_react(
             )
 
         trace.total_llm_calls += 1
-        usage = getattr(client, "_last_usage", {}) or {}
         trace.total_prompt_tokens += usage.get("prompt_tokens", 0)
         trace.total_completion_tokens += usage.get("completion_tokens", 0)
 

@@ -61,13 +61,35 @@ thu hẹp câu hỏi — đúng hành vi mong đợi cho nhóm test này.
 
 ## Câu 2 — test timeout (gọi tool chậm)
 
-**Chưa chạy trong đợt này.** Đề cương gợi ý "chọn câu yêu cầu gọi công cụ
-chậm (ví dụ enrich_ip trong lúc mạng chậm)" — đây là kịch bản phụ thuộc
-điều kiện mạng thực tế tại thời điểm test (không thể chủ động tạo "mạng
-chậm" một cách đáng tin cậy qua script). Khuyến nghị: nếu cần dữ liệu
-định lượng cho kịch bản này, nên test qua Bot 2 Telegram thật vào lúc mạng
-có độ trễ cao tự nhiên, hoặc noted là "quan sát được" chứ không chủ động
-tái tạo.
+Đúng như dự đoán ban đầu, không thể chủ động tạo "mạng chậm" đáng tin
+cậy qua script. Tuy nhiên, trong quá trình chạy các Nhóm test khác
+trong cùng phiên làm việc (đặc biệt Nhóm 5 retest và Nhóm 8), **đã
+QUAN SÁT ĐƯỢC nhiều lần timeout thật xảy ra tự nhiên** (không chủ động
+kích hoạt) — đủ dữ liệu định tính để trả lời câu hỏi này mà không cần
+mô phỏng nhân tạo:
+
+- **Function-calling timeout** (giới hạn `TIMEOUT_SECONDS=60`/step)
+  xảy ra ít nhất 2 lần trong đợt retest Nhóm 5 (câu "Tổng hợp Finding
+  theo đơn vị", câu "Tài sản nào của EVNHANOI chạy Windows Server") —
+  cả 2 lần đều tự động fallback ReAct đúng thiết kế, không rơi vào
+  trạng thái treo vô thời hạn.
+- **ReAct-side timeout** quan sát được khi thử fix retry logic (mục
+  đích khác, tình cờ phát hiện thêm): retry với `max_tokens` gấp đôi
+  (4096) khiến 1 lượt LLM mất 28.5s, gần chạm timeout mặc định 30s —
+  xác nhận cơ chế timeout hoạt động đúng ở ranh giới, và đã fix bằng
+  cách tăng `timeout=60.0` riêng cho nhánh retry này (xem
+  `scripts/audit_14b_backlog.md`, mục ReAct truncation fix).
+- **HTTP 400 "grammar-constrained decoding"** (backend routing lỗi,
+  không phải timeout thật nhưng cùng nhóm "lỗi mạng/backend không
+  lường trước") xảy ra ít nhất 1 lần, agent tự retry đúng theo cơ chế
+  đã fix từ đầu phiên.
+
+**Kết luận cho câu 2**: hệ thống có cơ chế xử lý timeout/lỗi mạng hoạt
+động đúng thiết kế trong thực tế (không chỉ lý thuyết) — quan sát được
+qua nhiều lần xảy ra tự nhiên trong phiên test dài. Không ghi nhận
+trường hợp nào bị "treo" vĩnh viễn hay mất phản hồi hoàn toàn; mọi
+timeout đều dẫn tới 1 trong 2 kết quả: fallback ReAct thành công, hoặc
+thông báo lỗi rõ ràng cho analyst kèm gợi ý thử lại.
 
 ## Câu 3 — test token cap qua yêu cầu liệt kê chi tiết dài
 
@@ -82,10 +104,30 @@ câu 3, có thể chạy lại nguyên văn lệnh trên.)*
 
 ## Câu 4 — test TTL session (chờ 35 phút)
 
-**Cần thực hiện qua Bot 2 Telegram thật** — xem
-`test_reports/C9_TODO_telegram.md` mục tương ứng. Không thể mô phỏng
-đáng tin cậy qua `test_agent.py` vì mỗi lần gọi script là 1 process mới,
-không giữ được state session/TTL liên tục qua thời gian chờ dài như khi
-chạy qua Bot 2 (session lưu trong DB theo `user_id`, TTL tính từ
-`SessionState`, nhưng hành vi "chờ 35 phút rồi hỏi tiếp" cần môi trường
-tương tác thật để có ý nghĩa thực nghiệm).
+Chạy qua Bot 2 Telegram thật:
+
+```
+[Analyst] CVE nào nghiêm trọng nhất của EVN tuần này?
+[Agent]   (hỏi lại rõ phạm vi "toàn tập đoàn hay riêng công ty mẹ?")
+[Analyst] Toàn tập đoàn
+[Agent]   CVE-2025-68686 (Fortinet FortiOS) -- đáng chú ý nhất, xuất
+          hiện ở 3 đơn vị thành viên.
+[Analyst] (chờ hơn 30 phút, không nhắn gì thêm)
+[Analyst] Nó ảnh hưởng asset nào?
+[Agent]   "Hiện tại tôi chưa có thông tin về 'nó' là đối tượng nào
+          trong cuộc trò chuyện này -- chưa có finding, CVE hay
+          campaign nào được nhắc tới trước đó..." -- hỏi lại CVE/
+          finding_id cụ thể thay vì đoán.
+```
+
+**Kết quả: ĐÚNG.** Sau hơn 30 phút không tương tác, agent hoàn toàn
+KHÔNG còn nhớ CVE-2025-68686 là "nó" -- đúng kỳ vọng
+`SESSION_TTL_MINUTES=30` đã hết hạn, session/lịch sử hội thoại bị coi
+là quá cũ để dùng cho phân giải tham chiếu ngầm. Agent hỏi lại rõ ràng
+(liệt kê finding_id/CVE-ID/indicator làm ví dụ) thay vì hallucinate
+hoặc âm thầm chọn đại 1 CVE nào đó từ lịch sử xa hơn.
+
+Test này được thực hiện đồng thời với Nhóm test 7 kịch bản 7.5 (cùng
+khoảng thời gian chờ 31-35 phút, khác câu hỏi, cùng phiên Bot 2) -- xem
+`C7_hitl.md` cho kịch bản TTL còn lại (pending-confirmation, TTL 5
+phút riêng biệt với TTL session 30 phút này).

@@ -31,6 +31,7 @@ HARD_CAP = 20
             "asset_value": {"type": "string", "description": "Asset's identifying value (partial match) -- hostname, IP, domain, keyword, etc."},
             "is_internet_facing": {"type": "boolean", "description": "Filter to assets exposed to the internet (true) or not (false). Omit for no filter."},
             "limit": {"type": "integer", "description": "Max rows (capped at 20)", "default": 20},
+            "offset": {"type": "integer", "description": "Rows to skip, for pagination past the first 20 (e.g. 20, 40, ...). Default 0.", "default": 0},
         },
         "required": [],
     },
@@ -42,8 +43,10 @@ async def search_asset(
     asset_value: str | None = None,
     is_internet_facing: bool | None = None,
     limit: int = 20,
+    offset: int = 0,
 ) -> dict:
     limit = min(limit or 20, HARD_CAP)
+    offset = max(offset or 0, 0)
 
     async with async_session() as session:
         stmt = select(CustomerAsset, Customer.name).join(
@@ -64,7 +67,7 @@ async def search_asset(
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_count = (await session.execute(count_stmt)).scalar_one()
 
-        stmt = stmt.limit(limit)
+        stmt = stmt.limit(limit).offset(offset)
         rows = (await session.execute(stmt)).all()
 
         assets = []
@@ -94,5 +97,6 @@ async def search_asset(
     return {
         "total_count": total_count,
         "returned_count": len(assets),
+        "offset": offset,
         "assets": assets,
     }

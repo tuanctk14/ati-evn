@@ -59,15 +59,44 @@ def _prune_expired() -> None:
         del _pending_confirmations[k]
 
 
-def _find_pending_for_tool(session_id: str, tool_name: str) -> list[tuple[tuple[str, str, str], dict]]:
-    """All non-expired pending confirmations for this (session, tool),
+def _find_pending_for_tool(
+    session_id: str, tool_name: str, current_kwargs: dict | None = None,
+) -> list[tuple[tuple[str, str, str], dict]]:
+    """Non-expired pending confirmations for this (session, tool),
     regardless of args_hash -- used as a fallback when the strict
-    (session, tool, args_hash) key doesn't match on confirm."""
-    return [
+    (session, tool, args_hash) key doesn't match on confirm (e.g. the
+    model resent a slightly reworded `reason` for the SAME action).
+
+    If more than one pending entry exists for this tool (allowed since
+    an analyst request can name multiple destructive actions in one
+    message, e.g. "close #255 and mark #256 false positive" -- each
+    gets its own independent pending entry), narrow by any argument
+    keys the model's confirm call actually included (excluding
+    `confirmed`) that match a candidate's original args -- typically
+    an id-like field (finding_id, ioc, customer_id, ...) the model
+    still remembers correctly even when it reworded `reason`. Only
+    fall through to "genuinely ambiguous" (returning all candidates)
+    when no single candidate is the unique best match."""
+    candidates = [
         (key, original_kwargs)
         for key, (_, original_kwargs) in _pending_confirmations.items()
         if key[0] == session_id and key[1] == tool_name
     ]
+    if len(candidates) <= 1 or not current_kwargs:
+        return candidates
+
+    ident_keys = {k for k in current_kwargs if k != "confirmed"}
+    scored = [
+        (
+            sum(1 for k in ident_keys if k in orig and orig[k] == current_kwargs[k]),
+            key, orig,
+        )
+        for key, orig in candidates
+    ]
+    scored.sort(key=lambda x: -x[0])
+    if scored[0][0] > 0 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
+        return [(scored[0][1], scored[0][2])]
+    return candidates
 
 
 def pending_confirmation(summary: dict) -> dict:
@@ -169,7 +198,7 @@ def register_action_tool(
                     # terse "OK"/"xac nhan" still executes the exact
                     # action the analyst was shown, never a different
                     # one.
-                    candidates = _find_pending_for_tool(session_id, name)
+                    candidates = _find_pending_for_tool(session_id, name, kwargs)
                     if len(candidates) == 1:
                         (matched_key, original_kwargs) = candidates[0]
                         del _pending_confirmations[matched_key]

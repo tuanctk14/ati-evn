@@ -158,6 +158,25 @@ def postfilter_answer(text: str) -> tuple[str, dict]:
         logger.info(
             "Post-filter: %d replaced, %d stripped", len(replaced), len(stripped)
         )
+    # Escape the "_" in surviving whitelisted/fixed commands (e.g.
+    # /add_customer, /list_open) AFTER matching is done -- Telegram's
+    # legacy Markdown parse_mode reads a bare "_" as an italic marker
+    # and silently swallows it when rendering, so an analyst reading the
+    # live message sees "/addcustomer" / "/listopen" with the
+    # underscore missing even though the agent (and this function)
+    # produced the correct command with "_" intact. Observed live and
+    # confirmed via a pre-postfilter debug log: the text going INTO this
+    # function already has the underscore, so postfilter_answer() itself
+    # was never the bug -- Telegram's renderer was. Must escape here
+    # (not inside COMMAND_RE's replacement, which needs the exact
+    # unescaped token to match WHITELIST/FIX_MAP) and not any earlier
+    # stage (sanitize_telegram_markdown() also must not touch "/"-prefixed
+    # tokens, for the same WHITELIST-matching reason).
+    cleaned = re.sub(
+        r"(?:(?<=^)|(?<=[\s\(\[`]))(/[a-zA-Z_]+)",
+        lambda m: m.group(1).replace("_", r"\_"),
+        cleaned, flags=re.MULTILINE,
+    )
     return cleaned, stats
 
 

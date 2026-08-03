@@ -22,9 +22,14 @@ HARD_CAP = 20
         "for non-CVE signals (raw IOC, brand abuse, doc leak, exposure), "
         "use search_indicators instead, not this tool. "
         "Omit `customer` for GLOBAL scope across all customers. "
-        "Returns UP TO 20 rows max (hard cap, `limit` cannot raise it), "
-        "sorted by severity then recency -- for a total count use "
-        "limit=1 and read total_count in the response, not len(findings)."
+        "Returns UP TO 20 rows per call (hard cap, `limit` cannot raise "
+        "it) -- for a total count use limit=1 and read total_count in "
+        "the response, not len(findings). To retrieve MORE than 20 "
+        "matching rows (e.g. to aggregate/group-by across all of them), "
+        "call again with offset=20, then offset=40, etc. until "
+        "returned_count is 0 or you've collected enough -- do NOT try "
+        "to raise limit past 20, it has no effect. Sorted by severity "
+        "then recency, which stays stable across paginated calls."
     ),
     parameters={
         "type": "object",
@@ -35,6 +40,7 @@ HARD_CAP = 20
             "ioc_type": {"type": "string", "description": "Always cve_id in practice post slice-15A -- included for forward-compat only."},
             "status": {"type": "string", "description": "open|acknowledged|closed|false_positive|expired"},
             "limit": {"type": "integer", "description": "Max rows to return, hard-capped at 20 regardless of value passed.", "default": 20},
+            "offset": {"type": "integer", "description": "Rows to skip, for pagination past the first 20 (e.g. 20, 40, ...). Default 0.", "default": 0},
         },
         "required": [],
     },
@@ -46,8 +52,10 @@ async def search_findings(
     ioc_type: str | None = None,
     status: str | None = None,
     limit: int = 20,
+    offset: int = 0,
 ) -> dict:
     limit = min(limit or 20, HARD_CAP)
+    offset = max(offset or 0, 0)
 
     async with async_session() as session:
         stmt = select(Finding, Customer.name).join(
@@ -69,7 +77,9 @@ async def search_findings(
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_count = (await session.execute(count_stmt)).scalar_one()
 
-        stmt = stmt.order_by(Finding.severity.desc(), Finding.first_seen.desc()).limit(limit)
+        stmt = stmt.order_by(
+            Finding.severity.desc(), Finding.first_seen.desc(),
+        ).limit(limit).offset(offset)
         rows = (await session.execute(stmt)).all()
 
     findings = [
@@ -91,5 +101,6 @@ async def search_findings(
     return {
         "total_count": total_count,
         "returned_count": len(findings),
+        "offset": offset,
         "findings": findings,
     }

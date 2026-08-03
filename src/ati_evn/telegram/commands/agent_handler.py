@@ -66,6 +66,10 @@ async def handle_free_text(message: Message) -> None:
         answer, legacy_stats = await postfilter_legacy_finding_actions(answer)
         if filter_stats["replaced"] or filter_stats["stripped"]:
             fixes = ", ".join(f"{b}->{g}" for b, g in filter_stats["replaced"])
+            if filter_stats["stripped"]:
+                fixes = (fixes + ", " if fixes else "") + ", ".join(
+                    f"{b}->(removed)" for b in filter_stats["stripped"]
+                )
             trace_block = (trace_block or "") + f"\n  [postfilter fixed: {fixes}]"
         if legacy_stats["rewritten"]:
             fixes = ", ".join(f"{b}->/acknowledge_indicator {tid}" for b, tid in legacy_stats["rewritten"])

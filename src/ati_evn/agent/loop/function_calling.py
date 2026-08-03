@@ -65,12 +65,13 @@ async def run_function_calling(
     blocked_after_pending_failure: set[str] = set()
 
     for step in range(max_steps):
+        step_max_tokens = 2048
         try:
             response = await client.chat_with_tools(
                 system=SYSTEM_PROMPT,
                 messages=messages,
                 tools=tools_schema,
-                max_tokens=2048,
+                max_tokens=step_max_tokens,
                 temperature=0.1,
                 timeout=30.0,
             )
@@ -117,7 +118,42 @@ async def run_function_calling(
                 answer, trace = await _force_final_answer(client, messages, trace)
                 trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
                 return answer, trace
-            # Final answer
+            # Final answer -- but check for silent truncation first.
+            # finish_reason="length" with non-empty content means the
+            # model hit max_tokens mid-sentence (distinct from the
+            # empty-content case above, which is a total generation
+            # failure) -- observed live: "Tong hop Finding theo don vi"
+            # answer cut off mid-word ("...toi can thuc hien them truy
+            # van") because it happened to land right at step_max_tokens
+            # while composing a long multi-customer breakdown. Same
+            # failure-mode class already fixed for ReAct
+            # (agent/loop/react.py) and chat_json() -- retry ONCE with a
+            # larger budget instead of silently returning the truncated
+            # text as if it were complete.
+            if finish_reason == "length" and content.strip():
+                logger.warning(
+                    "Step %d final answer hit max_tokens=%d mid-sentence "
+                    "(finish_reason=length) -- retrying once with a "
+                    "larger budget", step, step_max_tokens,
+                )
+                retry_response = await client.chat_with_tools(
+                    system=SYSTEM_PROMPT,
+                    messages=messages,
+                    tools=tools_schema,
+                    max_tokens=step_max_tokens * 2,
+                    temperature=0.1,
+                    timeout=60.0,
+                )
+                trace.total_llm_calls += 1
+                retry_usage = retry_response.get("usage") or {}
+                trace.total_prompt_tokens += retry_usage.get("prompt_tokens", 0)
+                trace.total_completion_tokens += retry_usage.get("completion_tokens", 0)
+                retry_choices = retry_response.get("choices") or []
+                if retry_choices:
+                    retry_msg = retry_choices[0].get("message") or {}
+                    retry_content = retry_msg.get("content") or ""
+                    if retry_content.strip():
+                        content = retry_content
             trace.total_duration_ms = int((time.monotonic() - overall_start) * 1000)
             return content, trace
 

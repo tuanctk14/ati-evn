@@ -69,6 +69,7 @@ logger = logging.getLogger("ati_evn.bot_analyst")
 COMMAND_MENU = [
     BotCommand(command="start", description="Bắt đầu và menu chính"),
     BotCommand(command="help", description="Hướng dẫn sử dụng"),
+    BotCommand(command="reset", description="Xoá phiên hội thoại agent (lịch sử + ngữ cảnh)"),
     BotCommand(command="finding", description="Xem chi tiết Finding"),
     BotCommand(command="cve", description="Chi tiết CVE và ATT&CK context"),
     BotCommand(command="ioc", description="Chi tiết IOC (IP/domain/hash)"),

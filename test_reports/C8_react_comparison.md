@@ -49,14 +49,88 @@ số lượng cần), trong khi function-calling gọi `limit=20` rồi tự l�
 2 đều ra kết quả đúng, không có sai lệch giữa 2 chế độ. Chênh lệch thời
 gian nhỏ hơn câu 1 (15.15s vs 18.28s), token vẫn chênh lệch lớn (4.2x).
 
-## Tổng kết sơ bộ (2/5 câu)
+## So sánh Câu 3: "Liệt kê Finding liên quan Fortinet"
 
-- Tỷ lệ đúng: 2/2 (100%) cho cả 2 chế độ trên 2 câu đã test.
-- ReAct tiết kiệm 68-76% token so với function-calling nhờ không cần gửi
-  toàn bộ 55-tool JSON schema mỗi lời gọi.
-- Function-calling nhanh hơn ReAct trong cả 2 câu (khoảng biến thiên, câu
-  1 chênh lệch rõ hơn câu 2) — phù hợp với vai trò thiết kế: ReAct chỉ là
-  fallback khi function-calling thất bại, không phải chế độ chính.
-- Không phát hiện khác biệt về độ chính xác giữa 2 chế độ trong mẫu nhỏ
-  này — cần thêm 3 câu còn lại (và toàn bộ phần postfilter qua Telegram)
-  để có kết luận đầy đủ cho Chương 3.
+| | Function-calling | ReAct (`--force-react`) |
+|---|---|---|
+| Thời gian | ~8s (không log riêng, LLM calls=1) | 46.8s (lần 1), 57.7s (lần 2) |
+| Tool call | 1 (không cần, trả lời trực tiếp từ context) | 2-3 (`search_findings`, `search_cve` — lần 2 gọi `search_cve` trùng lặp 2 lần) |
+| Token | 19,960 | 20,756 / 26,784 |
+| LLM calls | 1 | 3 / 4 |
+| Kết quả | Đúng — 3 Finding Fortinet (#220/#221/#222), đầy đủ chi tiết | **SAI — thất bại cả 2 lần thử**, trả về "Agent không tạo được câu trả lời hợp lệ" dù đã có đủ dữ liệu từ tool calls |
+
+**Phát hiện quan trọng:** ReAct thất bại NHẤT QUÁN (2/2 lần thử) ở câu hỏi
+cần **tổng hợp/lọc chéo** giữa nhiều tool result (Finding + CVE liên quan
+vendor Fortinet) — model gọi đủ tool, có đủ dữ liệu thô trong
+Observation, nhưng không tạo được response khớp `FINAL_RE` (`Final
+Answer:`) lẫn `ACTION_RE` (`Action:`/`Action Input:`) hợp lệ, rơi vào
+nhánh "malformed response" của `_clean_malformed_response()`. Khác biệt
+so với câu 1/2 (tra cứu đơn giản, 1 tool call) — nghi vấn: format
+Thought/Action/Observation dạng text khó duy trì tính nhất quán khi
+cần suy luận qua nhiều bước tổng hợp, so với function-calling's JSON
+schema có cấu trúc rõ ràng hơn cho việc này.
+
+## So sánh Câu 4: "Finding nào của EVNGENCO3 có mức độ HIGH?"
+
+| | Function-calling | ReAct (`--force-react`) |
+|---|---|---|
+| Thời gian | 16.8s | 23.4s |
+| Tool call | 2 (`search_findings` x2, severity=HIGH rồi không lọc severity) | 2 (cùng pattern) |
+| Token | 62,541 (**vượt TOKEN_SOFT_CAP=50,000**, kích hoạt `_force_final_answer`) | 14,493 |
+| LLM calls | 4 | 3 |
+| Kết quả | Đúng — 0 finding cho EVNGENCO3, có gợi ý nguyên nhân | Đúng — 0 finding, kèm thêm chi tiết khách hàng (24 assets, finding_count=0), phát hiện thêm "tên đúng là GENCO3 không phải EVNGENCO3" |
+
+**Phát hiện quan trọng:** function-calling ở câu này CHẠM token soft cap
+(62,541 > 50,000) chỉ sau 2 tool call — bằng chứng thực nghiệm cho nghi
+vấn "system prompt đã phình to" ghi trong `scripts/audit_14b_backlog.md`
+(entry "Manual test 7.4"). ReAct không bị ảnh hưởng vì nó không gửi lại
+toàn bộ tool JSON schema mỗi bước, chỉ gửi tools_list dạng text ngắn gọn.
+
+## So sánh Câu 5: "Tổng hợp Finding theo đơn vị trong tháng này"
+
+| | Function-calling | ReAct (`--force-react`) |
+|---|---|---|
+| Thời gian | 41.9s | 31.3s |
+| Tool call | 8 (1 tổng quát + 6 lookup theo từng đơn vị + 1 asset lookup) | 1 (`search_findings(limit=500)`, chỉ nhận về 20 kết quả do tool tự giới hạn) |
+| Token | 80,257 | 11,011 |
+| LLM calls | 4 | 2 |
+| Kết quả | Đúng, chi tiết theo từng đơn vị (199 finding, breakdown 6 đơn vị), tự thừa nhận "còn ~38 finding chưa tra cứu hết" | **SAI — thất bại**, "Agent không tạo được câu trả lời hợp lệ" ngay sau 1 tool call |
+
+**Phát hiện quan trọng:** ReAct thất bại lần thứ 2 (3/5 tổng số câu) ở
+đúng loại câu hỏi cần tổng hợp/group-by nhiều nguồn — củng cố giả thuyết
+ở câu 3: model dừng lại sau khi có dữ liệu thô, không tự tổng hợp thành
+câu trả lời cuối cùng đúng định dạng. function-calling ở đây lại thể
+hiện tốt hơn hẳn (8 tool call có chủ đích, breakdown đúng theo từng đơn
+vị) dù tốn token nhiều nhất trong cả 5 câu (80,257) nhưng không chạm cap
+(khác câu 4) — có thể do cách tổng phân bổ token giữa các bước khác nhau.
+
+## Tổng kết đầy đủ (5/5 câu)
+
+| Câu | Function-calling | ReAct |
+|---|---|---|
+| 1. Tổng số Finding mở | Đúng | Đúng |
+| 2. 5 Finding mới nhất | Đúng | Đúng |
+| 3. Finding liên quan Fortinet | Đúng | **Sai (2/2 lần thử)** |
+| 4. Finding HIGH của EVNGENCO3 | Đúng (chạm token cap) | Đúng |
+| 5. Tổng hợp Finding theo đơn vị | Đúng | **Sai** |
+
+- **Tỷ lệ đúng: function-calling 5/5 (100%); ReAct 3/5 (60%)** — ReAct
+  thất bại nhất quán ở 2 câu đòi hỏi tổng hợp/lọc chéo nhiều nguồn dữ
+  liệu (câu 3, câu 5), trong khi vẫn đáng tin cậy ở câu tra cứu đơn giản
+  1-2 bước (câu 1, 2, 4).
+- ReAct tiết kiệm token đáng kể ở hầu hết câu (68-76% ở câu 1-2, tới 86%
+  ở câu 5) nhờ không gửi lại toàn bộ JSON schema của 60 tool mỗi bước —
+  NGOẠI TRỪ khi cần nhiều bước retry/gọi trùng lặp do không tổng hợp
+  được (câu 3 lần 2: 26,784 token, gần bằng function-calling).
+- Function-calling ở câu 4 chạm `TOKEN_SOFT_CAP=50,000` — bằng chứng cho
+  thấy system prompt hiện tại (được gửi lại nguyên vẹn mỗi bước LLM
+  trong function-calling) đã phình to đủ để trở thành rủi ro thực tế
+  cho các câu hỏi cần >= 2 bước tool call, không chỉ là giả thuyết lý
+  thuyết.
+- **Kết luận cho Chương 3**: function-calling xứng đáng là chế độ
+  chính (100% đúng, xử lý tốt cả câu đơn giản lẫn phức tạp); ReAct phù
+  hợp vai trò fallback nhưng có giới hạn thực sự với câu hỏi tổng hợp
+  đa nguồn — cần lưu ý này khi ReAct được kích hoạt tự động (function-
+  calling thất bại rồi fallback ReAct) cho đúng loại câu hỏi phức tạp,
+  khả năng cao nó cũng sẽ thất bại theo, không chỉ đơn thuần "chậm hơn
+  nhưng vẫn đúng" như giả định ban đầu.

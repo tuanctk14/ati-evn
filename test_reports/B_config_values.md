@@ -89,23 +89,27 @@ matching đi qua technique/behavior).
 
 ## Nhóm 6 — Tool registry
 
-**Tổng số công cụ đã đăng ký: 55** (đếm trực tiếp từ `TOOL_REGISTRY`,
-không phải ước lượng).
+**Tổng số công cụ đã đăng ký: 58** (đếm trực tiếp từ `TOOL_REGISTRY`
+runtime, không phải ước lượng — cập nhật cuối phiên sau khi thêm 3 tool
+mới trong quá trình manual test: `top_attack_techniques`,
+`generate_sigma_rule`, `generate_playbook`; số liệu gốc lần đo đầu tiên
+là 55, xem lịch sử trong `scripts/audit_14b_backlog.md`).
 
 Phân loại theo `register_tool` (query) vs `register_action_tool`
 (action, có `destructive=True/False`):
 
-### QUERY — 26 công cụ (read-only, không audit log riêng, luôn tự động chạy)
+### QUERY — 29 công cụ (read-only, không audit log riêng, luôn tự động chạy)
 
 ```
-explain_attack_technique, explain_mitigation, generate_report,
-get_brand_abuse_detail, get_campaign_detail, get_customer_summary,
-get_document_leak_detail, get_exposure_detail, get_finding_detail,
-get_ip_enrichment, get_playbook, relationships, search_asset,
-search_brand_abuse, search_campaigns, search_cve,
-search_exposed_documents, search_exposures, search_findings,
-search_ioc, search_malicious_ips, search_pulses, search_sigma_rules,
-search_software, summarize_customer, timeline
+explain_attack_technique, explain_mitigation, generate_playbook,
+generate_report, generate_sigma_rule, get_brand_abuse_detail,
+get_campaign_detail, get_customer_summary, get_document_leak_detail,
+get_exposure_detail, get_finding_detail, get_ip_enrichment,
+get_playbook, relationships, search_asset, search_brand_abuse,
+search_campaigns, search_cve, search_exposed_documents,
+search_exposures, search_findings, search_ioc, search_malicious_ips,
+search_pulses, search_sigma_rules, search_software, summarize_customer,
+timeline, top_attack_techniques
 ```
 
 ### NON-DESTRUCTIVE ACTION — 9 công cụ (có audit log qua `agent_action_log`, tự động chạy không cần xác nhận)
@@ -127,14 +131,23 @@ remove_customer_asset, rescan_finding, trigger_report_generation,
 update_customer, update_finding_status, update_ioc
 ```
 
-Tổng kiểm: 26 + 9 + 20 = 55. ✅ Khớp.
+Tổng kiểm: 29 + 9 + 20 = 58. ✅ Khớp.
 
 **Lưu ý khi trích xuất:** ban đầu tôi phân loại nhầm bằng cách khớp *tên
 file* module với tên tool đăng ký — lỗi này khiến `enrich_ip` (đăng ký từ
 file `action_enrich_ip.py`, tên file khác tên tool) bị rơi ra ngoài phân
 loại. Đã sửa bằng cách đọc trực tiếp tham số `name="..."` bên trong lệnh
 gọi `register_action_tool(...)` của từng file thay vì dùng tên file, đối
-chiếu ngược lại với `TOOL_REGISTRY` runtime để đảm bảo tổng khớp 55/55.
+chiếu ngược lại với `TOOL_REGISTRY` runtime để đảm bảo tổng khớp.
+
+**Lưu ý về việc tăng từ 55 → 58**: trong quá trình chạy manual test
+(Nhóm 5, 6), phát hiện 3 gap chức năng thật (agent không có cách nào
+tổng hợp ATT&CK technique thật sự, không có cách sinh Sigma rule/
+playbook qua hội thoại tự nhiên dù logic backend đã hỗ trợ đầy đủ qua
+slash-command) — đã bổ sung 3 tool mới để lấp gap, không phải thay đổi
+kiến trúc. Nếu Chương 3 cần con số "tại thời điểm bắt đầu test" thay vì
+"cuối phiên", dùng 55; nếu cần con số phản ánh hệ thống hoàn chỉnh cuối
+cùng, dùng 58.
 
 ---
 

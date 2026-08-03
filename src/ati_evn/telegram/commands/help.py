@@ -4,6 +4,7 @@ from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
+from ati_evn.agent.session import clear_for_user
 from ati_evn.telegram.audit import log_command
 
 router = Router()
@@ -196,6 +197,23 @@ HELP_DETAIL = {
 @log_command("start")
 async def cmd_start(message: Message):
     await message.answer(WELCOME)
+
+
+@router.message(Command("reset"))
+@log_command("reset")
+async def cmd_reset(message: Message):
+    """Clear this analyst's free-text agent session (history, entity
+    memory like last_cve_id) -- does NOT affect any pending destructive
+    confirmation, which lives in a separate in-process registry keyed
+    by session_id and expires on its own short TTL regardless."""
+    deleted = await clear_for_user(message.from_user.id)
+    if deleted:
+        await message.answer(
+            "🔄 Đã xoá phiên hội thoại (lịch sử + ngữ cảnh CVE/Finding đang "
+            "nhớ). Bắt đầu lại từ đầu."
+        )
+    else:
+        await message.answer("Không có phiên hội thoại nào đang lưu để xoá.")
 
 
 @router.message(Command("help"))
