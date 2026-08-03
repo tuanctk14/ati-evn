@@ -239,11 +239,31 @@ async def _force_final_answer(client, messages, trace) -> tuple[str, AgentRunTra
         max_tokens=1500,
         temperature=0.1,
     )
-    content = (response.get("choices") or [{}])[0].get("message", {}).get("content", "")
+    content = (response.get("choices") or [{}])[0].get("message", {}).get("content", "") or ""
     trace.total_llm_calls += 1
     usage = response.get("usage") or {}
     trace.total_prompt_tokens += usage.get("prompt_tokens", 0)
     trace.total_completion_tokens += usage.get("completion_tokens", 0)
+    if not content.strip():
+        # Same failure mode as the empty-content guard in the main loop
+        # (see the "not tool_calls" branch above): the model's forced
+        # final-answer request can itself get cut off with empty content
+        # (observed with a token cap reached mid-way through a very
+        # complex multi-tool-call turn). Both callers of this helper
+        # (token-cap path, max_steps path) would otherwise send the
+        # analyst a blank Telegram message with no explanation.
+        logger.warning(
+            "_force_final_answer got empty content (completion_tokens=%s) "
+            "— returning an explicit fallback message instead of blank text",
+            usage.get("completion_tokens"),
+        )
+        content = (
+            "⚠️ Câu hỏi này cần quá nhiều bước để trả lời đầy đủ trong một "
+            "lượt — agent đã thu thập một phần dữ liệu nhưng không kịp tổng "
+            "hợp câu trả lời cuối cùng. Vui lòng chia nhỏ câu hỏi (ví dụ hỏi "
+            "riêng từng đơn vị hoặc từng loại thông tin) hoặc dùng lệnh "
+            "slash trực tiếp."
+        )
     return content, trace
 
 

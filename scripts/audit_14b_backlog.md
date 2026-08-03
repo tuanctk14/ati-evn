@@ -2,6 +2,21 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED] **Thesis test data collection (Nhóm test 10)**: `_force_final_answer()` could itself return empty content, same failure class as the earlier empty-answer fix but at a different call site
+  Found running a deliberately over-broad question ("mọi Finding của mọi đơn vị EVN... cho mỗi Finding
+  ATT&CK, Sigma rule, playbook và IP làm giàu") via `scripts/test_agent.py` to test the token-cap limit for
+  Chương 3 test data. `agent/loop/function_calling.py`'s token-cap path correctly triggered
+  `_force_final_answer()`, but that helper's own forced-final-answer LLM call could ALSO come back with empty
+  `content` (no completion, or cut off) -- and unlike the main loop's `if not tool_calls:` branch (fixed
+  earlier this session, commit 0170763), `_force_final_answer()` had no empty-content guard of its own, so
+  both of its callers (token-cap path and max_steps path) would pass an empty string straight through to the
+  analyst as a blank Telegram message. Fixed by adding the same guard directly inside
+  `_force_final_answer()`: when its own forced-answer call returns empty/whitespace-only content, return an
+  explicit Vietnamese fallback message ("câu hỏi này cần quá nhiều bước... vui lòng chia nhỏ câu hỏi") instead
+  of the blank string, covering both call sites in one fix. Verified: re-running the exact question that
+  triggered this now returns a substantive answer (partial Finding list + explicit note about the scope
+  limitation) instead of an empty one.
+
 - [FIXED] **Post-backlog manual retest (Phase 2)**: legacy_finding_postfilter's rewrite text read as raw system syntax embedded mid-sentence
   Found on "Trong danh sách trên, indicator nào chưa acknowledge?" -- Finding #29 and ThreatIndicator #29
   happen to share the same numeric id (independent auto-increment sequences per the slice 15A split), and the
