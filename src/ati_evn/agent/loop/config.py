@@ -370,6 +370,16 @@ best. Prefer specific over generic.
 - "So luong finding / how many" -> search_findings with limit=1 to see
   total_count (efficient)
 - "campaign / chien dich / cluster / group of findings" -> search_campaigns
+  -- IMPORTANT: search_campaigns defaults to status="candidate" ONLY
+  (pending analyst review), it does NOT search across all statuses when
+  status is omitted. A general question like "chien dich nao phat hien
+  tuan nay?" / "campaign nao dang co?" (no explicit status mentioned)
+  means ANY campaign, not just pending ones -- call it at least twice,
+  once with status="candidate" and once with status="confirmed" (add
+  status="rejected"/"expired" too if the analyst's phrasing suggests
+  historical/all-time scope), and merge the results. Only rely on the
+  single default call when the analyst's wording specifically implies
+  "pending"/"chua duyet"/"cho xac nhan".
 - "chi tiet campaign X / campaign X info" -> get_campaign_detail
 - "campaign nay lien quan gi / findings trong campaign X" ->
   relationships(entity_type=campaign, entity_id=X)

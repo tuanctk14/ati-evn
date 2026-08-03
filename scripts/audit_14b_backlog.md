@@ -2,6 +2,24 @@
 
 Deferred to future work / thesis Limitations chapter.
 
+- [FIXED, prompt-layer] **Thesis manual retest (Nhóm 5.3)**: "Chiến dịch tấn công nào phát hiện trong tuần này?" incorrectly answered "không có campaign nào" when 2 confirmed campaigns existed
+  Found via Bot 2 Telegram: the agent called `search_campaigns(since_days=7)` (no `status` arg), got 0
+  results, and concluded no campaigns existed in the last 7 days -- but `agent/tools/search_campaigns.py`
+  defaults `status: str = "candidate"` when omitted (matching its own JSON schema description, "Default:
+  candidate" -- not a code bug, working as documented), so the call silently only searched
+  pending-review campaigns. Reproduced via `scripts/test_agent.py`: calling
+  `search_campaigns(since_days=7, status="confirmed")` explicitly returns 2 real campaigns (#10, #11, both
+  confirmed with 3 HIGH findings each) that the analyst-facing answer had completely missed. This is a
+  materially wrong answer for a SOC tool -- "no attack campaign" when 2 confirmed ones exist is the kind of
+  false negative that matters. Root cause is an LLM tool-usage gap (not realizing a general "any campaign"
+  question needs multiple status values queried), so fixed at the prompt layer per the project's
+  established pattern: added an explicit rule to the "Tool selection heuristics" section telling the model
+  that a general campaign question (no explicit "pending"/"chưa duyệt" wording) must query at least
+  `status="candidate"` AND `status="confirmed"` and merge results, not rely on the single default call.
+  Verified via `scripts/test_agent.py` (reproduces the exact failure) that explicit multi-status calls
+  surface the real campaigns; live Bot 2 re-verification pending (needs bot restart to pick up the prompt
+  change).
+
 - [FIXED] **Thesis manual retest (Nhóm 5.2)**: LLM hallucinated a plausible-but-nonexistent `is_internet_facing` filter param on `search_asset`
   Found on "Có tài sản nào của EVNNPC bị lộ ra Internet không?" -- the agent correctly reasoned it needed an
   internet-facing filter and guessed the parameter name `is_internet_facing` (matching the real
