@@ -29,6 +29,7 @@ from ati_evn.agent.tools import generate_playbook            # noqa
 from ati_evn.agent.tools import explain_attack_technique    # noqa
 from ati_evn.agent.tools import explain_mitigation          # noqa
 from ati_evn.agent.tools import top_attack_techniques       # noqa
+from ati_evn.agent.tools import top_cve_by_finding_count    # noqa
 from ati_evn.agent.tools import search_campaigns            # noqa
 from ati_evn.agent.tools import get_campaign_detail         # noqa
 from ati_evn.agent.tools import search_exposures             # noqa

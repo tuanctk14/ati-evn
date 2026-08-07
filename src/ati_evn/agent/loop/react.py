@@ -11,7 +11,10 @@ import logging
 import re
 import time
 
-from ati_evn.agent.loop.config import EVN_SCOPE_RULES, MAX_STEPS, TOKEN_SOFT_CAP, render_context_prefix
+from ati_evn.agent.loop.config import (
+    EVN_SCOPE_RULES, MAX_STEPS, TOKEN_SOFT_CAP, TOOL_SELECTION_HEURISTICS,
+    render_context_prefix,
+)
 from ati_evn.agent.loop.trace import AgentRunTrace, ToolCallTrace
 from ati_evn.agent.session.state import SessionState
 from ati_evn.agent.tools import TOOL_REGISTRY
@@ -54,10 +57,15 @@ Rules:
   off before you finish it. Prioritize the most important 5-10 items
   plus a total count over listing every single one.
 
+## Tool selection heuristics
+
+{tool_selection_heuristics}
+
 {evn_scope_rules}
 """
 
 REACT_SYSTEM = REACT_SYSTEM.replace("{evn_scope_rules}", EVN_SCOPE_RULES)
+REACT_SYSTEM = REACT_SYSTEM.replace("{tool_selection_heuristics}", TOOL_SELECTION_HEURISTICS)
 
 ACTION_RE = re.compile(
     r"Action:\s*(?P<name>\w+).*?Action Input:\s*(?P<args>\{.*?\})",

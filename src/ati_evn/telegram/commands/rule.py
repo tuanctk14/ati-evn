@@ -41,11 +41,10 @@ async def cmd_rule(message: Message):
     args = parse_args(message.text or "", "rule")
     pos = args.get("_positional", [])
     if not pos:
-        await message.answer("Cú pháp: /rule <CVE-ID> [--regen] [--aql]")
+        await message.answer("Cú pháp: /rule <CVE-ID> [--regen]")
         return
     cve_id = pos[0].upper()
     regen = bool(args.get("regen"))
-    show_aql = bool(args.get("aql"))
 
     thinking = await message.answer(f"🔍 Đang tìm rule cho {cve_id}...")
 
@@ -74,7 +73,6 @@ async def cmd_rule(message: Message):
     p = result["primary_rule"]
     title = p.get("title", "?")
     yaml_text = p.get("yaml", "")
-    aql = p.get("aql")
     conf = result.get("match_confidence", 0)
 
     header_emoji = {
@@ -124,15 +122,3 @@ async def cmd_rule(message: Message):
     else:
         f = BufferedInputFile(yaml_text.encode("utf-8"), filename=f"{cve_id}_sigma.yml")
         await message.answer_document(f, caption="Sigma YAML (file)")
-
-    if show_aql and aql:
-        if len(aql) < 3500:
-            await message.answer(f"--- QRadar AQL ---\n\n```\n{aql}\n```", parse_mode="Markdown")
-        else:
-            f = BufferedInputFile(aql.encode("utf-8"), filename=f"{cve_id}_qradar.aql")
-            await message.answer_document(f, caption="QRadar AQL (file)")
-    elif show_aql and not aql:
-        await message.answer(
-            "AQL không có (pysigma QRadar backend không load được hoặc "
-            "conversion fail). Copy YAML rồi convert local với `sigma-cli convert -t qradar`."
-        )

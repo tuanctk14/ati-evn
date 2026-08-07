@@ -44,6 +44,128 @@ Example:
     customer="EVN" for that side of the comparison.
 """
 
+# Shared between SYSTEM_PROMPT (function-calling) and REACT_SYSTEM
+# (react.py) -- previously only lived in SYSTEM_PROMPT, so ReAct had no
+# idea which tool to pick for domain-specific phrasing at all. Observed
+# live: a function-calling timeout fell back to ReAct for "Sinh Sigma
+# rule cho CVE co nhieu Finding nhat" and it called generate_sigma_rule
+# with force_regen defaulting to False (the "tim/tra" behavior) despite
+# the analyst saying "Sinh" (an explicit generate request) -- ReAct had
+# never been taught that distinction because it lived only here.
+TOOL_SELECTION_HEURISTICS = """Ambiguous or intent-first-word signals — pick the tool that matches
+best. Prefer specific over generic.
+
+- "Co gi moi / recent events / hoat dong gan day" -> timeline
+- "Tom tat / summary / bao cao tong quan" -> summarize_customer or
+  generate_report
+- "Lien quan / related / dinh den" -> relationships
+- "Ai chay / who runs / dang dung" -> search_software
+- "Cu the finding/asset/CVE X" -> get_finding_detail /
+  get_customer_summary / search_cve
+- "T1XXX la gi / technique / ky thuat" -> explain_attack_technique
+- "Ky thuat/technique nao pho bien nhat / most common technique /
+  thong ke technique" -> top_attack_techniques (a true aggregate over
+  ALL matching findings). Do NOT answer this kind of question by
+  sampling a handful of individual findings via get_finding_detail --
+  a small sample is not representative and can give the wrong answer
+  (observed: sampling 3/199 findings concluded T1190 was most common
+  when the real aggregate showed T1203 was, with T1190 actually 5th).
+- "Tong hop/group-by Finding theo don vi / breakdown toan bo" -> call
+  generate_report(scope="all") FIRST -- its markdown_content already
+  contains a computed per-customer Finding breakdown (the report's
+  "by_customer" section), in ONE call, no pagination and no per-customer
+  looping needed. Do NOT try to build this breakdown yourself by
+  paginating search_findings/search_asset across the whole dataset or
+  looping per customer -- both are far more expensive and error-prone
+  (observed live: paginating ~200 findings across 10 calls burned
+  through the token budget and failed to answer at all; looping
+  search_asset with offset doesn't even answer a Finding-count
+  question, it's the wrong tool). Only fall back to search_findings
+  with offset if the analyst specifically needs the raw LIST of
+  findings beyond 20 rows (e.g. "liet ke toan bo chi tiet"), not just
+  a count-per-customer summary.
+- "CVE nao co nhieu Finding nhat / most Findings" -> top_cve_by_finding_count
+  (a true GROUP BY aggregate). Do NOT paginate search_findings across
+  the whole dataset to count manually -- observed live: 6 calls with
+  increasing offset to read all ~200 Findings, 92,420 tokens, near-total
+  failure, when one aggregate call answers it directly.
+- "M1XXX / mitigation / cach phong chong" -> explain_mitigation
+- "Tim/tra Sigma rule cho CVE X" ("tim", "tra", "co rule nao khong" --
+  looking something up) -> generate_sigma_rule with the default
+  force_regen=False (matches /rule's own default: prefer an existing
+  community rule, even a loose ATT&CK-overlap match, over generating a
+  new one). Use search_sigma_rules instead if the analyst specifically
+  only wants existing community coverage and nothing else.
+- "Sinh/tao Sigma rule cho CVE X" ("sinh", "tao", "generate" -- an
+  explicit request to CREATE one) -> generate_sigma_rule with
+  force_regen=True (matches /rule --regen), so the result is genuinely
+  AI-authored for this exact CVE rather than a generic pre-existing
+  community rule that only loosely overlaps its techniques. Say
+  plainly in your answer that this is an AI-generated rule specific to
+  the CVE, not a community rule, and that it needs analyst review
+  before deployment (the tool's own response already flags this).
+- "Playbook / phan ung / xu ly CVE X / tao playbook" -> generate_playbook
+  (NOT get_playbook -- that tool is READ-ONLY cache lookup and never
+  generates, per its own docstring; it will report "Not cached" and
+  stop instead of actually producing a playbook, which is a broken
+  response, not a safe one, when the analyst asked for one to be made).
+  generate_playbook checks the cache first and only calls the LLM on a
+  miss, so it's the correct choice for both "is there a playbook" and
+  "make me a playbook" phrasing. Pass network_segment explicitly if the
+  analyst names one (e.g. "phan doan IT" -> network_segment="internal_it");
+  otherwise it's inferred from the finding's asset when target is a
+  finding_id. Include the full markdown verbatim in your answer, not a
+  summary -- same reasoning as generate_sigma_rule's YAML output.
+- "So luong finding / how many" -> search_findings with limit=1 to see
+  total_count (efficient)
+- "campaign / chien dich / cluster / group of findings" -> search_campaigns
+  -- IMPORTANT: search_campaigns defaults to status="candidate" ONLY
+  (pending analyst review), it does NOT search across all statuses when
+  status is omitted. A general question like "chien dich nao phat hien
+  tuan nay?" / "campaign nao dang co?" (no explicit status mentioned)
+  means ANY campaign, not just pending ones -- call it at least twice,
+  once with status="candidate" and once with status="confirmed" (add
+  status="rejected"/"expired" too if the analyst's phrasing suggests
+  historical/all-time scope), and merge the results. Only rely on the
+  single default call when the analyst's wording specifically implies
+  "pending"/"chua duyet"/"cho xac nhan".
+- "chi tiet campaign X / campaign X info" -> get_campaign_detail
+- "campaign nay lien quan gi / findings trong campaign X" ->
+  relationships(entity_type=campaign, entity_id=X)
+- Empty/broad question -> search_findings with severity=HIGH last 7 days,
+  then let user narrow
+- "Tao bao cao / xuat file bao cao / bao cao PDF" -> trigger_report_generation
+  (destructive, needs confirmation) -- NOT generate_report (that's for
+  a quick inline markdown summary instead)
+- "Kiem tra / enrich IP X" -> enrich_ip (non-destructive, auto-execute)
+- "Tao finding / them finding" -> create_finding (destructive)
+- "Dong / xu ly xong / danh dau false positive finding X" ->
+  update_finding_status (destructive)
+- "Ack / xac nhan da xu ly alert X" -> acknowledge_alert (destructive)
+- "Them / sua / xoa IOC" -> add_ioc / update_ioc / delete_ioc (destructive)
+- "Them / sua khach hang, them/xoa asset" -> add_customer /
+  update_customer / add_customer_asset / remove_customer_asset
+  (destructive)
+- "Xuat CSV / export danh sach finding" -> export_findings (destructive)
+- "Danh sach report / report nao da tao" -> list_reports (non-destructive)
+- "Tai file report X" -> download_report (non-destructive)
+- "Scan tai lieu ro ri / document leak / GrayHatWarfare" ->
+  scan_document_leak (non-destructive, auto-execute)
+- "Scan brand abuse / phishing / gia mao thuong hieu" ->
+  scan_brand_abuse (non-destructive, auto-execute)
+- "Scan Censys / kiem tra dich vu mo cua IP X" -> scan_censys
+  (non-destructive, auto-execute; does NOT create findings, only
+  Exposure records)
+- "Fetch lai feed NVD/ThreatFox/MalwareBazaar/URLhaus/Feodo" ->
+  force_fetch_feed (non-destructive, auto-execute)
+- "Nhom cac finding thanh 1 campaign / gop finding lai" ->
+  create_campaign (destructive)
+- "Duyet / xac nhan campaign X la that" -> confirm_campaign (destructive)
+- "Tu choi / campaign X la false positive" -> reject_campaign (destructive)
+- "Ingest bai bao / phan tich URL threat report" -> ingest_article
+  (destructive; URL or raw text only -- PDF needs the /ingest command
+  directly since it requires a Telegram file download)"""
+
 SYSTEM_PROMPT = """You are ATI-EVN's analyst assistant, a threat
 intelligence agent for Vietnam Electricity (EVN) SOC.
 
@@ -352,114 +474,7 @@ real result to the analyst (id, counts, download hint).
 
 ## Tool selection heuristics
 
-Ambiguous or intent-first-word signals — pick the tool that matches
-best. Prefer specific over generic.
-
-- "Co gi moi / recent events / hoat dong gan day" -> timeline
-- "Tom tat / summary / bao cao tong quan" -> summarize_customer or
-  generate_report
-- "Lien quan / related / dinh den" -> relationships
-- "Ai chay / who runs / dang dung" -> search_software
-- "Cu the finding/asset/CVE X" -> get_finding_detail /
-  get_customer_summary / search_cve
-- "T1XXX la gi / technique / ky thuat" -> explain_attack_technique
-- "Ky thuat/technique nao pho bien nhat / most common technique /
-  thong ke technique" -> top_attack_techniques (a true aggregate over
-  ALL matching findings). Do NOT answer this kind of question by
-  sampling a handful of individual findings via get_finding_detail --
-  a small sample is not representative and can give the wrong answer
-  (observed: sampling 3/199 findings concluded T1190 was most common
-  when the real aggregate showed T1203 was, with T1190 actually 5th).
-- "Tong hop/group-by Finding theo don vi / breakdown toan bo" -> call
-  generate_report(scope="all") FIRST -- its markdown_content already
-  contains a computed per-customer Finding breakdown (the report's
-  "by_customer" section), in ONE call, no pagination and no per-customer
-  looping needed. Do NOT try to build this breakdown yourself by
-  paginating search_findings/search_asset across the whole dataset or
-  looping per customer -- both are far more expensive and error-prone
-  (observed live: paginating ~200 findings across 10 calls burned
-  through the token budget and failed to answer at all; looping
-  search_asset with offset doesn't even answer a Finding-count
-  question, it's the wrong tool). Only fall back to search_findings
-  with offset if the analyst specifically needs the raw LIST of
-  findings beyond 20 rows (e.g. "liet ke toan bo chi tiet"), not just
-  a count-per-customer summary.
-- "M1XXX / mitigation / cach phong chong" -> explain_mitigation
-- "Tim/tra Sigma rule cho CVE X" ("tim", "tra", "co rule nao khong" --
-  looking something up) -> generate_sigma_rule with the default
-  force_regen=False (matches /rule's own default: prefer an existing
-  community rule, even a loose ATT&CK-overlap match, over generating a
-  new one). Use search_sigma_rules instead if the analyst specifically
-  only wants existing community coverage and nothing else.
-- "Sinh/tao Sigma rule cho CVE X" ("sinh", "tao", "generate" -- an
-  explicit request to CREATE one) -> generate_sigma_rule with
-  force_regen=True (matches /rule --regen), so the result is genuinely
-  AI-authored for this exact CVE rather than a generic pre-existing
-  community rule that only loosely overlaps its techniques. Say
-  plainly in your answer that this is an AI-generated rule specific to
-  the CVE, not a community rule, and that it needs analyst review
-  before deployment (the tool's own response already flags this).
-- "Playbook / phan ung / xu ly CVE X / tao playbook" -> generate_playbook
-  (NOT get_playbook -- that tool is READ-ONLY cache lookup and never
-  generates, per its own docstring; it will report "Not cached" and
-  stop instead of actually producing a playbook, which is a broken
-  response, not a safe one, when the analyst asked for one to be made).
-  generate_playbook checks the cache first and only calls the LLM on a
-  miss, so it's the correct choice for both "is there a playbook" and
-  "make me a playbook" phrasing. Pass network_segment explicitly if the
-  analyst names one (e.g. "phan doan IT" -> network_segment="internal_it");
-  otherwise it's inferred from the finding's asset when target is a
-  finding_id. Include the full markdown verbatim in your answer, not a
-  summary -- same reasoning as generate_sigma_rule's YAML output.
-- "So luong finding / how many" -> search_findings with limit=1 to see
-  total_count (efficient)
-- "campaign / chien dich / cluster / group of findings" -> search_campaigns
-  -- IMPORTANT: search_campaigns defaults to status="candidate" ONLY
-  (pending analyst review), it does NOT search across all statuses when
-  status is omitted. A general question like "chien dich nao phat hien
-  tuan nay?" / "campaign nao dang co?" (no explicit status mentioned)
-  means ANY campaign, not just pending ones -- call it at least twice,
-  once with status="candidate" and once with status="confirmed" (add
-  status="rejected"/"expired" too if the analyst's phrasing suggests
-  historical/all-time scope), and merge the results. Only rely on the
-  single default call when the analyst's wording specifically implies
-  "pending"/"chua duyet"/"cho xac nhan".
-- "chi tiet campaign X / campaign X info" -> get_campaign_detail
-- "campaign nay lien quan gi / findings trong campaign X" ->
-  relationships(entity_type=campaign, entity_id=X)
-- Empty/broad question -> search_findings with severity=HIGH last 7 days,
-  then let user narrow
-- "Tao bao cao / xuat file bao cao / bao cao PDF" -> trigger_report_generation
-  (destructive, needs confirmation) -- NOT generate_report (that's for
-  a quick inline markdown summary instead)
-- "Kiem tra / enrich IP X" -> enrich_ip (non-destructive, auto-execute)
-- "Tao finding / them finding" -> create_finding (destructive)
-- "Dong / xu ly xong / danh dau false positive finding X" ->
-  update_finding_status (destructive)
-- "Ack / xac nhan da xu ly alert X" -> acknowledge_alert (destructive)
-- "Them / sua / xoa IOC" -> add_ioc / update_ioc / delete_ioc (destructive)
-- "Them / sua khach hang, them/xoa asset" -> add_customer /
-  update_customer / add_customer_asset / remove_customer_asset
-  (destructive)
-- "Xuat CSV / export danh sach finding" -> export_findings (destructive)
-- "Danh sach report / report nao da tao" -> list_reports (non-destructive)
-- "Tai file report X" -> download_report (non-destructive)
-- "Scan tai lieu ro ri / document leak / GrayHatWarfare" ->
-  scan_document_leak (non-destructive, auto-execute)
-- "Scan brand abuse / phishing / gia mao thuong hieu" ->
-  scan_brand_abuse (non-destructive, auto-execute)
-- "Scan Censys / kiem tra dich vu mo cua IP X" -> scan_censys
-  (non-destructive, auto-execute; does NOT create findings, only
-  Exposure records)
-- "Fetch lai feed NVD/ThreatFox/MalwareBazaar/URLhaus/Feodo" ->
-  force_fetch_feed (non-destructive, auto-execute)
-- "Nhom cac finding thanh 1 campaign / gop finding lai" ->
-  create_campaign (destructive)
-- "Duyet / xac nhan campaign X la that" -> confirm_campaign (destructive)
-- "Tu choi / campaign X la false positive" -> reject_campaign (destructive)
-- "Ingest bai bao / phan tich URL threat report" -> ingest_article
-  (destructive; URL or raw text only -- PDF needs the /ingest command
-  directly since it requires a Telegram file download)
+{TOOL_SELECTION_HEURISTICS}
 
 ## Output format
 
@@ -497,7 +512,7 @@ automatically.
 """
 
 SYSTEM_PROMPT = SYSTEM_PROMPT.replace("{EVN_SCOPE_RULES}", EVN_SCOPE_RULES)
-
+SYSTEM_PROMPT = SYSTEM_PROMPT.replace("{TOOL_SELECTION_HEURISTICS}", TOOL_SELECTION_HEURISTICS)
 
 _ANAPHORA_RE = re.compile(
     r"\b("

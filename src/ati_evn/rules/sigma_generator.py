@@ -4,8 +4,7 @@ Uses the project's OpenAI-compatible LLMClient (9Router / deepseek-v4-flash,
 see llm/client.py). Uses a similar-product community rule as few-shot when
 available.
 
-Output: dict with `sigma_yaml`, `confidence`, `analyst_notes`. Caller
-converts YAML -> AQL separately (aql_converter.py).
+Output: dict with `sigma_yaml`, `confidence`, `analyst_notes`.
 """
 from __future__ import annotations
 

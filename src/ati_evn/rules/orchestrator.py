@@ -8,7 +8,7 @@ Returns:
       "source": "community" | "ai_generated",
       "community_count": 5,           # total community rules found
       "primary_rule": {
-          "title": ..., "yaml": ..., "aql": ..., "source_ref": ...,
+          "title": ..., "yaml": ..., "source_ref": ...,
           "score": 130, "level": "high", "status": "stable",
           "reasoning": "stable | high | ATT&CK overlap: [T1190]",
       },
@@ -24,7 +24,6 @@ from ati_evn.config import get_settings
 from ati_evn.db.models import CveCweMap, CveProductMap, Detection, Finding
 from ati_evn.db.session import async_session
 from ati_evn.llm.client import LLMClient
-from ati_evn.rules.aql_converter import sigma_yaml_to_aql
 from ati_evn.rules.rule_matcher import ScoredRule, find_behavior_rules, find_community_rules
 from ati_evn.rules.sigma_generator import generate_sigma_rule
 
@@ -119,7 +118,6 @@ def _build_community_response(
         "primary_rule": {
             "title": primary.rule.title,
             "yaml": yaml_text,
-            "aql": sigma_yaml_to_aql(yaml_text),
             "source_ref": f"{SIGMA_GITHUB_BLOB_BASE}{primary.rule.source_path}",
             "score": primary.score,
             "level": primary.rule.level,
@@ -183,7 +181,6 @@ async def get_rule_for_cve(cve_id: str, *, force_regen: bool = False) -> dict:
             "primary_rule": {
                 "title": f"AI-generated rule for {cve_id_upper}",
                 "yaml": ai_result["sigma_yaml"],
-                "aql": sigma_yaml_to_aql(ai_result["sigma_yaml"]),
                 "source_ref": None,
             },
             "ai_metadata": {

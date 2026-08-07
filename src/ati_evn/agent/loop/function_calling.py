@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 
 from ati_evn.agent.loop.config import (
@@ -19,6 +20,14 @@ from ati_evn.agent.tools import TOOL_REGISTRY
 from ati_evn.agent.tools._base import get_all_openai_schemas
 
 logger = logging.getLogger("ati_evn.agent.fc")
+
+# Matches a provider's internal special-token markup for tool calls
+# leaking into `message.content` as literal text instead of being
+# parsed into the structured `tool_calls` field -- observed live with
+# DeepSeek's "<｜DSML｜tool calls>" / "<｜DSML｜invoke name=...>" tokens
+# (both the full-width "｜" variant and a plain "|" fallback in case a
+# different provider/version emits ASCII pipes for the same markup).
+_RAW_TOOL_SYNTAX_RE = re.compile(r"<[｜|]DSML[｜|](?:tool[_ ]calls|invoke)")
 
 
 class FunctionCallingFailure(Exception):
@@ -102,6 +111,27 @@ async def run_function_calling(
         finish_reason = choices[0].get("finish_reason")
 
         if not tool_calls:
+            # Observed live: the model sometimes writes its tool-call
+            # attempt as literal text using the provider's internal
+            # special-token format (e.g. DeepSeek's "<｜DSML｜tool
+            # calls>...<｜DSML｜invoke name=...>...") instead of the
+            # provider correctly parsing it into the structured
+            # `tool_calls` field -- likely a backend-routing hiccup
+            # (same class of issue as the "grammar-constrained decoding"
+            # 400 errors elsewhere in this client). Left unguarded, this
+            # non-empty, non-truncated content would be treated as a
+            # valid final answer and sent verbatim to the analyst,
+            # leaking raw model-internal syntax into the Telegram
+            # message. Treat it as a structural failure (like invalid
+            # JSON args below) so runner.py retries function-calling
+            # once, then falls back to ReAct -- which uses plain-text
+            # Thought/Action format and doesn't depend on the
+            # provider's structured tool_calls parsing at all.
+            if _RAW_TOOL_SYNTAX_RE.search(content):
+                raise FunctionCallingFailure(
+                    f"Model leaked raw tool-call syntax instead of "
+                    f"structured tool_calls: {content[:150]!r}"
+                )
             if not content.strip():
                 # Empty content + no tool_calls + finish_reason="length" means
                 # the model's response got cut off mid-generation by
@@ -277,7 +307,14 @@ async def _force_final_answer(client, messages, trace) -> tuple[str, AgentRunTra
         "content": (
             "Đã dùng hết budget hoặc max steps. Hãy tổng hợp câu trả lời "
             "cuối cùng cho analyst dựa trên dữ liệu đã thu thập được, "
-            "không cần gọi thêm tool. Trả lời ngắn gọn, tiếng Việt."
+            "không cần gọi thêm tool. Trả lời ngắn gọn, tiếng Việt -- "
+            "TRỪ KHI một tool result phía trên chứa nội dung cần giữ "
+            "nguyên văn theo đúng chỉ dẫn của tool đó (ví dụ Sigma rule "
+            "YAML từ generate_sigma_rule/search_sigma_rules, markdown "
+            "playbook từ generate_playbook/get_playbook) -- trong "
+            "trường hợp đó VẪN PHẢI dán nguyên văn toàn bộ nội dung đó, "
+            "không paraphrase hay tóm tắt thành văn xuôi, chỉ được rút "
+            "gọn phần bình luận/giải thích xung quanh nó."
         ),
     })
     response = await client.chat_with_tools(

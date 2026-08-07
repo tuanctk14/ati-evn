@@ -32,7 +32,7 @@ QUERY (chỉ đọc):
   /stats /list_open /list_alerts
 
 RULES + CONTENT:
-  /rule <CVE-ID> [--regen] [--aql]
+  /rule <CVE-ID> [--regen]
   /playbook <CVE-ID | finding_id>
   /export <type> [flags]
 
@@ -133,7 +133,7 @@ HELP_DETAIL = {
     "stats": "/stats\n\nDashboard tổng quan: finding counts, alert stats, top ATT&CK, top vendors.",
     "list_open": "/list_open [flags]\n\nDanh sách Finding open.\nFlags:\n  --severity=HIGH|MEDIUM|LOW|CRITICAL\n  --customer=<name>\n  --limit=<N> (default 10)\n  --page=<N> (default 1)\n\nVí dụ: /list_open --severity=HIGH --limit=5",
     "list_alerts": "/list_alerts [flags]\n\nDanh sách alert đã dispatch.\nFlags:\n  --recent=24h|1h|7d\n  --customer=<name>\n  --state=dispatched|failed|deduped",
-    "rule": "/rule <CVE-ID> [--regen] [--aql]\n\nTìm Sigma rule cho CVE (community trực tiếp → community theo ATT&CK → AI generate). --regen ép AI tạo mới. --aql xuất kèm QRadar AQL nếu có.\n\nVí dụ: /rule CVE-2024-12345\n       /rule CVE-2024-12345 --regen --aql",
+    "rule": "/rule <CVE-ID> [--regen]\n\nTìm Sigma rule cho CVE (community trực tiếp → community theo ATT&CK → AI generate). --regen ép AI tạo mới.\n\nVí dụ: /rule CVE-2024-12345\n       /rule CVE-2024-12345 --regen",
     "playbook": "/playbook <CVE-ID | finding_id>\n\nSinh NIST 800-61 playbook (Identification/Containment/Eradication/Recovery/Lessons Learned). Cache theo (cve_id, network_segment).\n\nVí dụ: /playbook CVE-2024-12345\n       /playbook 12847",
     "export": "/export <type> [flags]\n\nTypes: findings | alerts | assets | ioc_summary | weekly_report\nFlags:\n  --customer=<name>\n  --since=7d|24h\n  --format=csv|json|md|pdf\n  --limit=<N> (findings/alerts)\n\nVí dụ: /export findings --limit=20 --format=csv\n       /export weekly_report --format=pdf",
     "add_customer": "/add_customer --name=X [--parent=Y] [--domain=Z] [--short-code=X] [--tier=critical|high|medium]\n\nVí dụ: /add_customer --name=\"EVN TEST\" --tier=high",
