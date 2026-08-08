@@ -212,6 +212,57 @@ _SNAKE_CASE_RE = re.compile(
 )
 
 
+# A Sigma rule pasted as raw text without a ```yaml fence -- observed
+# live: generate_sigma_rule's tool description explicitly instructs
+# "include the FULL raw YAML ... in a ```yaml code block", but the
+# model sometimes pastes the YAML unfenced anyway (behavioral
+# discipline an LLM won't reliably follow, same rationale as every
+# other postfilter fix here). Unfenced YAML loses Telegram's monospace
+# rendering and can get its indentation/blank-list-items mangled by
+# the legacy Markdown parser.
+#
+# Detection strategy: a bare "title:" line followed (anywhere later,
+# not necessarily immediately) by "logsource:" and "detection:" lines
+# is a strong, low-false-positive signal of an unfenced Sigma rule --
+# these three keys together are specific enough that ordinary prose
+# won't produce them by coincidence. Once found, the block is taken to
+# run from "title:" through the end of the text (Sigma YAML is always
+# the last thing in these answers, per the tool's own instructions
+# about not padding it with more prose afterward) or up to a trailing
+# "Gợi ý"/"Next step" paragraph if the model added one anyway.
+_SIGMA_TITLE_LINE_RE = re.compile(r"^title:.*$", re.MULTILINE)
+_SIGMA_LOGSOURCE_LINE_RE = re.compile(r"^logsource:\s*$", re.MULTILINE)
+_SIGMA_DETECTION_LINE_RE = re.compile(r"^detection:\s*$", re.MULTILINE)
+_TRAILING_HINT_RE = re.compile(
+    r"\n\n(?=(?:Gợi ý|Ghi chú|Lưu ý|Next step|Tiếp theo)\b)"
+)
+
+
+def _ensure_yaml_fenced(text: str) -> str:
+    """Wrap an unfenced Sigma-rule-shaped block in a ```yaml fence if the
+    model pasted it as raw text instead. Leaves already-fenced YAML
+    (```yaml ... ```) untouched -- only acts when title/logsource/
+    detection appear as bare text with no fence around them."""
+    if "```" in text:
+        # A fence already exists somewhere in the answer -- assume the
+        # model followed instructions for this occurrence (or any
+        # other YAML block present) rather than risk double-fencing or
+        # matching inside an already-fenced block.
+        return text
+    m_title = _SIGMA_TITLE_LINE_RE.search(text)
+    if not m_title:
+        return text
+    rest = text[m_title.start():]
+    if not (_SIGMA_LOGSOURCE_LINE_RE.search(rest) and _SIGMA_DETECTION_LINE_RE.search(rest)):
+        return text
+
+    m_hint = _TRAILING_HINT_RE.search(text, m_title.start())
+    block_end = m_hint.start() if m_hint else len(text)
+    block = text[m_title.start():block_end].rstrip()
+    fenced = f"```yaml\n{block}\n```"
+    return text[: m_title.start()] + fenced + text[block_end:]
+
+
 def _table_row_cells(line: str) -> list[str]:
     stripped = line.strip().strip("|")
     return [c.strip() for c in stripped.split("|")]
@@ -247,12 +298,31 @@ def sanitize_telegram_markdown(text: str) -> str:
     equivalents that actually render in Telegram's legacy Markdown mode."""
     if not text:
         return text
-    text = _convert_tables(text)
-    text = _HEADING_RE.sub(lambda m: f"*{m.group(1)}*", text)
-    text = _BOLD_RE.sub(lambda m: f"*{m.group(1)}*", text)
-    text = _HR_RE.sub("", text)
-    text = _NESTED_DASH_RE.sub(r"\1+\2", text)
-    text = _SNAKE_CASE_RE.sub(lambda m: m.group(1).replace("_", " "), text)
+    text = _ensure_yaml_fenced(text)
+
+    # Everything below rewrites PROSE formatting (headings, tables,
+    # bullets, snake_case field names) that make sense to "fix" in the
+    # analyst's narrative text, but NOT inside a ```-fenced code block
+    # -- a Sigma rule's actual YAML syntax uses "-" for list items and
+    # snake_case keys/values on purpose, and rewriting those mangles
+    # the rule itself (observed live: _SNAKE_CASE_RE turned
+    # "wsrep_notify_cmd" into "wsrep notify cmd" and "ai_generated"
+    # into "ai generated" INSIDE the YAML, and _NESTED_DASH_RE turned
+    # every YAML list "-" into "+", both invalid YAML). Split off fenced
+    # segments, transform only the segments outside them, then
+    # reassemble unchanged.
+    segments = re.split(r"(```.*?```)", text, flags=re.DOTALL)
+    for i, seg in enumerate(segments):
+        if seg.startswith("```"):
+            continue  # leave fenced code untouched
+        seg = _convert_tables(seg)
+        seg = _HEADING_RE.sub(lambda m: f"*{m.group(1)}*", seg)
+        seg = _BOLD_RE.sub(lambda m: f"*{m.group(1)}*", seg)
+        seg = _HR_RE.sub("", seg)
+        seg = _NESTED_DASH_RE.sub(r"\1+\2", seg)
+        seg = _SNAKE_CASE_RE.sub(lambda m: m.group(1).replace("_", " "), seg)
+        segments[i] = seg
+    text = "".join(segments)
     # collapse the blank-line runs left behind by a removed "---" line
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
